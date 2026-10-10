@@ -11,7 +11,7 @@
 ## 실행
 
 ```bash
-npm run build      # dist/index.html 한 파일로 묶는다 → 브라우저로 열면 바로 된다
+npm run build      # dist/index.html 한 파일로 묶는다(글꼴까지) → 인터넷 없이도 브라우저로 열면 된다
 npm test           # 빠른 점검 (물길·새 게임·난이도별 봇 진행·저장 왕복·결말)
 npm run sim:battle   # 난이도별 해전 승률 (예고를 읽는 봇 / 아무 수나 누르는 봇)
 npm run sim:economy  # 난이도별 상납 생존 · 상납 대비 재산 · 항해 사건 분포 (몇 분 걸린다)
@@ -24,10 +24,12 @@ npm run sim:dive     # 잠수 욕심별 기대값
 
 ```
 src/
-  page.html   화면 뼈대와 스타일 (한지 해도 테마)
+  page.html   화면 뼈대와 스타일 (한지·먹·단청 — 색·글꼴·움직임 토큰이 맨 위 :root에 있다)
   core.js     규칙 엔진 — DOM 없음. node에서 require 해서 시뮬레이션할 수 있다
   ui.js       캔버스 해도, 모달, 소리, 입력, 흐름
-tools/build.js   세 파일을 dist/index.html 하나로
+assets/fonts/     게임 글자만 남긴 woff2 글꼴 4벌과 사용 허락(SIL OFL 1.1)
+tools/build.js   세 파일과 글꼴을 dist/index.html 하나로
+tools/fonts.py   글꼴 부분 집합 만들기 (pip install fonttools brotli)
 test/
   smoke.js       CI에서 매번 도는 빠른 점검
   sim/           밸런스 시뮬레이션 (경제·해전·잠수)
