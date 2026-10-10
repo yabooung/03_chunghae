@@ -29,7 +29,7 @@ def is_hanja(c):
 
 def source_chars():
     txt = ''
-    for f in ('core.js', 'ui.js', 'page.html'):
+    for f in ('core.js', 'art/scenes.js', 'ui.js', 'page.html'):
         with open(os.path.join(ROOT, 'src', f), encoding='utf8') as fh:
             txt += fh.read()
     chars = set(txt) | {chr(c) for c in range(0x20, 0x7F)} | set('0123456789+-−×·…—–%,.₩')

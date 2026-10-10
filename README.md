@@ -28,6 +28,7 @@ src/
   core.js     규칙 엔진 — DOM 없음. node에서 require 해서 시뮬레이션할 수 있다
   ui.js       캔버스 해도, 모달, 소리, 입력, 흐름
   art/        손으로 짠 SVG 그림 — portraits.js: 인물 초상 34명(선장·선원·두목·이야기 인물)
+  art/scenes.js 장면 그림 — 항구 29곳(원형 6 + 청해진), 사건 카드 30장, 두목·해적 배, 결말 13장 (캔버스)
 assets/fonts/     게임 글자만 남긴 woff2 글꼴 4벌과 사용 허락(SIL OFL 1.1)
 tools/build.js   page·core·art·ui와 글꼴을 dist/index.html 하나로
 tools/fonts.py   글꼴 부분 집합 만들기 (pip install fonttools brotli)

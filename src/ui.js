@@ -407,7 +407,7 @@ const PIPS = { 1: [[16, 16]], 2: [[10, 10], [22, 22]], 3: [[9, 9], [16, 16], [23
 const die = n => `<svg viewBox="0 0 32 32" aria-label="${n}"><rect x="2" y="2" width="28" height="28" rx="5"/>${PIPS[n].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${n === 1 ? 4.2 : 2.7}" class="${n === 1 || n === 4 ? 'r' : ''}"/>`).join('')}</svg>`;
 function paintPanel() {
   const s = S(); if (!s || s.mode !== 'port') return; const k = s.at, P = C.PORTS[k]; C.tickMarket(k); const m = s.markets[k], d = Math.floor(s.t);
-  $('pSeal').textContent = P.ch; $('pName').textContent = P.name; $('pSub').textContent = `${P.nation} · 정박 중`;
+  $('pSeal').textContent = P.ch; $('pName').textContent = P.name; $('pSub').textContent = `${P.nation} · 정박 중`; ART.portBanner($('pHead'), k, s.t);
   const free = C.freeSlots();
   const tiles = m.stock.map(id => { const g = C.G[id], pr = C.cratePrice(k, id), pct = C.pctOf(k, id), [tc, tl] = tagFor(pct), b = C.activeBoom(k, id, d);
     return `<button class="good" data-buy="${id}" ${!free || s.gold < pr ? 'disabled' : ''}>${gi(g)}<span class="tagl ${tc}">${tl}</span><span class="nm">${g.name}</span><span class="pr">${fmt(pr)}<small> 냥</small></span>${b ? `<span class="boom">${b.slump ? '남아돈다' : '유행'}</span>` : ''}</button>`; }).join('');
@@ -533,7 +533,7 @@ function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.in
 const EV_CH = { storm: '風', calm: '靜', wreck: '破', sail: '帆', castaway: '漂', reef: '礁', fairwind: '順', monk: '僧', captives: '奴', ghost: '鬼', spout: '龍', whale: '鯨', fog: '霧', fever: '病', grumble: '怨', smuggler: '密', stars: '星', envoy: '使', drift: '流', pirate: '賊', rival: '商' };
 function openEvent(ev) { const s = S(); AU[['storm', 'pirate'].includes(ev.id) ? 'drum' : 'chime']();
   $('evCard').innerHTML = `<span class="ev-ink" aria-hidden="true">${EV_CH[ev.id] || '海'}</span><div class="eyebrow">바다에서 · ${C.dateStr(s.t)}</div><h2 style="padding-right:56px">${ev.title}</h2><p>${ev.text}</p><div class="choices">${ev.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
-  $('mEvent').hidden = false; $('evCard').querySelector('.choice').focus({ preventScroll: true });
+  ART.cardArt($('evCard'), 'ev', ev.id); $('mEvent').hidden = false; $('evCard').querySelector('.choice').focus({ preventScroll: true });
   $('evCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = C.choose(+b.dataset.i); if (r.battle) { $('mEvent').hidden = true; openBattle(); return; } if (r.map) mapAppear[r.map.id] = performance.now(); if (r.good) AU.good(); else if (r.bad) AU.bad();
     $('evCard').querySelector('.choices').outerHTML = `<div class="result ${r.good ? 'good' : r.bad ? 'bad' : ''}">${r.text}</div><div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn main" id="evOk">계속</button></div>`;
     $('evOk').focus({ preventScroll: true });
@@ -555,7 +555,7 @@ function openReveal(info) { panelTab = 'market';
   $('rvCard').innerHTML = `<div class="eyebrow">입항 · ${C.dateStr(s.t)}</div><h2>${P.name}</h2><p class="sub" style="margin:0">${sub}</p>${fresh}${deliv}${extraHtml}${rivals}${info.letter ? `<p class="letter">${s.boons.letters ? '비둘기 편지' : '아사 동생의 편지'} — “${info.letter.line}”</p>` : ''}
     ${info.items.length ? `<div class="crates">${cards}</div><div class="total"><span>팔면</span><span class="big" id="rvTotal">…</span></div>` : '<p style="margin-top:14px">빈 배로 들어왔다.</p>'}
     <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn main" id="rvOk">${info.items.length ? '팔고 내린다' : '내린다'}</button></div>`;
-  $('mReveal').hidden = false; if (info.delivered.length || extra.length) AU.good(); spNote = null;
+  ART.cardArt($('rvCard'), 'port', info.k, s.t); $('mReveal').hidden = false; if (info.delivered.length || extra.length) AU.good(); spNote = null;
   const total = () => info.items.reduce((a, it, n) => a + (sell[n] ? it.profit : 0), 0);
   const paintTotal = () => { const el = $('rvTotal'); if (!el) return; const t = total(); el.textContent = (t >= 0 ? '+' : '') + fmt(t); el.className = 'big ' + (t >= 0 ? 'up' : 'dn'); };
   info.items.forEach((it, n) => setTimeout(() => { const c = $('rvCard').querySelector(`.flip[data-n="${n}"]`); if (!c) return; c.classList.add('open'); AU.flip();
@@ -593,7 +593,7 @@ function openStory(st) { if (st.who === 'main' && !st.title.includes('마지막'
   const sp = PORTRAIT.speaker(Object.assign({ fin: /막이 내린다$/.test(st.title) }, st), S().cap, C.NUM.indexOf(st.act)); // 말하는 사람 초상, 없으면 글자 도장
   $('stCard').innerHTML = `${sp ? `<span class="who pt">${PORTRAIT.svg(sp.id, { size: 84, expr: sp.expr, frame: st.who === 'main' ? 'card' : 'round' })}</span>` : `<span class="who ${st.who === 'inspector' ? 'inspector' : ''}">${ch}</span>`}<div class="eyebrow">이야기</div><h2 style="padding-right:${sp ? 92 : 64}px">${st.title}</h2><p>${st.text}</p>${st.sub ? `<p class="sub">${st.sub}</p>` : ''}
     <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
-  $('stCard').classList.toggle('chapter', st.who === 'main'); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
+  $('stCard').classList.toggle('chapter', st.who === 'main'); if (st.who === 'port' && ART.PE_BY_TITLE[st.title]) ART.cardArt($('stCard'), 'ev', ART.PE_BY_TITLE[st.title]); else ART.clearArt($('stCard')); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
   $('stCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = st.opts[+b.dataset.i].apply(); $('mStory').hidden = true; if (r) toast(r); if (S().mode === 'port') after(); else paintHud(); setTimeout(runStories, 250); }); }
 
 
@@ -640,7 +640,7 @@ function drawBattle() { const c = $('btCv'); if (!c || !BT.w) return; const g = 
   if (B.dist === 'near' && !dead) { g.strokeStyle = 'rgba(27,35,36,.6)'; g.lineWidth = 1.2; for (const dy of [-22, -8]) { g.beginPath(); g.moveTo(mx + 50 * sc, wl + dy * sc + bob); g.quadraticCurveTo((mx + fx) / 2, wl + dy * sc + 14, fx - 50 * sc, wl + dy * sc - bob); g.stroke(); } }
   shipSide(g, mx, wl + bob + BT.me.sink * 30 * sc, sc * (1 + S().tier * .06), { dir: 1, roll: Math.sin(t * 1.6) * .03 + BT.me.sink * .3, flag: COL.ju, t, alpha: 1 - BT.me.sink * .6 });
   const big = B.e.boss ? 1.18 : B.spec && B.spec.kind === 'black' ? 1.1 : 1;
-  shipSide(g, fx, wl - bob + BT.foe.sink * 34 * sc, sc * big, { dir: -1, hull: look[0], sail: look[1], sail2: look[1], trim: look[2], roll: Math.sin(t * 1.4 + 1) * .03 + BT.foe.sink * .35, flag: B.e.boss ? COL.ju : COL.ink, t, tatter: !B.e.boss, ch: B.e.ch, chBg: B.e.boss ? COL.ju : COL.ink, alpha: 1 - BT.foe.sink * .7 });
+  ART.foe(g, fx, wl - bob + BT.foe.sink * 34 * sc, sc * big, { dir: -1, hull: look[0], sail: look[1], sail2: look[1], trim: look[2], roll: Math.sin(t * 1.4 + 1) * .03 + BT.foe.sink * .35, flag: B.e.boss ? COL.ju : COL.ink, t, tatter: !B.e.boss, ch: B.e.ch, chBg: B.e.boss ? COL.ju : COL.ink, alpha: 1 - BT.foe.sink * .7 }, B);
   g.fillStyle = 'rgba(74,123,128,.55)'; g.beginPath(); g.moveTo(0, wl + 4); for (let x = 0; x <= w; x += 6) g.lineTo(x, wl + 4 + Math.sin(x / 18 + t * 2) * 2.2); g.lineTo(w, h); g.lineTo(0, h); g.fill();
   waveRow(g, wl + 6, w, 2.5, 26, t * 1.6, .32, 1.2, true);
   if (!B.over) { const I = B.intent, danger = I.dmg >= B.e.atk * 1.4, warn = I.k === 'aim'; if (danger || warn) { const ex = fx, ey = wl - 118 * sc * big + Math.sin(t * 4) * 2; g.fillStyle = danger ? COL.ju : COL.hwang; g.beginPath(); g.moveTo(ex, ey + 15); g.lineTo(ex - 7, ey + 6); g.lineTo(ex + 7, ey + 6); g.fill(); g.fillRect(ex - 13, ey - 20, 26, 26); g.fillStyle = COL.hanji2; g.font = `600 18px ${css('--ui')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', ex, ey - 6.5); } }
@@ -892,7 +892,7 @@ function finish(retire) {
     <ul class="fates">${s.crew.map(c => `<li><b>${C.CREW.find(x => x.k === c.k).name}</b><span>${fate(c)}</span></li>`).join('')}</ul>
     ${unl.length ? `<div class="unlock">${unl.join('<br>')}</div>` : ''}
     <div class="start-row" style="margin-top:20px;justify-content:flex-start"><button class="btn main" id="eAgain">다시 바다로</button><button class="btn" id="eTitle">선장 고르기</button></div>`;
-  $('sEnd').hidden = false; AU[why === 'retire' ? 'gong' : 'drum']();
+  ART.endArt($('endScroll'), E ? s.ending : why); $('sEnd').hidden = false; AU[why === 'retire' ? 'gong' : 'drum']();
   $('eAgain').onclick = () => { $('sEnd').hidden = true; startGame(s.cap, s.diff); };
   $('eTitle').onclick = () => { $('sEnd').hidden = true; showTitle(); };
 }
