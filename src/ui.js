@@ -469,8 +469,8 @@ $('pBody').addEventListener('click', e => {
     if (r.order) rumorPulse[r.order.to] = performance.now(); if (r.dive) { after(); openDive(); return; } after(); runStories(); return; }
   const a = b.dataset.act;
   if (a === 'accept') { const o = C.acceptOffer(s.at); if (o) { AU.chime(); toast(`의뢰를 맡았다 — ${C.PORTS[o.to].name}까지 ${C.G[o.good].name} ${o.n}상자, ${o.days}일 안에.`, 'good'); } after(); return; }
-  if (a === 'rumor') { const r = C.buyRumor(); if (!r.ok) { toast(r.msg); return; } AU.chime(); lastQuote = `“${r.text.line}”`; if (r.text.k && r.text.id) { const inf = C.infoFor(r.text.k, r.text.id); feedMarket(r.text.k, r.text.id, inf && inf.price > C.G[r.text.id].base * 1.1 ? 'up' : 'down', null, `— ${r.text.line.replace(/^.*?(에선|에|에서) /, '')}`, '선술집 소문'); } else journal(r.text.line, ''); if (r.map) { mapAppear[r.map.id] = performance.now(); toast(`寶 보물 지도 — <b>${r.map.name}</b>`, 'good'); } if (r.text.k) rumorPulse[r.text.k] = performance.now(); after(); return; }
-  if (a === 'repair') { const c = C.repair(); if (c) { AU.tok(); toast(`배를 손봤다. ${fmt(c)}냥`); } after(); return; }
+  if (a === 'rumor') { const r = C.buyRumor(); if (!r.ok) { toast(r.msg); return; } AU.chime(); lastQuote = `“${r.text.line}”`; { const ml = C.mateLine('rumor'); if (ml) lastQuote += `<br><i>${ml.line}</i>`; } if (r.text.k && r.text.id) { const inf = C.infoFor(r.text.k, r.text.id); feedMarket(r.text.k, r.text.id, inf && inf.price > C.G[r.text.id].base * 1.1 ? 'up' : 'down', null, `— ${r.text.line.replace(/^.*?(에선|에|에서) /, '')}`, '선술집 소문'); } else journal(r.text.line, ''); if (r.map) { mapAppear[r.map.id] = performance.now(); toast(`寶 보물 지도 — <b>${r.map.name}</b>`, 'good'); } if (r.text.k) rumorPulse[r.text.k] = performance.now(); after(); return; }
+  if (a === 'repair') { const c = C.repair(); if (c) { AU.tok(); const ml = C.mateLine('repair'); toast(ml ? `${ml.line} — ${fmt(c)}냥` : `배를 손봤다. ${fmt(c)}냥`); } after(); return; }
   if (a === 'ship') { const n = C.upgrade(); if (n) { AU.gong(); banner('船', `${n.name} — 상자 ${C.capacity()}칸`); } after(); return; }
   if (a === 'tribute') { const c = C.tribute(); if (c) { AU.chime(); toast(`조정에 ${fmt(c)}냥을 바쳤다. 경계가 가라앉는다.`, 'good'); } after(); return; }
 });
@@ -528,7 +528,7 @@ function showSailbar() { const s = S(); const el = $('sailbar'); el.hidden = fal
   last.st = null; last.ch = null; el.innerHTML = `<span class="to">${s.dest ? '→ ' + C.PORTS[s.dest].name : '탐험'}<small id="sbRem"></small></span><button class="row" id="sbRow" title="노 저어라 (Space) — 기력을 써서 바람과 상관없이 빨라진다"><em>노 저어라</em><s></s></button><div class="speed" role="group" aria-label="빠르기">${SPEEDS.map((v, i) => `<button data-sp="${i}" class="${i === speedIdx ? 'on' : ''}">${v}×</button>`).join('')}</div>`;
   $('sbRow').onclick = () => toggleRow(); el.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speedIdx = +b.dataset.sp; el.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', +x.dataset.sp === speedIdx)); }); }
 const hideSailbar = () => { $('sailbar').hidden = true; $('sailbar').classList.remove('chased'); };
-function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.init(); const on = C.setRow(!s.rowing); if (on) { AU.noise(.25, { freq: 500, q: 2, gain: .25 }); AU.tone(160, { dur: .2, gain: .1 }); } else if (s.stamina <= 3) toast('선원들이 지쳤다. 기력은 쉬면서 천천히 찬다.'); paintHud(); }
+function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.init(); const on = C.setRow(!s.rowing); if (on) { const ml = C.mateLine('row'); if (ml) toast(ml.line, '', true); AU.noise(.25, { freq: 500, q: 2, gain: .25 }); AU.tone(160, { dur: .2, gain: .1 }); } else if (s.stamina <= 3) toast('선원들이 지쳤다. 기력은 쉬면서 천천히 찬다.'); paintHud(); }
 
 /* ─────────── 사건 ─────────── */
 const EV_CH = { storm: '風', calm: '靜', wreck: '破', sail: '帆', castaway: '漂', reef: '礁', fairwind: '順', monk: '僧', captives: '奴', ghost: '鬼', spout: '龍', whale: '鯨', fog: '霧', fever: '病', grumble: '怨', smuggler: '密', stars: '星', envoy: '使', drift: '流', pirate: '賊', rival: '商' };
@@ -547,7 +547,7 @@ function openReveal(info) { panelTab = 'market'; for (const mv of (info.moves ||
   const fresh = info.fresh ? `<div class="fresh"><b>처음 보는 시세표</b> — 아무도 이 항구 값을 모른다.<br>${C.GOODS.slice().sort((a, b) => s.markets[info.k].idx[b.id] - s.markets[info.k].idx[a.id]).map(g => `${g.name} <b class="num">${fmt(C.sellPrice(info.k, g.id) * C.LOT)}</b>`).join(' · ')}</div>` : '';
   const sub = [`${s.voyage.from && C.PORTS[s.voyage.from] ? C.PORTS[s.voyage.from].name + '에서 ' : ''}${info.days.toFixed(1)}일`, info.storms ? `폭풍 ${info.storms}번` : '', info.first ? '첫 입항 · 명성 +60' : ''].filter(Boolean).join(' · ');
   const deliv = info.delivered.length ? `<div class="fresh" style="border-color:var(--rok)">${info.delivered.map(o => `<b style="color:var(--rok)">의뢰 완수</b> — ${C.G[o.good].name} ${o.n}상자 · 보수 <b class="num">${fmt(o.reward)}냥</b>`).join('<br>')}</div>` : '';
-  const extra = [info.passenger ? `<b style="color:var(--rok)">${info.passenger.who}를 내려줬다</b> — 사례 ${fmt(info.passenger.gold)}냥 · 명성 +80<br>“${info.passenger.line}”` : '', ...(info.race || []).map(r => r.won ? `<b style="color:var(--rok)">${r.ch} ${r.name}보다 먼저 닿았다!</b> 명성 +25 — 값이 아직 성하다.` : `<b style="color:var(--ju)">${r.ch} ${r.name}${JO(r.name,'이','가')} 먼저 닿았다.</b>`)].filter(Boolean);
+  const extra = [info.passenger ? `<b style="color:var(--rok)">${info.passenger.who}를 내려줬다</b> — 사례 ${fmt(info.passenger.gold)}냥 · 명성 +80<br>“${info.passenger.line}”` : '', ...(info.race || []).map(r => { const vl = C.rivalLine(r.id, r.won ? 'beaten' : 'won'); return r.won ? `<b style="color:var(--rok)">${r.ch} ${r.name}보다 먼저 닿았다!</b> 명성 +25 — 값이 아직 성하다.${vl ? ` <i>${vl}</i>` : ''}` : `<b style="color:var(--ju)">${r.ch} ${r.name}${JO(r.name,'이','가')} 먼저 닿았다.</b>${vl ? ` <i>${vl}</i>` : ''}`; })].filter(Boolean);
   const extraHtml = extra.length ? `<div class="fresh" style="border-color:var(--rok)">${extra.join('<br>')}</div>` : '';
   const rivals = info.rivalHere.length ? `<p class="letter" style="color:var(--ju)">${info.rivalHere.map(r => `${r.rival.name}${JO(r.rival.name,'이','가')} 며칠 전 ${C.G[r.id].name}${JO(C.G[r.id].name,'을','를')} 풀고 갔다`).join(' · ')} — 값이 눌려 있다.</p>` : '';
   const cards = info.items.map((it, n) => { const g = C.G[it.id];
@@ -590,11 +590,11 @@ function openQuota(res) {
 
 /* ─────────── 이야기 ─────────── */
 function runStories() { const s = S(); if (!s || anyModal()) return; if (s.ended) { finish(); return; } if (s.qNotes && s.qNotes.length) { drainQuests(); return; } const st = C.nextStory(); if (!st) return; openStory(st); }
-function openStory(st) { if (st.who === 'main' && !st.title.includes('마지막')) { AU.gong(); } const ch = st.who === 'main' ? '幕' : st.who === 'port' ? '港' : st.qch && st.who === 'quest' ? st.qch : st.who === 'inspector' ? '監' : CREW_CH[st.who] || st.qch || '話'; AU[st.who === 'inspector' ? 'drum' : 'chime']();
-  const sp = PORTRAIT.speaker(Object.assign({ fin: /막이 내린다$/.test(st.title) }, st), S().cap, C.NUM.indexOf(st.act)); // 말하는 사람 초상, 없으면 글자 도장
+function openStory(st) { if (st.who === 'main' && !st.title.includes('마지막')) { AU.gong(); } const ch = st.who === 'main' || st.who === 'scene' ? '幕' : st.who === 'port' ? '港' : st.qch && st.who === 'quest' ? st.qch : st.who === 'inspector' ? '監' : CREW_CH[st.who] || st.qch || '話'; AU[st.who === 'inspector' ? 'drum' : 'chime']();
+  const sp = st.who === 'scene' ? (PORTRAIT.has(st.spk) ? { id: st.spk, expr: PORTRAIT.exprs(st.spk)[0] } : null) : PORTRAIT.speaker(Object.assign({ fin: /막이 내린다$/.test(st.title) }, st), S().cap, C.NUM.indexOf(st.act)); // 말하는 사람 초상, 없으면 글자 도장
   $('stCard').innerHTML = `${sp ? `<span class="who pt">${PORTRAIT.svg(sp.id, { size: 84, expr: sp.expr, frame: st.who === 'main' ? 'card' : 'round' })}</span>` : `<span class="who ${st.who === 'inspector' ? 'inspector' : ''}">${ch}</span>`}<div class="eyebrow">이야기</div><h2 style="padding-right:${sp ? 92 : 64}px">${st.title}</h2><p>${st.text}</p>${st.sub ? `<p class="sub">${st.sub}</p>` : ''}
-    <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
-  cxMark('story:' + st.who); cxLink($('stCard'), { sel: ':scope > p', max: 3 }); $('stCard').classList.toggle('chapter', st.who === 'main'); if (st.who === 'port' && ART.PE_BY_TITLE[st.title]) ART.cardArt($('stCard'), 'ev', ART.PE_BY_TITLE[st.title]); else ART.clearArt($('stCard')); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
+    <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-i="${i}" ${o.off ? 'disabled' : ''}><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
+  cxMark('story:' + st.who); cxLink($('stCard'), { sel: ':scope > p', max: 3 }); $('stCard').classList.toggle('chapter', st.who === 'main' || st.who === 'scene'); if (st.who === 'port' && ART.PE_BY_TITLE[st.title]) ART.cardArt($('stCard'), 'ev', ART.PE_BY_TITLE[st.title]); else ART.clearArt($('stCard')); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
   $('stCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = st.opts[+b.dataset.i].apply(); $('mStory').hidden = true; if (r) toast(r); if (S().mode === 'port') after(); else paintHud(); setTimeout(runStories, 250); }); }
 
 
@@ -673,7 +673,8 @@ function paintBattle() { const s = S(), B = s.battle; if (!B) return; const pct 
 function battleDo(a) { const s = S(), B = s.battle; if (!B || B.over) return; AU.init(); const I = B.intent, hull0 = s.hull, hp0 = B.e.hp; const r = C.battleAct(a); if (!r) return;
   const dealt = hp0 - B.e.hp, took = Math.round(hull0 - s.hull), cv = () => { const c = $('btCv'); return c ? c.getBoundingClientRect() : null; };
   if (a === 'shoot') { btVolley('me', 'foe', 6); AU.noise(.25, { freq: 2400, q: 1, gain: .12, type: 'highpass' }); }
-  if (a === 'board') { BT.me.lunge = BT.w * .1; AU.drum(); }
+  if (a === 'board') { BT.me.lunge = BT.w * .1; AU.drum(); const ml = C.mateLine('board'); if (ml) r.log.push(`<i>${ml.line}</i>`); }
+  if (a === 'shoot') { const ml = C.mateLine('shoot'); if (ml && Math.random() < .4) r.log.push(`<i>${ml.line}</i>`); }
   if (a === 'guard') AU.tok();
   if (a === 'move' || a === 'flee') AU.noise(.4, { freq: 500, q: 2, gain: .2 });
   setTimeout(() => { if (dealt > 0) { btHit('foe', a === 'board'); const r0 = cv(); if (r0) pop(`-${dealt}`, r0.left + BT.foe.x, r0.top + BT.h * .32, 'hit' + (dealt >= 25 ? ' crit' : '')); AU.coin(1); } }, a === 'shoot' ? 460 : 180);
@@ -695,7 +696,7 @@ function battleEnd() { const s = S(), B = s.battle, R = B.result || {}; const T 
 
 /* ═══════════ 잠수 화면 — 빛살 드는 물기둥, 바닥의 난파선, 줄에 매달린 잠수부 ═══════════ */
 const DV = { open: false, y: 0, bubbles: [], motes: [], flash: 0, flashCol: '' };
-function openDive() { const s = S(), D = s.dive; if (!D) return; hideDest(); AU.chime();
+function openDive() { const s = S(), D = s.dive; if (!D) return; hideDest(); AU.chime(); { const ml = C.mateLine('dive'); if (ml) setTimeout(() => toast(ml.line, '', true), 400); }
   const stars = '★'.repeat(D.site.lv) + '☆'.repeat(3 - D.site.lv);
   $('dvCard').innerHTML = `<div class="eyebrow">잠수 · ${C.dateStr(s.t)}</div><h2>${D.site.name} <span class="stars">${stars}</span></h2><p class="sub" style="margin:0 0 10px">${D.site.pearl ? '해녀들이 앞서 내려간다. 얕지만 진주가 많다.' : D.site.lv >= 3 ? `두목이 숨긴 보물. <b>맨 밑(${D.max}길)</b>에는 반드시 유물이 있다.` : '깊이 갈수록 값진 것이 있다.'} 숨이 끊기면 이번에 건진 것을 <b>모두</b> 놓치고 며칠을 앓는다.</p>
     <div class="dv"><div class="dv-col" id="dvCol"><canvas id="dvCv" aria-label="물속 깊이"></canvas></div>
@@ -899,7 +900,7 @@ function handle(out) {
     if (o.type === 'bountyLost') toast(`현상 수배 기한이 지났다 — ${o.bounty.name}. 명성 -10`, 'bad');
     if (o.type === 'chase') { AU.drum(); toast('<b>흑기 해적선</b>이 쫓아온다! 노를 저어 따돌려라 <small>(Space)</small>', 'bad'); }
     if (o.type === 'escaped') { AU.good(); toast('흑기를 따돌렸다. 명성 +10', 'good'); }
-    if (o.type === 'tired') toast('선원들이 지쳤다. 노를 거둔다.');
+    if (o.type === 'tired') { const ml = C.mateLine('tired'); toast(ml ? ml.line : '선원들이 지쳤다. 노를 거둔다.'); }
     if (o.type === 'bounced') { AU.bad(); toast(`<b>${C.PORTS[o.k].name}</b> 포구가 닫혀 있다${o.news ? ` — ${o.news.title}` : ''}. 뱃머리를 돌려야 한다.`, 'bad'); showSailbar(); }
     if (o.type === 'passengerLost') toast(`${o.passenger.who}가 기다리다 지쳐 다른 배로 옮겨 탔다. 명성 -15`, 'bad');
   }
