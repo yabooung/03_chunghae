@@ -27,8 +27,9 @@ src/
   page.html   화면 뼈대와 스타일 (한지·먹·단청 — 색·글꼴·움직임 토큰이 맨 위 :root에 있다)
   core.js     규칙 엔진 — DOM 없음. node에서 require 해서 시뮬레이션할 수 있다
   ui.js       캔버스 해도, 모달, 소리, 입력, 흐름
+  art/scenes.js 장면 그림 — 항구 29곳(원형 6 + 청해진), 사건 카드 30장, 두목·해적 배, 결말 13장 (캔버스)
 assets/fonts/     게임 글자만 남긴 woff2 글꼴 4벌과 사용 허락(SIL OFL 1.1)
-tools/build.js   세 파일과 글꼴을 dist/index.html 하나로
+tools/build.js   네 파일과 글꼴을 dist/index.html 하나로
 tools/fonts.py   글꼴 부분 집합 만들기 (pip install fonttools brotli)
 test/
   smoke.js       CI에서 매번 도는 빠른 점검

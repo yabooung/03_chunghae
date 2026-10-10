@@ -1,8 +1,8 @@
-// src/page.html + src/core.js + src/ui.js + assets/fonts → dist/index.html (한 파일, 인터넷 없이도 열린다)
+// src/page.html + src/core.js + src/art/scenes.js + src/ui.js + assets/fonts → dist/index.html (한 파일, 인터넷 없이도 열린다)
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..'), src = f => fs.readFileSync(path.join(root, 'src', f), 'utf8');
-const page = src('page.html'), core = src('core.js'), ui = src('ui.js');
-for (const [n, t] of [['core.js', core], ['ui.js', ui]]) if (t.includes('</script')) throw new Error(n + ' 안에 </script 가 있다');
+const page = src('page.html'), core = src('core.js'), art = src('art/scenes.js'), ui = src('ui.js');
+for (const [n, t] of [['core.js', core], ['art/scenes.js', art], ['ui.js', ui]]) if (t.includes('</script')) throw new Error(n + ' 안에 </script 가 있다');
 
 // 글꼴: tools/fonts.py 가 게임에 쓰는 글자만 남겨 둔 woff2를 base64로 넣는다
 const FD = path.join(root, 'assets', 'fonts');
@@ -20,7 +20,7 @@ const faces = FACES.map(([fam, file, w, range]) => {
 if (!page.includes('/*@FONTS@*/')) throw new Error('page.html 에 /*@FONTS@*/ 자리가 없다');
 const license = fs.readFileSync(path.join(FD, 'LICENSE.txt'), 'utf8').replace(/--/g, '- -');
 
-const out = `${page.replace('/*@FONTS@*/', () => faces)}\n<script>\n${core}\n</script>\n<script>\n${ui}\n</script>\n<!--\n글꼴 사용 허락 (SIL Open Font License 1.1)\n${license}-->\n`;
+const out = `${page.replace('/*@FONTS@*/', () => faces)}\n<script>\n${core}\n</script>\n<script>\n${art}\n</script>\n<script>\n${ui}\n</script>\n<!--\n글꼴 사용 허락 (SIL Open Font License 1.1)\n${license}-->\n`;
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist', 'index.html'), out);
 console.log(`dist/index.html — ${(Buffer.byteLength(out) / 1024).toFixed(0)} KB (글꼴 ${(Buffer.byteLength(faces) / 1024).toFixed(0)} KB)`);
