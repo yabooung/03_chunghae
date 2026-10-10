@@ -292,9 +292,12 @@ const COACH = [
   '소문이 맞았을까? 상자가 하나씩 열린다. <b>팔고 내린다</b>.',
   '잘했다. 항구마다 <b>그곳에서만</b> 할 수 있는 일이 있고, <b>報</b>는 바다 너머 소식, 위의 <b>장부</b>(B)에는 항구별 시세·이야기·탐험 도감이 있다. 상납을 내면 <b>특권</b>을 고른다. <b>흰 종이</b>는 아직 아무도 그리지 않은 바다 — 숨은 항구는 값이 두 배다.'
 ];
-function coach(step) { if (META.tut || coachStep >= step || coachStep === -2) return; coachStep = step; $('coachText').innerHTML = COACH[step]; $('coach').hidden = false; document.body.classList.add('coaching');
-  if (step === 5) { setTimeout(() => { if (coachStep === 5) { $('coach').hidden = true; document.body.classList.remove('coaching'); META.tut = true; saveMeta(); } }, 10000); } }
-$('coachSkip').onclick = () => { $('coach').hidden = true; document.body.classList.remove('coaching'); coachStep = -2; META.tut = true; saveMeta(); };
+/* 안내가 떠 있으면 알림은 안내 아래로 내려간다 — 안내 길이가 화면마다 달라 실제 높이로 잰다 */
+function placeToasts() { const c = $('coach'); $('toasts').style.top = c.hidden ? '' : `${Math.round(c.getBoundingClientRect().bottom + 8)}px`; }
+function showCoach(on) { $('coach').hidden = !on; document.body.classList.toggle('coaching', on); placeToasts(); }
+function coach(step) { if (META.tut || coachStep >= step || coachStep === -2) return; coachStep = step; $('coachText').innerHTML = COACH[step]; showCoach(true);
+  if (step === 5) { setTimeout(() => { if (coachStep === 5) { showCoach(false); META.tut = true; saveMeta(); } }, 10000); } }
+$('coachSkip').onclick = () => { showCoach(false); coachStep = -2; META.tut = true; saveMeta(); };
 
 /* ─────────── 항구 장부 ─────────── */
 let lastQuote = null, panelMin = false;
@@ -710,7 +713,7 @@ function handle(out) {
   if (s.mode === 'sail' && Math.floor(s.t * 2) !== Math.floor((trail.t || 0) * 2)) { trail.t = s.t; trail.push([s.x, s.y]); if (trail.length > 500) trail.shift(); }
 }
 function finish(retire) {
-  const s = S(); if (!s || !$('sEnd').hidden) return; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); $('coach').hidden = true; document.body.classList.remove('coaching');
+  const s = S(); if (!s || !$('sEnd').hidden) return; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); showCoach(false);
   if (retire && !s.ended) s.ended = 'retire';
   const sc = C.score(), rank = C.rankOf(sc), why = s.ended;
   const wasAra = META.unlocked.ara, wasTomo = META.unlocked.tomo; META.runs++; META.best = Math.max(META.best, sc);
@@ -773,7 +776,7 @@ addEventListener('keydown', e => { const s = S(); if (s && !$('mBattle').hidden 
   if (!s || anyModal() || !$('sTitle').hidden) return; if (e.key === 'Escape') { hideDest(); hideMenu(); }
   if (s.mode === 'sail' && ['1', '2', '3'].includes(e.key)) { speedIdx = +e.key - 1; showSailbar(); }
   if (s.mode === 'sail' && (e.code === 'Space' || e.key === ' ')) { e.preventDefault(); toggleRow(); } });
-addEventListener('resize', () => { relayout(false); if (BT.open) btLayout(); });
+addEventListener('resize', () => { relayout(false); if (BT.open) btLayout(); placeToasts(); });
 document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu') && !e.target.closest('#bMenu')) hideMenu(); });
 
 /* ─────────── 루프 ─────────── */

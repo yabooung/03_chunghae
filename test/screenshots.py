@@ -3,11 +3,15 @@ from playwright.async_api import async_playwright
 import pathlib, os
 ROOT=pathlib.Path(__file__).resolve().parent.parent
 URL=(ROOT/'dist'/'index.html').as_uri(); OUT=str(ROOT/'shots')+'/'; os.makedirs(OUT, exist_ok=True)
-async def run(name, vw, vh):
+async def run(name, vw, vh, mobile=False):
     async with async_playwright() as p:
-        b=await p.chromium.launch(); pg=await b.new_page(viewport={'width':vw,'height':vh})
+        b=await p.chromium.launch()
+        # 모바일은 진짜 폰처럼(isMobile·터치) 띄운다 — viewport 메타가 빠지면 980px로 그려지는 걸 잡는다
+        ctx=await b.new_context(viewport={'width':vw,'height':vh}, is_mobile=mobile, has_touch=mobile, device_scale_factor=2 if mobile else 1); pg=await ctx.new_page()
         errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)+' @ '+str(e.stack)[:300])); pg.on('console', lambda m: errs.append(m.text) if m.type=='error' and 'ERR_TUNNEL' not in m.text and 'Failed to load' not in m.text else None)
         await pg.goto(URL); await pg.wait_for_timeout(1500)
+        lay=await pg.evaluate("()=>({mode:document.compatMode,w:document.documentElement.clientWidth})")
+        if lay['mode']!='CSS1Compat' or abs(lay['w']-vw)>2: errs.append(f'레이아웃 {lay} (기대 폭 {vw})')
         await pg.evaluate("()=>{try{localStorage.setItem('chunghae.v2.meta',JSON.stringify({tut:true,runs:1,best:0,unlocked:{},sound:false}))}catch(e){}}")
         await pg.reload(); await pg.wait_for_timeout(2000)
         await pg.click('#bStart'); await pg.wait_for_timeout(2200)
@@ -36,4 +40,4 @@ async def run(name, vw, vh):
         await pg.screenshot(path=OUT+name+'-8-ending.png')
         print(name,'오류:',errs[:6] or '없음')
         await b.close()
-asyncio.run(run('pc',1440,900)); asyncio.run(run('mo',390,844))
+asyncio.run(run('pc',1440,900)); asyncio.run(run('mo',390,844,True))

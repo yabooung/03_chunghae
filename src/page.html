@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>청해 바람의 장부</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -89,7 +93,6 @@ button:focus-visible{outline:2px solid var(--cheong);outline-offset:2px}
   animation:toast 3.4s ease forwards;text-align:center}
 .toast.good{background:var(--cheong)} .toast.bad{background:var(--ju)}
 @keyframes toast{0%{opacity:0;transform:translateY(-6px)}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
-body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
 .coach{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 76px);transform:translateX(-50%);z-index:25;
   width:min(460px,calc(100% - 32px));background:var(--hanji-2);border:1.5px solid var(--cheong);padding:12px 14px;
   display:flex;gap:12px;align-items:center;box-shadow:var(--shadow)}
@@ -299,7 +302,7 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
   .when b{white-space:nowrap;font-size:13px}
   .season{white-space:nowrap}
   .stat.quota{padding-left:8px}
-  .stat.quota .k{letter-spacing:.04em}
+  .stat.quota .k{letter-spacing:.04em;white-space:nowrap}
   .slot{width:15px;height:19px;font-size:10px}
   .stat b{font-size:14px}
   .icon{width:30px;height:30px}
@@ -312,7 +315,6 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
   .mate{width:34px;height:34px;font-size:15px}
   .mate .tip{bottom:auto;top:42px}
   .toasts,.coach{top:calc(env(safe-area-inset-top,0px) + 110px)}
-  body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 200px)}
   .card{padding:18px 16px 14px}
   .card h2{font-size:25px}
   .flip{height:196px}
