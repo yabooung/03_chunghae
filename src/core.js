@@ -595,7 +595,7 @@ const EVENTS = [
   { id: 'storm', w: () => liveNews().some(n => n.storm) ? 6 : 2, when: w => w.str > .74 || liveNews().some(n => n.storm), title: '검은 구름', text: () => `서쪽 수평선이 검다. 너울이 길어진다.${perk('helm') ? ' 곽이 이미 섬 그늘을 가리키고 있다.' : ' 곽이 말한다. "반나절이면 오오."'}`,
     opts: () => [{ label: '뚫고 간다', sub: '시간은 안 잃고 배가 상한다', apply: () => { const d = Math.round(ri(14, 30) * (S.relics.scale ? .5 : 1)); S.hull -= d; S.voyage.storms++; const pi = S.slots.findIndex(s => s.id === 'porcelain'); if (pi >= 0 && Math.random() < .45) { S.slots.splice(pi, 1); return { text: `폭풍을 뚫었다. 선체 -${d}. 도자기 상자가 굴러 산산이 깨졌다.`, bad: true }; } if (S.slots.length && Math.random() < .2) { const s = S.slots.splice(ri(0, S.slots.length - 1), 1)[0]; return { text: `폭풍을 뚫었다. 선체 -${d}. ${G[s.id].name} 상자 하나가 파도에 쓸려갔다.`, bad: true }; } return { text: `폭풍을 뚫었다. 선체 -${d}`, bad: true }; } },
       { label: '피항한다', sub: perk('helm') ? '반나절 · 곽이 먼저 읽었다' : '이틀을 잃는다', apply: () => { S.t += perk('helm') ? .5 : 2; return { text: perk('helm') ? '곽이 반나절 먼저 섬 그늘에 배를 댔다.' : '섬 그늘에서 이틀을 버텼다.' }; } }] },
-  { id: 'calm', w: () => 2, when: w => w.str < .46, title: '죽은 바다', text: () => '바람이 죽었다. 돛이 늘어지고 바다는 기름처럼 매끈하다.',
+  { id: 'calm', w: () => 4, when: w => w.str < .6, title: '죽은 바다', text: () => '바람이 죽었다. 돛이 늘어지고 바다는 기름처럼 매끈하다.',
     opts: () => [{ label: '바람을 기다린다', sub: '이틀 반', apply: () => { S.t += 2.5; return { text: '이틀 반 만에 바람이 돌아왔다.' }; } },
       { label: '노를 젓는다', sub: '하루 · 선체 -6', apply: () => { S.t += 1; S.hull -= 6; return { text: '하루를 노로 밀었다. 손이 다 터졌다.' }; } }] },
   { id: 'wreck', w: () => 2, when: () => true, title: '떠도는 잔해', text: () => '부서진 배의 잔해가 떠온다. 널빤지 사이로 궤짝이 보인다.',
@@ -639,19 +639,23 @@ const EVENTS = [
     opts: () => [S.slots.some(s => s.id === 'ginseng') ? { label: '실은 인삼을 달여 먹인다', sub: '인삼 한 상자를 쓴다', apply: () => { const i = S.slots.findIndex(s => s.id === 'ginseng'); S.slots.splice(i, 1); S.stamina = 100; S.fame += 15; return { text: '인삼을 달였다. 이틀 만에 모두 일어났다. 선원들이 당신을 다시 본다.', good: true }; } }
         : { label: '쉬게 한다', sub: '이틀', apply: () => { S.t += 2; return { text: '이틀을 쉬었다.' }; } },
       { label: '버틴다', sub: '나흘 동안 느려진다', apply: () => { S.stamina = 0; S.slow = 4; return { text: '반쯤 비틀거리며 간다.', bad: true }; } }] },
-  { id: 'grumble', w: () => 1, when: () => S.voyage && S.t - S.voyage.t0 > 8, title: '술렁이는 갑판', text: () => '항해가 길어지자 선원들이 수군거린다. "언제 뭍에 닿소?"',
+  { id: 'grumble', w: () => 2, when: () => S.voyage && S.t - S.voyage.t0 > 5, title: '술렁이는 갑판', text: () => '항해가 길어지자 선원들이 수군거린다. "언제 뭍에 닿소?"',
     opts: () => [{ label: '술을 푼다', sub: '600냥 · 기력 회복', apply: () => { S.gold = Math.max(0, S.gold - 600); S.stamina = Math.min(100, S.stamina + 50); return { text: '술독을 열었다. 노래가 나온다.', good: true }; } },
       { label: '엄하게 다스린다', sub: '반반', apply: () => { if (Math.random() < .5) return { text: '조용해졌다.' }; if (S.slots.length) { const s = S.slots.splice(ri(0, S.slots.length - 1), 1)[0]; return { text: `밤사이 ${G[s.id].name} 한 상자가 사라졌다.`, bad: true }; } S.stamina = 0; return { text: '모두 노를 놓았다.', bad: true }; } }] },
-  { id: 'smuggler', w: () => 1, when: () => freeSlots() > 0, title: '밀수꾼', text: () => { const id = S._smug = pick(GOODS).id; return `작은 배가 다가온다. "${G[id].name} 한 상자, 반값에 넘기겠소. 출처는 묻지 마시오."`; },
-    opts: () => { const id = S._smug || 'spice', price = Math.round(G[id].base * LOT * .5 / 100) * 100; return [{ label: '산다', sub: `${price.toLocaleString('ko-KR')}냥 · 경계 +4`, apply: () => { if (S.gold < price || !freeSlots()) return { text: '돈이 모자라 그냥 보냈다.' }; S.gold -= price; S.slots.push({ id, cost: price }); addThreat(4); return { text: `${G[id].name} 상자를 반값에 실었다.`, good: true }; } },
+  { id: 'smuggler', w: () => 1, when: () => freeSlots() > 0 || S.slots.length > 0, title: '밀수꾼', text: () => { const full = !freeSlots(), id = full ? pick(S.slots).id : pick(GOODS).id; S._smug = { id, full };
+      return full ? `작은 배가 다가온다. "그 ${G[id].name} 상자, 값을 넉넉히 쳐주겠소. 어디서 났는지는 묻지 않겠소."` : `작은 배가 다가온다. "${G[id].name} 한 상자, 반값에 넘기겠소. 출처는 묻지 마시오."`; },
+    opts: () => { const m = typeof S._smug === 'object' && S._smug ? S._smug : { id: S._smug || 'spice' }, id = m.id;
+      if (m.full) { const price = Math.round(G[id].base * LOT * 1.25 / 100) * 100; return [{ label: '넘긴다', sub: `${price.toLocaleString('ko-KR')}냥 · 경계 +4`, apply: () => { const i = S.slots.findIndex(s => s.id === id); if (i < 0) return { text: '넘길 상자가 없어 그냥 보냈다.' }; S.slots.splice(i, 1); S.gold += price; addThreat(4); return { text: `${G[id].name} 상자를 넘기고 ${price.toLocaleString('ko-KR')}냥을 받았다.`, good: true }; } },
+        { label: '쫓아 보낸다', apply: () => ({ text: '작은 배가 안개 속으로 사라졌다.' }) }]; }
+      const price = Math.round(G[id].base * LOT * .5 / 100) * 100; return [{ label: '산다', sub: `${price.toLocaleString('ko-KR')}냥 · 경계 +4`, apply: () => { if (S.gold < price || !freeSlots()) return { text: '돈이 모자라 그냥 보냈다.' }; S.gold -= price; S.slots.push({ id, cost: price }); addThreat(4); return { text: `${G[id].name} 상자를 반값에 실었다.`, good: true }; } },
       { label: '쫓아 보낸다', apply: () => ({ text: '작은 배가 안개 속으로 사라졌다.' }) }]; } },
   { id: 'stars', w: () => 1, when: () => true, title: '맑은 밤', text: () => '구름 한 점 없는 밤. 별이 바다에 비친다.',
     opts: () => [{ label: '별을 읽는다', sub: perk('helm') ? '곽이 지름길을 안다' : '하루 반 빨라진다', apply: () => { S.boost = perk('helm') ? 3 : 1.5; return { text: '북극성을 잡고 침로를 바로 했다.', good: true }; } }] },
   { id: 'envoy', w: () => 1, when: () => true, title: '사신 배', text: () => '깃발을 단 관선이 손짓한다. "해적이 두렵소. 사흘만 곁을 지켜주시오."',
     opts: () => [{ label: '호위한다', sub: '사흘 · 보수와 명성 · 해적을 만날 수도', apply: () => { S.t += 3; if (Math.random() < .25 && Math.random() > pirateOdds()) { S.hull -= 25; S.gold += 1200; return { text: '해적이 덮쳤다. 사신 배는 지켰지만 선체 -25. 보수 1,200냥.', bad: true }; } S.gold += 2200; S.fame += 50; return { text: '무사히 호위했다. 보수 2,200냥, 명성 +50', good: true }; } },
       { label: '갈 길이 바쁘다', apply: () => ({ text: '관선이 실망한 듯 깃발을 내린다.' }) }] },
-  { id: 'drift', w: () => 1, when: () => S.stamina < 70, title: '떠다니는 술독', text: () => '봉인된 술독이 둥둥 떠온다. 당의 관인이 찍혀 있다.',
-    opts: () => [{ label: '건진다', sub: '선원 기력이 찬다', apply: () => { S.stamina = 100; return { text: '좋은 술이다. 선원들 눈빛이 살아났다.', good: true }; } },
+  { id: 'drift', w: () => 1, when: () => true, title: '떠다니는 술독', text: () => '봉인된 술독이 둥둥 떠온다. 당의 관인이 찍혀 있다.',
+    opts: () => [{ label: '건진다', sub: '선원 기력이 차고 남는 술은 판다 · 경계 +3', apply: () => { S.stamina = 100; const g = ri(3, 6) * 100; S.gold += g; addThreat(3); return { text: `좋은 술이다. 선원들 눈빛이 살아났다. 남은 술독은 ${g}냥에 넘길 수 있겠다.`, good: true }; } },
       { label: '둔다', apply: () => ({ text: '관인 찍힌 물건은 탈이 난다.' }) }] },
 ];
 function rivalNear() { return S.rivals.find(R => { const d = RIVALS.find(r => r.id === R.id); return d.kind === 'trade' && !R.at && R.dest && Math.hypot(R.x - S.x, R.y - S.y) < 45; }); }
@@ -662,9 +666,9 @@ function rivalEvent(R) { const def = RIVALS.find(r => r.id === R.id); return { i
     { label: '앞지른다', sub: '돛을 다 펴고 이틀 동안 빨라진다 · 선체 -5', apply: () => { S.boost = 2; S.hull -= 5; return { text: `${def.name}${JO(def.name,'을','를')} 뒤로 따돌렸다.`, good: true }; } },
     { label: '모른 척한다', apply: () => ({ text: '각자 갈 길을 간다.' }) }] }; }
 function rollEvent(w) { const safe = S.voyage && S.voyage.escort;
-  if (!safe && inZone(S.x, S.y) && Math.random() < .55 + S.threat / 300) { S.ev = Object.assign({}, pirateEvent(`${inZone(S.x, S.y).name}`)); return S.ev; }
+  if (!safe && inZone(S.x, S.y) && Math.random() < .3 + S.threat / 300) { S.ev = Object.assign({}, pirateEvent(`${inZone(S.x, S.y).name}`)); return S.ev; }
   const rn = rivalNear(); if (rn && Math.random() < .5) { S.ev = rivalEvent(rn); return S.ev; }
-  const pool = EVENTS.filter(e => e.when(w) && !(safe && (e.id === 'captives')) && !(S.voyage && S.voyage.blessed && (e.id === 'storm' || e.id === 'spout'))); const bag = []; for (const e of pool) for (let i = 0; i < e.w(); i++) bag.push(e); if (!safe && (S.slots.length >= 3 || S.threat >= 30) && Math.random() < (S.threat >= 60 ? .3 : .1)) { S.ev = pirateEvent(); return S.ev; }
+  const pool = EVENTS.filter(e => e.when(w) && !(safe && (e.id === 'captives')) && !(S.voyage && S.voyage.blessed && (e.id === 'storm' || e.id === 'spout'))); const bag = []; for (const e of pool) for (let i = 0; i < e.w(); i++) bag.push(e); if (!safe && (S.slots.length >= 3 || S.threat >= 30) && Math.random() < (S.threat >= 60 ? .2 : .05)) { S.ev = pirateEvent(); return S.ev; }
   const e = pick(bag); S.ev = { id: e.id, title: e.title, text: e.text(), opts: e.opts() }; return S.ev; }
 function choose(i) { const ev = S.ev; if (!ev) return null; const r = ev.opts[i].apply() || { text: '' }; S.ev = null; if (r.battle) { makeBattle(r.battle); return { battle: true }; } S.hull = Math.min(S.hullMax, S.hull);
   if (S.hull <= 0) return { ...r, wreck: wreck() }; return r; }
@@ -1045,7 +1049,7 @@ function update(dt) {
       out.push(...newsTick()); mainTick();
       if (S.t >= S.nextDue) { out.push({ type: 'quota', res: collectQuota() }); break; }
       const day = Math.floor(S.t);
-      if (day - S.lastEvDay >= 2 && Math.random() < (inZone(S.x, S.y) ? .3 : .12)) { S.lastEvDay = day; out.push({ type: 'event', ev: rollEvent(w) }); break; }
+      if (day - S.lastEvDay >= 2 && Math.random() < (inZone(S.x, S.y) ? .22 : .12)) { S.lastEvDay = day; out.push({ type: 'event', ev: rollEvent(w) }); break; }
     }
   }
   return out;

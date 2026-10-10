@@ -51,10 +51,11 @@ function play(style){
 const N=+process.argv[2]||8;const CAP=process.argv[4]||'gungbok';var ENDS={},ACT={},CNT={},SPU={},EVC={},BT={},DV={n:0,gold:0,rel:0},BO=0,HUNT=0;
 for(const st of ['lazy','normal','smart']){const R=[];for(let i=0;i<N;i++)R.push(play(st));
   console.log(`\n■ ${st} ×${N}`);
-  R.forEach(r=>console.log(`  상납 ${r.q.padEnd(10)} 계절 ${r.seasons} · 끝 ${r.end} · 점수 ${r.score.toLocaleString()} · 항해 ${r.voy} · 사건 ${r.ev}(흑기 ${r.ambush}) · 경쟁 판매 ${r.rivalHits} · 의뢰 ${r.orders} · 우회 ${r.alts}/해역통과 ${r.zoneTrips} · 항구 ${r.known}/14 · ${r.boons}`));
+  R.forEach(r=>console.log(`  상납 ${r.q.padEnd(10)} 계절 ${r.seasons} · 끝 ${r.end} · 점수 ${r.score.toLocaleString()} · 항해 ${r.voy} · 사건 ${r.ev}(흑기 ${r.ambush}) · 경쟁 판매 ${r.rivalHits} · 의뢰 ${r.orders} · 우회 ${r.alts}/해역통과 ${r.zoneTrips} · 항구 ${r.known}/${PORT_IDS.length} · ${r.boons}`));
   const s=R.map(r=>r.seasons);console.log(`  버틴 계절 평균 ${(s.reduce((a,b)=>a+b,0)/N).toFixed(1)} · 1년 넘김 ${s.filter(x=>x>=4).length}/${N}`);
 }
 
-console.log('\nCNT',CNT);console.log('SPECIAL',SPU);console.log('EVENTS',EVC);
+console.log('\nCNT',CNT);console.log('SPECIAL',SPU);
+{const tot=Object.values(EVC).reduce((a,b)=>a+b,0);console.log(`EVENTS ${tot}건 — `+Object.entries(EVC).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${(v/tot*100).toFixed(1)}%`).join(' · '));}
 console.log('BATTLE',BT,'DIVE',DV,'bounties taken',BO,'hunt trips',HUNT);
 console.log('ENDINGS',ENDS,'ACT reached',ACT);
