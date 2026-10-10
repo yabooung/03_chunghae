@@ -193,7 +193,7 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
 .choice:hover small{color:var(--hanji-3)}
 .choice b{font-size:var(--fs-m)} .choice small{font-size:var(--fs-xs);color:var(--ink-3)}
 .result{font-family:var(--display);font-size:18px;line-height:1.55;padding:12px 14px;border-left:3px solid var(--ink-2);background:var(--hanji)}
-.result.good{border-color:var(--rok)} .result.bad{border-color:var(--ju)}
+.result.good{border-color:var(--rok);display:block;padding:12px 14px;text-align:left;min-height:0;background:var(--hanji)} .result.good b,.result b{display:inline} .result.bad{border-color:var(--ju)}
 .who{position:absolute;top:18px;right:18px;width:54px;height:54px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-size:24px;background:var(--hanji)}
 .who.inspector{border-color:var(--ju);color:var(--ju)}
 
@@ -346,6 +346,75 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
 .newsl li small{grid-column:1/-1;color:var(--ink-2);font-size:var(--fs-xs);line-height:1.45}
 .mate.newsbtn{border-color:var(--ink);color:var(--hanji-2);background:var(--ink)}
 @media (max-width:860px){.sailbar .row{min-width:78px;padding:6px 8px 8px}}
+
+/* v4 — 해전 · 잠수 · 표적 */
+.card.battle{width:min(600px,100%)}
+.bt-head{display:flex;gap:12px;align-items:center;margin:2px 0 10px}
+.bt-head h2{margin:0!important;font-size:26px!important}
+.bt-head small{font-size:var(--fs-xs);color:var(--ink-2)}
+.bseal{width:46px;height:46px;flex:none;display:grid;place-items:center;background:var(--ink);color:var(--hanji-2);font-family:var(--display);font-size:26px}
+.bseal.boss{background:var(--ju)}
+#btCv{display:block;width:100%;height:150px;border:1px solid var(--rule-2)}
+.bt-bars{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 8px}
+.hb{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:var(--fs-xs)}
+.hb span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
+.hb s{display:block;height:8px;background:var(--hanji-3);text-decoration:none;position:relative;overflow:hidden}
+.hb i{position:absolute;inset:0 auto 0 0;background:var(--cheong);transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.hb.foe i{background:var(--ju)}
+.hb b{font-variant-numeric:tabular-nums;font-weight:600}
+.bt-intent{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1.5px solid var(--ink);background:var(--hanji);font-size:var(--fs-s)}
+.bt-intent .lbl{font-size:10.5px;letter-spacing:.14em;color:var(--ink-3);white-space:nowrap}
+.bt-intent b{flex:1}
+.bt-intent em{font-style:normal;font-family:var(--display);font-size:22px;color:var(--ju);line-height:1}
+.bt-intent.danger{border-color:var(--ju);background:rgba(176,63,40,.08);animation:chased 1s ease-in-out infinite alternate}
+.bt-intent.calm{border-style:dashed}
+.bt-log{min-height:42px;margin:8px 0;font-family:var(--display);font-size:15px;line-height:1.5;color:var(--ink-2)}
+.bt-log span{display:block}
+.bt-acts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.bact{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px 9px;border:1px solid var(--ink);background:var(--hanji);text-align:center;min-height:104px}
+.bact:hover:not(:disabled){background:var(--ink);color:var(--hanji-2)} .bact:hover:not(:disabled) small{color:var(--hanji-3)}
+.bact:disabled{opacity:.38;cursor:default}
+.bact .bch{font-family:var(--display);font-size:24px;line-height:1}
+.bact b{font-size:var(--fs-s)} .bact small{font-size:10.5px;color:var(--ink-3);line-height:1.3}
+.bact kbd{position:absolute;top:4px;right:5px;font:10px var(--ui);color:var(--ink-3)}
+.bt-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:var(--fs-xs);color:var(--ink-3)}
+.stam{display:flex;align-items:center;gap:6px}.stam s{display:block;width:80px;height:5px;background:var(--hanji-3);position:relative;text-decoration:none}.stam i{position:absolute;inset:0 auto 0 0;background:var(--rok)}
+.linkbtn{font-size:var(--fs-xs);color:var(--ink-3);text-decoration:underline;text-underline-offset:3px}
+.card.dive{width:min(520px,100%)}
+.stars{font-size:15px;color:var(--hwang);letter-spacing:.05em;vertical-align:middle}
+.dv{display:grid;grid-template-columns:112px 1fr;gap:14px}
+.dv-col{position:relative;height:270px;background:linear-gradient(#a9cbc1 0%,#5f9294 35%,#2b5b66 70%,#132f38 100%);overflow:hidden;border:1px solid var(--rule-2)}
+.dv-col::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.5) 0 6px,transparent 6px 14px)}
+.band{position:absolute;left:0;right:0;border-top:1px dashed rgba(239,235,223,.35)}
+.band span{position:absolute;left:5px;top:2px;font-size:10px;color:rgba(239,235,223,.75)}
+.diver{position:absolute;left:50%;width:30px;height:30px;margin-left:-15px;border-radius:50%;background:var(--hanji-2);border:1.5px solid var(--ink);display:grid;place-items:center;font-family:var(--display);font-size:16px;transition:top .55s cubic-bezier(.3,1.3,.5,1);z-index:2}
+.diver i{position:absolute;width:5px;height:5px;border-radius:50%;border:1px solid rgba(239,235,223,.8);left:12px;top:-6px;animation:bub 1.6s linear infinite}
+.diver i:nth-child(2){left:20px;animation-delay:.5s}.diver i:nth-child(3){left:6px;animation-delay:1s}
+@keyframes bub{from{transform:translateY(0);opacity:.9}to{transform:translateY(-60px);opacity:0}}
+.dv-side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.breath{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:var(--fs-s)}
+.breath s{display:block;height:10px;background:var(--hanji-3);position:relative;text-decoration:none;overflow:hidden}
+.breath i{position:absolute;inset:0 auto 0 0;background:var(--cheong);transition:width .5s}
+.breath i.low{background:var(--ju);animation:chased .5s ease-in-out infinite alternate}
+.breath b{font-variant-numeric:tabular-nums;min-width:28px;text-align:right}
+.dv-find{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--rule-2);background:var(--hanji);font-family:var(--display);font-size:16px;line-height:1.4;min-height:76px;animation:findin .45s cubic-bezier(.2,1.4,.4,1)}
+.dv-find .fch{flex:none;width:44px;height:44px;display:grid;place-items:center;background:var(--ink-2);color:var(--hanji-2);font-size:24px}
+.dv-find.fgood .fch{background:var(--cheong)} .dv-find.fbad .fch{background:var(--ju)} .btn.main.risky{background:var(--ju);border-color:var(--ju)} .result.good:active{transform:none} .dv-find.relic{border-color:var(--hwang);box-shadow:0 0 0 3px rgba(168,130,31,.25)} .dv-find.relic .fch{background:var(--hwang)}
+@keyframes findin{from{transform:translateY(14px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+.haul{display:flex;flex-wrap:wrap;gap:5px}
+.hchip{width:30px;height:30px;display:grid;place-items:center;background:var(--cheong);color:var(--hanji-2);font-family:var(--display);font-size:16px}
+.hchip.relic{background:var(--hwang)}
+.dv-row{display:flex;gap:8px;justify-content:flex-end;align-items:flex-end;margin-top:14px}
+.tgt{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--rule-2);font-size:var(--fs-s);line-height:1.4}
+.tgt .gr{flex:1;min-width:0} .tgt small{color:var(--ink-3);font-size:var(--fs-xs)}
+.tgt .tch{flex:none;width:32px;height:32px;display:grid;place-items:center;font-family:var(--display);font-size:18px;color:var(--hanji-2);background:var(--ju)}
+.tgt.map .tch{background:var(--hwang);border-radius:50%} .tgt.offer{border-style:dashed;border-color:var(--ju)} .tgt.bounty{border-color:var(--ju)}
+.mate.relicbtn{border-color:var(--hwang);color:var(--hanji-2);background:var(--hwang)}
+@media (max-width:620px){
+  .bt-acts{grid-template-columns:repeat(3,1fr)} .bact{min-height:88px;padding:8px 4px} .bact kbd{display:none}
+  #btCv{height:120px} .bt-bars{grid-template-columns:1fr} .dv{grid-template-columns:84px 1fr} .dv-col{height:230px}
+}
+.pop{z-index:70!important}
 </style>
 
 <canvas id="map" aria-label="해도"></canvas>
@@ -381,6 +450,8 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
 
 <div class="modal" id="mEvent" hidden><div class="card" id="evCard"></div></div>
 <div class="modal" id="mReveal" hidden><div class="card reveal" id="rvCard"></div></div>
+<div class="modal" id="mBattle" hidden><div class="card battle" id="btCard"></div></div>
+<div class="modal" id="mDive" hidden><div class="card dive" id="dvCard"></div></div>
 <div class="modal" id="mStory" hidden><div class="card" id="stCard"></div></div>
 <div class="modal" id="mQuota" hidden><div class="card quota" id="qCard"></div></div>
 <div class="modal" id="mRetire2" hidden><div class="card"><div class="eyebrow">결산</div><h2>항해를 접을까</h2><p>지금까지 바친 군자금과 남은 재산으로 점수를 매긴다. 이 항해는 이어서 할 수 없다.</p><div class="start-row" style="justify-content:flex-end"><button class="btn" id="mRetireNo">계속 간다</button><button class="btn main" id="mRetireYes">돛을 내린다</button></div></div></div>
@@ -391,7 +462,7 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
     <p class="tagline">828년, 배 한 척과 오천 냥. 계절마다 청해진에 군자금을 바쳐라. 액수는 점점 오른다. 얼마나 버티겠는가.</p>
     <div class="caps" id="caps"></div>
     <div class="start-row"><button class="btn main" id="bStart">닻을 올린다</button><button class="btn" id="bCont" hidden>이어하기</button></div>
-    <p class="fine">항구에서 상자를 싣고, 지도에서 행선지를 누른다. 남의 항구 값은 소문으로만 안다. 왕씨 상단과 오토모 배가 같은 유행을 노리고, 붉은 빗금 바다엔 해적이 산다. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
+    <p class="fine">돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
     <p class="fine" id="bestLine"></p>
   </div>
 </section>
