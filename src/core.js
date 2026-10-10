@@ -156,7 +156,21 @@ const CREW = [
 
 /* 상납: 계절 끝마다 청해진 군자금. 해가 바뀔수록 오른다 */
 const QUOTA_BASE = [4000, 10000, 20000, 34000];
-const quotaFor = n => Math.round(QUOTA_BASE[n % 4] * Math.pow(2.6, Math.floor(n / 4)) / 100) * 100;
+const quotaFor = n => Math.round(QUOTA_BASE[n % 4] * dif().quota * Math.pow(dif().grow, Math.floor(n / 4)) / 100) * 100;
+
+/* 난이도 — 새 판을 열 때 고르고 저장에 남는다(S.diff). 난이도에 따른 숫자는 이 표에서만 고친다.
+   hp·atk  적선 체력·공격 배수            boss   두목 체력에 한 번 더 곱한다
+   punish  예고된 큰 수(일제 사격·갈고리·들이받기)를 받아내지 않고 그대로 맞을 때 피해 배수
+   quota   상납 기본 곡선 배수            grow   해마다 상납이 오르는 비율
+   share   상납 하한 = 가진 돈과 짐(산 값)의 이 비율. 0이면 없음
+   loot    해전 전리품 배수 */
+const DIFFS = {
+  baram:    { name: '바람', ch: '風', sub: '쉬움', text: '처음 바다에 나서는 사람에게. 적의 예고를 놓쳐도 덜 아프고 상납이 느긋하다.', hp: 1.2, atk: 1.25, boss: 1, punish: 1.9, quota: 1, grow: 2.6, share: 0, loot: 1 },
+  pungrang: { name: '풍랑', ch: '浪', sub: '보통', text: '적의 다음 수를 읽어야 이긴다. 해가 갈수록 상납이 빠듯해진다.', hp: 1.3, atk: 1.4, boss: 1, punish: 2.2, quota: 1.1, grow: 3, share: 0, loot: 1 },
+  taepung:  { name: '태풍', ch: '颱', sub: '어려움', text: '적이 단단하고 사납다. 상납은 가진 돈과 짐 값의 3할보다 적지 않다.', hp: 1.4, atk: 1.55, boss: 1.05, punish: 2.6, quota: 1.25, grow: 3.1, share: .3, loot: .9 }
+};
+const DIFF_NEW = 'pungrang', DIFF_OLD = 'baram'; // 새 판의 기본값 / 난이도가 없던 옛 저장은 바람으로 읽는다
+const dif = () => DIFFS[S && S.diff] || DIFFS[DIFF_OLD];
 
 /* 특권 카드 */
 const BOONS = [
@@ -256,9 +270,9 @@ function revealCircle(x, y, r) { if (!S) return; const [c0x, c0y] = cellOf(x, y)
 const revealed = (x, y) => { const [cx, cy] = cellOf(x, y); return !!S.fog[cy * GW + cx]; };
 function revealPath(a, b, r) { const p = findPath(PORTS[a].x, PORTS[a].y, PORTS[b].x, PORTS[b].y); if (!p) return; for (let i = 0; i < p.length - 1; i++) { const L = Math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]); for (let d = 0; d <= L; d += 30) revealCircle(p[i][0] + (p[i + 1][0] - p[i][0]) * d / L, p[i][1] + (p[i + 1][1] - p[i][1]) * d / L, r); } }
 
-function newGame(capId) {
+function newGame(capId, diff) {
   const cap = CAPTAINS[capId] || CAPTAINS.gungbok, home = PORTS[cap.start];
-  S = { v: 6, cap: capId, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
+  S = { v: 6, cap: capId, diff: DIFFS[diff] ? diff : DIFF_NEW, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
     gold: cap.gold, slots: [], tier: 0, hull: 100, hullMax: 100, threat: 0, fame: 0, stage: 0,
     markets: {}, booms: [], nextBoom: 4, ledger: {}, rumors: [], found: {}, docked: { [cap.start]: 1 },
     known: Object.fromEntries(PORT_IDS.map(k => [k, !PORTS[k].hidden || (cap.knows || []).includes(k)])),
@@ -556,7 +570,8 @@ const STORIES = {
 };
 
 /* ─────────── 상납 · 특권 ─────────── */
-const quotaNow = () => Math.round(quotaFor(S.quotaN) * (1 - .25 * S.relief) * (S.relics && S.relics.crown ? .9 : 1) / 100) * 100;
+const wealth = () => S.gold + S.slots.reduce((a, s) => a + s.cost, 0) + (S.store || []).reduce((a, s) => a + s.cost, 0);
+const quotaNow = () => Math.round(Math.max(quotaFor(S.quotaN), dif().share * wealth()) * (1 - .25 * S.relief) * (S.relics && S.relics.crown ? .9 : 1) / 100) * 100;
 function collectQuota() { // 계절 끝. 반환: {ok, amount, short, seized}
   const due = quotaNow(); let seized = 0;
   if (S.gold < due) { // 짐을 7할 값에 넘겨 메운다
@@ -695,8 +710,8 @@ const arrowDmg = () => Math.round((11 + 4 * S.tier) * (S.relics.bow ? 1.4 : 1) *
 const boardDmg = () => Math.round((24 + 6 * S.tier) * (S.cap === 'gungbok' ? 1.25 : 1) * (perk('deck') ? 1.3 : 1) * (S.boons.hunter ? 1.3 : 1) * (hasMate('ken') ? 1.25 : 1));
 const fleeOdds = () => clamp(.35 + S.stamina / 250 + (S.boons.sails || 0) * .05, .1, .9);
 function makeBattle(spec) {
-  const tk = 1 + .35 * S.tier, yk = 1 + .25 * yearOf();
-  const e = { name: spec.name, ch: spec.ch || '賊', g: spec.g || 'plain', hp: Math.round(spec.hp * tk * yk), atk: Math.round(spec.atk * (1 + .2 * S.tier) * (1 + .15 * yearOf())), boss: spec.boss || null, line: spec.line || GIMMICK[spec.g || 'plain'] };
+  const tk = 1 + .35 * S.tier, yk = 1 + .25 * yearOf(), D = dif();
+  const e = { name: spec.name, ch: spec.ch || '賊', g: spec.g || 'plain', hp: Math.round(spec.hp * tk * yk * D.hp * (spec.boss ? D.boss : 1)), atk: Math.round(spec.atk * (1 + .2 * S.tier) * (1 + .15 * yearOf()) * D.atk), boss: spec.boss || null, line: spec.line || GIMMICK[spec.g || 'plain'] };
   e.max = e.hp; S.battle = { e, dist: 'far', mom: 1, turn: 0, log: [], over: null, spec, charged: false, burned: 0 }; S.battle.intent = pickIntent(S.battle); S.stats.battles = (S.stats.battles || 0) + 1; return S.battle; }
 function intentOf(B, k) { const a = B.e.atk, near = B.dist === 'near';
   const T = { hesitate: ['머뭇거린다', 0], shoot: [B.e.g === 'fire' ? '불화살을 쏜다' : '활을 쏜다', Math.round(a * (near ? .6 : .8))], aim: ['일제 사격을 준비한다 — 다음 수가 두 배', 0], volley: ['일제 사격!', Math.round(a * 2)],
@@ -722,22 +737,24 @@ function battleAct(a) { const B = S.battle; if (!B || B.over) return null; const
   else if (a === 'surrender') { if (S.slots.length) { const s = S.slots.splice(ri(0, S.slots.length - 1), 1)[0]; L.push(`${G[s.id].name} 상자를 던져주고 빠져나왔다.`); } else { const c = Math.min(S.gold, 1200 + 400 * S.tier); S.gold -= c; L.push(`통행료 ${c.toLocaleString('ko-KR')}냥을 내고 빠져나왔다.`); } B.over = 'surrender'; return endTurn(B, L); }
   if (self) S.hull -= self;
   if (dealt) e.hp -= dealt; if (e.hp <= 0) { e.hp = 0; B.over = 'win'; L.push(`${e.name}${JO(e.name, '이', '가')} 기울어 가라앉는다!`); return endTurn(B, L); }
-  // 적의 수
-  const near = B.dist === 'near';
+  // 적의 수. 예고된 큰 수를 받아내지 못하면(방패도, 파고들기도, 맞받아치기도 없이) 난이도만큼 더 아프다
+  const near = B.dist === 'near', P = dif().punish;
+  const missed = a !== 'guard' && (I.k === 'volley' ? !near : (I.k === 'board' || I.k === 'ram') && near && !(a === 'board' && I.k === 'board'));
+  const pk = missed ? P : 1, pl = missed && P > 1 ? ' — 예고를 놓쳤다' : '';
   if (I.k === 'hesitate') L.push('적이 머뭇거린다. 바다신의 방울 소리 때문일까.');
   else if (I.k === 'aim') { B.charged = true; L.push('적이 활시위를 한껏 당긴다…'); }
   else if (I.k === 'close') { B.dist = 'near'; L.push('적이 배를 바짝 붙여 왔다.'); }
   else if (I.k === 'retreat') { B.dist = 'far'; L.push('적이 거리를 벌린다.'); }
-  else if (I.k === 'shoot' || I.k === 'volley') { if (I.k === 'volley') B.charged = false; let d = I.k === 'volley' ? e.atk * 2 * (near ? .5 : 1) : e.atk * (near ? .6 : .8); d = Math.round(d * inc); S.hull -= d;
-    L.push(I.k === 'volley' ? `일제 사격이 쏟아졌다${near && a === 'move' ? ' — 파고들어 반은 피했다' : ''}. 선체 -${d}` : `${e.g === 'fire' ? '불화살' : '화살'}이 박힌다. 선체 -${d}`);
+  else if (I.k === 'shoot' || I.k === 'volley') { if (I.k === 'volley') B.charged = false; let d = I.k === 'volley' ? e.atk * 2 * (near ? .5 : 1) : e.atk * (near ? .6 : .8); d = Math.round(d * inc * pk); S.hull -= d;
+    L.push(I.k === 'volley' ? `일제 사격이 쏟아졌다${near && a === 'move' ? ' — 파고들어 반은 피했다' : pl}. 선체 -${d}` : `${e.g === 'fire' ? '불화살' : '화살'}이 박힌다. 선체 -${d}`);
     if (e.g === 'fire' && inc > .5 && S.slots.length && Math.random() < .35) { const s = S.slots.splice(ri(0, S.slots.length - 1), 1)[0]; B.burned++; L.push(`${G[s.id].name} 상자에 불이 붙어 바다에 던졌다!`); } }
-  else if (I.k === 'ram' || I.k === 'board') { if (!near) L.push(I.k === 'board' ? '갈고리가 허공을 쳤다!' : '적의 뱃머리가 헛돌았다!'); else { const d = Math.round(I.dmg * inc); S.hull -= d; L.push(I.k === 'board' ? `적이 갑판으로 넘어왔다! 선체 -${d}` : `쾅! 들이받혔다. 선체 -${d}`); } }
+  else if (I.k === 'ram' || I.k === 'board') { if (!near) L.push(I.k === 'board' ? '갈고리가 허공을 쳤다!' : '적의 뱃머리가 헛돌았다!'); else { const d = Math.round(I.dmg * inc * pk); S.hull -= d; L.push(I.k === 'board' ? `적이 갑판으로 넘어왔다${pl}! 선체 -${d}` : `쾅! 들이받혔다${pl}. 선체 -${d}`); } }
   if (S.hull <= 0) { B.over = 'lose'; L.push('배가 무너진다…'); }
   return endTurn(B, L); }
 function endTurn(B, L) { B.turn++; B.log = L; if (!B.over) B.intent = pickIntent(B); else B.result = battleFinish(B); return { log: L, over: B.over }; }
 function battleFinish(B) { const e = B.e, spec = B.spec || {}, R = { over: B.over, gold: 0, fame: 0, notes: [] };
   if (B.over === 'win') { S.stats.wins = (S.stats.wins || 0) + 1; S.flags.pirateWin = 1; S.threat = Math.min(100, S.threat + 2);
-    const loot = Math.round(ri(6, 14) * 100 * (1 + .6 * S.tier) * (1 + .3 * yearOf()) * (S.boons.hunter ? 2 : 1) * (e.boss ? 2 : spec.kind === 'black' ? 1.5 : 1)); S.gold += loot; R.gold += loot;
+    const loot = Math.round(ri(6, 14) * 100 * (1 + .6 * S.tier) * (1 + .3 * yearOf()) * (S.boons.hunter ? 2 : 1) * (e.boss ? 2 : spec.kind === 'black' ? 1.5 : 1) * dif().loot); S.gold += loot; R.gold += loot;
     const fame = e.boss ? 150 : spec.kind === 'black' ? 60 : 30; S.fame += fame; R.fame += fame;
     if (spec.win === 'captives') { S.fame += 120; R.fame += 120; S.freed = (S.freed || 0) + 1; R.notes.push('갇혀 있던 서른 명을 풀어주었다. "청해진의 배다!"'); }
     if (e.boss) { const b = S.bounty && S.bounty.id === e.boss ? S.bounty : null; if (b) { S.gold += b.reward; R.gold += b.reward; R.bounty = b.reward; S.bounty = null; S.stats.bounties = (S.stats.bounties || 0) + 1; } S.beaten[e.boss] = 1;
@@ -1077,6 +1094,11 @@ function arrive(k) {
 }
 function sellAll(keep) { const res = []; for (let i = S.slots.length - 1; i >= 0; i--) if (!keep || !keep.includes(i)) { const r = sell(i); if (r) res.push(r); } return res.reverse(); }
 
+/* ─────────── 저장 ─────────── */
+function saveData() { const d = Object.assign({}, S); delete d.reveals; return JSON.stringify(d); }
+function loadData(txt) { let d; try { d = JSON.parse(txt || 'null'); } catch (e) { return null; } if (!d || d.v !== 6) return null;
+  d.battle = null; d.dive = null; d.reveals = []; d.ev = null; if (!DIFFS[d.diff]) d.diff = DIFF_OLD; S = d; return S; }
+
 /* ─────────── 결산 ─────────── */
 const assets = () => S.gold + S.slots.reduce((a, s) => a + s.cost, 0) + (S.store || []).reduce((a, s) => a + s.cost, 0) + Math.round(ship().price * .5);
 const score = () => S.paid + assets();
@@ -1084,7 +1106,7 @@ const rankOf = v => { let r = RANKS[0][1]; for (const [n, name] of RANKS) if (v 
 const daysToDue = () => Math.max(0, S.nextDue - S.t);
 
 return { WORLD, VIEW, CELL, GW, GH, YEAR, LOT, LAND, LABELS, GOODS, G, PORTS, PORT_IDS, FINDS, ZONES, SHIPS, CAPTAINS, CREW, RANKS, RIVALS, BOONS, SEASONS,
-  P, JO, get S() { return S; }, set S(v) { S = v; },
+  P, JO, get S() { return S; }, set S(v) { S = v; }, DIFFS, DIFF_NEW, dif, saveData, loadData,
   newGame, update, portTick, plan, depart, buy, sell, sellAll, buyRumor, rumorCost, tribute, tributeCost, canTribute, repair, repairCost, upgrade, nextShip,
   choose, nextStory, infoFor, tickMarket, buyPrice, sellPrice, cratePrice, pctOf, topDemand, activeBoom, freeSlots, capacity, ship, crewOf, perk,
   acceptOffer, quotaNow, quotaFor, takeBoon, daysToDue, inZone, pirateOdds, zoneR, NEWS, SPECIALS, STORE_MAX,

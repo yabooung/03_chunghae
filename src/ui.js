@@ -23,9 +23,9 @@ const S = () => C.S;
 /* ─────────── 저장 ─────────── */
 const META = (() => { const d = { runs: 0, best: 0, unlocked: {}, tut: false, sound: true }; try { return Object.assign(d, JSON.parse(localStorage.getItem(MKEY) || '{}')); } catch (e) { return d; } })();
 const saveMeta = () => { try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} };
-function saveGame() { const s = S(); if (!s || s.ended || s.mode !== 'port' || s.draft) return; try { const d = Object.assign({}, s); delete d.reveals; localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
+function saveGame() { const s = S(); if (!s || s.ended || s.mode !== 'port' || s.draft) return; try { localStorage.setItem(KEY, C.saveData()); } catch (e) {} }
 function hasSave() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(d && d.v === 6 && !d.ended); } catch (e) { return false; } }
-function loadGame() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!d || d.v !== 6) return false; d.battle = null; d.dive = null; d.reveals = []; d.ev = null; C.S = d; return true; } catch (e) { return false; } }
+function loadGame() { try { return !!C.loadData(localStorage.getItem(KEY)); } catch (e) { return false; } } // 난이도가 없던 옛 저장은 바람으로 읽힌다
 const dropSave = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
 
 /* ─────────── 소리 ─────────── */
@@ -254,7 +254,7 @@ const last = {};
 const setText = (id, v) => { if (last[id] !== v) { last[id] = v; $(id).textContent = v; } };
 function paintHud() {
   const s = S(); if (!s) return; paintTracker();
-  setText('hDate', C.dateStr(s.t)); setText('hSeason', `${C.SEASONS[C.seasonOf(s.t)]} · ${C.monsoon(s.t).name}`); setText('hGold', fmt(s.gold));
+  setText('hDate', C.dateStr(s.t)); setText('hSeason', `${C.SEASONS[C.seasonOf(s.t)]} · ${C.monsoon(s.t).name}`); setText('hDiff', C.dif().name); setText('hGold', fmt(s.gold));
   const q = C.quotaNow(), dd = Math.ceil(C.daysToDue()); setText('hQuota', fmt(q)); setText('hDue', `${dd}일 뒤`);
   const qk = (s.gold >= q) + ':' + (dd <= 15); if (last.qr !== qk) { last.qr = qk; $('hQuotaBox').classList.toggle('ok', s.gold >= q); $('hQuotaBox').classList.toggle('urgent', s.gold < q && dd <= 15); }
   const slotKey = C.capacity() + ':' + s.slots.map(x => x.id).join(',');
@@ -477,7 +477,7 @@ function openQuota(res) {
   const cards = s.draft.map(id => { const b = C.BOONS.find(x => x.id === id), have = s.boons[id] || 0;
     return `<button class="boon" data-b="${id}"><span class="bch">${b.ch}</span><b>${b.name}${have ? ` <small>${have + 1}번째</small>` : ''}</b><span>${b.text}</span></button>`; }).join('');
   $('qCard').innerHTML = `<div class="eyebrow">${season} 상납 · ${C.dateStr(s.t)}</div><h2>청해진 군자금 <span class="num">${fmt(res.amount)}</span>냥</h2>
-    <p>${res.seized ? `돈이 모자라 짐을 7할 값(${fmt(res.seized)}냥)에 넘겨 겨우 맞췄다. ` : ''}${yr ? '<b>한 해를 버텼다.</b> 다음 해부터 상납이 크게 오른다. ' : ''}다음 상납은 <b class="num">${fmt(res.next)}냥</b>, ${Math.round(C.daysToDue())}일 뒤.${res.wages ? ` 선원 급료 ${fmt(res.wages)}냥을 치렀다.` : ''}${res.left && res.left.length ? ` <b class="dn">급료를 못 받은 ${res.left.join(', ')}이 배를 떠났다.</b>` : ''}</p>
+    <p>${res.seized ? `돈이 모자라 짐을 7할 값(${fmt(res.seized)}냥)에 넘겨 겨우 맞췄다. ` : ''}${yr ? '<b>한 해를 버텼다.</b> 다음 해부터 상납이 크게 오른다. ' : ''}다음 상납은 <b class="num">${fmt(res.next)}냥</b>, ${Math.round(C.daysToDue())}일 뒤.${C.dif().share ? ` ${C.dif().name} — 상납은 가진 돈과 짐 값의 ${Math.round(C.dif().share * 10)}할보다 적지 않다.` : ''}${res.wages ? ` 선원 급료 ${fmt(res.wages)}냥을 치렀다.` : ''}${res.left && res.left.length ? ` <b class="dn">급료를 못 받은 ${res.left.join(', ')}이 배를 떠났다.</b>` : ''}</p>
     <div class="sub" style="margin-bottom:8px">특권 하나를 고른다</div><div class="boons">${cards}</div>`;
   $('mQuota').hidden = false;
   $('qCard').querySelectorAll('[data-b]').forEach(b => b.onclick = () => { const r = C.takeBoon(b.dataset.b); $('mQuota').hidden = true; AU.chime();
@@ -531,7 +531,8 @@ function paintBattle() { const s = S(), B = s.battle; if (!B) return; const pct 
   $('btMe').style.width = pct(s.hull, s.hullMax); $('btMeN').textContent = `${Math.max(0, Math.round(s.hull))}/${s.hullMax}`; $('btFoe').style.width = pct(B.e.hp, B.e.max); $('btFoeN').textContent = `${B.e.hp}/${B.e.max}`; $('btSt').style.width = pct(s.stamina, 100);
   if (B.over) return;
   const I = B.intent, danger = I.dmg >= B.e.atk * 1.4; $('btIntent').className = 'bt-intent' + (danger ? ' danger' : I.dmg ? '' : ' calm');
-  $('btIntent').innerHTML = `<span class="lbl">적의 다음 수</span><b>${I.text}</b>${I.dmg ? `<em>${I.dmg}</em>` : ''}`;
+  const pun = ['volley', 'board', 'ram'].includes(I.k) && C.dif().punish > 1 ? `<small class="pun"> · 받아내지 못하면 ×${C.dif().punish}</small>` : '';
+  $('btIntent').innerHTML = `<span class="lbl">적의 다음 수</span><b>${I.text}${pun}</b>${I.dmg ? `<em>${I.dmg}</em>` : ''}`;
   $('btActs').innerHTML = C.battleOpts().map((o, i) => `<button class="bact" data-a="${o.id}" ${o.ok ? '' : 'disabled'}><span class="bch">${o.ch}</span><b>${o.label}</b><small>${o.sub}</small><kbd>${i + 1}</kbd></button>`).join('');
   $('btActs').querySelectorAll('[data-a]').forEach(b => b.onclick = () => battleDo(b.dataset.a)); }
 function battleDo(a) { const s = S(), B = s.battle; if (!B || B.over) return; AU.init(); const I = B.intent, hull0 = s.hull, hp0 = B.e.hp, dist0 = B.dist; const r = C.battleAct(a); if (!r) return;
@@ -726,14 +727,14 @@ function finish(retire) {
   const hit = s.stats.hits + s.stats.misses ? Math.round(s.stats.hits / (s.stats.hits + s.stats.misses) * 100) : 0;
   $('endScroll').innerHTML = `<div class="rank">${rank.replace('(大商)', '<br>大商')}</div>
     ${endTag}<h2>${T[0]}</h2><p class="lead">${T[1]}</p>
-    <dl class="ledger"><dt>버틴 상납</dt><dd>${s.quotaN}번 · ${Math.floor(s.quotaN / 4)}년 ${s.quotaN % 4}계절</dd><dt>바친 군자금</dt><dd>${fmt(s.paid)}냥</dd><dt>남긴 재산</dt><dd>${fmt(C.assets())}냥</dd><dt>점수</dt><dd>${fmt(sc)}</dd>
+    <dl class="ledger"><dt>버틴 상납</dt><dd>${s.quotaN}번 · ${Math.floor(s.quotaN / 4)}년 ${s.quotaN % 4}계절</dd><dt>바친 군자금</dt><dd>${fmt(s.paid)}냥</dd><dt>남긴 재산</dt><dd>${fmt(C.assets())}냥</dd><dt>점수</dt><dd>${fmt(sc)}</dd><dt>난이도</dt><dd>${C.dif().name} (${C.dif().sub})</dd>
       <dt>항해</dt><dd>${s.stats.voyages}번</dd><dt>소문 적중</dt><dd>${hit}%</dd><dt>닻 내린 항구</dt><dd>${Object.keys(s.docked).length} / ${C.PORT_IDS.length}</dd><dt>발견</dt><dd>${Object.keys(s.found).length} / ${C.FINDS.length}</dd>
       <dt>완수한 의뢰</dt><dd>${s.stats.orders}건</dd><dt>해전 승리</dt><dd>${s.stats.wins || 0}번 · 잡은 두목 ${s.stats.bounties || 0}</dd><dt>유물</dt><dd>${Object.keys(s.relics || {}).length} / ${C.RELICS.length}</dd><dt>끝낸 이야기</dt><dd>${s.stats.quests || 0} / ${C.QUESTS.length}</dd><dt>가장 큰 거래</dt><dd>${s.stats.bestTrade || '없음'}</dd><dt>최고 기록</dt><dd>${fmt(META.best)}</dd></dl>
     <ul class="fates">${s.crew.map(c => `<li><b>${C.CREW.find(x => x.k === c.k).name}</b><span>${fate(c)}</span></li>`).join('')}</ul>
     ${unl.length ? `<div class="unlock">${unl.join('<br>')}</div>` : ''}
     <div class="start-row" style="margin-top:20px;justify-content:flex-start"><button class="btn main" id="eAgain">다시 바다로</button><button class="btn" id="eTitle">선장 고르기</button></div>`;
   $('sEnd').hidden = false; AU[why === 'retire' ? 'gong' : 'drum']();
-  $('eAgain').onclick = () => { $('sEnd').hidden = true; startGame(s.cap); };
+  $('eAgain').onclick = () => { $('sEnd').hidden = true; startGame(s.cap, s.diff); };
   $('eTitle').onclick = () => { $('sEnd').hidden = true; showTitle(); };
 }
 
@@ -751,17 +752,20 @@ $('mRetireYes').onclick = () => { $('mRetire2').hidden = true; finish(true); };
 $('mRetireNo').onclick = () => { $('mRetire2').hidden = true; };
 
 /* ─────────── 첫 화면 ─────────── */
-let capSel = 'gungbok';
+let capSel = 'gungbok', diffSel = C.DIFFS[META.diff] ? META.diff : C.DIFF_NEW;
 function showTitle() { $('sTitle').hidden = false; $('bCont').hidden = !hasSave();
+  $('diffs').innerHTML = Object.entries(C.DIFFS).map(([id, d]) => `<button class="dif-b ${diffSel === id ? 'on' : ''}" data-diff="${id}" role="radio" aria-checked="${diffSel === id}"><span class="dch">${d.ch}</span><b>${d.name}</b><small>${d.sub}</small></button>`).join('');
+  $('diffs').querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diffSel = b.dataset.diff; META.diff = diffSel; saveMeta(); showTitle(); });
+  $('diffLine').textContent = `난이도 ${C.DIFFS[diffSel].name} — ${C.DIFFS[diffSel].text}`;
   $('caps').innerHTML = Object.entries(C.CAPTAINS).map(([id, c]) => { const open = !c.unlock || META.unlocked[id];
     return `<button class="cap ${capSel === id ? 'on' : ''}" data-cap="${id}" ${open ? '' : 'disabled'}><span class="nm">${c.name}</span><small>${c.title}</small><p>${open ? c.perk : ''}</p>${open ? '' : `<span class="lock">${c.unlock}</span>`}</button>`; }).join('');
   $('caps').querySelectorAll('.cap').forEach(b => b.onclick = () => { capSel = b.dataset.cap; showTitle(); });
   $('bestLine').textContent = META.best ? `최고 기록 ${fmt(META.best)} · ${META.runs}번 항해 · 엔딩 ${Object.keys(META.endings || {}).length}/${Object.keys(C.ENDINGS).length}` : ''; }
 function resetView() { spNote = null; mapAppear = {}; BT.open = false; trail = []; portAppear = {}; findAppear = {}; rumorPulse = {}; rivalMark = {}; lastQuote = null; speedIdx = 0; for (const k of Object.keys(last)) delete last[k]; camGoal = null; }
-function startGame(cap) {
-  AU.init(); C.newGame(cap); fogReset(); resetView();
+function startGame(cap, diff) {
+  AU.init(); C.newGame(cap, diff || diffSel); fogReset(); resetView();
   $('sTitle').hidden = true; cam.touched = 0; cam.wide = false; openPanel(); relayout(true); paintHud(); saveGame();
-  const c = C.CAPTAINS[cap]; toast(`${c.name} — ${c.title}. ${C.PORTS[c.start].name}에서 시작한다. 첫 상납은 ${fmt(C.quotaNow())}냥, ${Math.round(C.daysToDue())}일 뒤.`);
+  const c = C.CAPTAINS[cap]; toast(`${c.name} — ${c.title}. 난이도 ${C.dif().name}. ${C.PORTS[c.start].name}에서 시작한다. 첫 상납은 ${fmt(C.quotaNow())}냥, ${Math.round(C.daysToDue())}일 뒤.`);
   setTimeout(() => banner('春', '봄 · 계절이 끝날 때마다 청해진 군자금을 바친다'), 300);
   coachStep = META.tut ? -2 : -1; if (!META.tut && cap === 'gungbok') setTimeout(() => coach(0), 1600);
   setTimeout(runStories, 1300);

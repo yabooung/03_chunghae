@@ -50,6 +50,7 @@ button:focus-visible{outline:2px solid var(--cheong);outline-offset:2px}
 .when{display:flex;flex-direction:column;gap:2px}
 .when b{font-family:var(--display);font-weight:400;font-size:17px;letter-spacing:.02em}
 .season{font-size:var(--fs-xs);color:var(--cheong);letter-spacing:.06em}
+.dif{font-style:normal;margin-left:6px;padding:0 4px;border:1px solid var(--rule-2);color:var(--ink-2);font-size:10.5px;letter-spacing:.04em}
 .hud .sp{flex:1}
 .meters{display:flex;align-items:center;gap:16px;background:var(--hanji-2);border:1px solid var(--rule-2);
   padding:8px 14px;box-shadow:var(--shadow)}
@@ -244,6 +245,14 @@ button:focus-visible{outline:2px solid var(--cheong);outline-offset:2px}
 .cap.on{border:2px solid var(--ink);padding:13px}
 .cap:disabled{opacity:.5;cursor:default}
 .cap .lock{font-size:var(--fs-xs);color:var(--ju)}
+.diffs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:min(620px,100%)}
+@media (max-width:680px){.diffs{max-width:360px}}
+.dif-b{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 6px;border:1px solid var(--rule-2);background:var(--hanji-2)}
+.dif-b .dch{font-family:var(--display);font-size:20px;line-height:1;color:var(--ink-3)}
+.dif-b b{font-family:var(--display);font-weight:400;font-size:18px;line-height:1}
+.dif-b small{font-size:var(--fs-xs);color:var(--ink-3)}
+.dif-b.on{border:2px solid var(--ink);padding:7px 5px} .dif-b.on .dch{color:var(--ju)}
+.dif-line{margin-top:-8px;min-height:2.6em}
 .start-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .start-row .btn{padding:12px 22px;font-size:var(--fs-m)}
 .fine{font-size:var(--fs-xs);color:var(--ink-3);text-align:center;max-width:52ch;margin:0}
@@ -367,6 +376,7 @@ button:focus-visible{outline:2px solid var(--cheong);outline-offset:2px}
 .bt-intent{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1.5px solid var(--ink);background:var(--hanji);font-size:var(--fs-s)}
 .bt-intent .lbl{font-size:10.5px;letter-spacing:.14em;color:var(--ink-3);white-space:nowrap}
 .bt-intent b{flex:1}
+.bt-intent .pun{font-weight:400;font-size:var(--fs-xs);color:var(--ju);white-space:nowrap}
 .bt-intent em{font-style:normal;font-family:var(--display);font-size:22px;color:var(--ju);line-height:1}
 .bt-intent.danger{border-color:var(--ju);background:rgba(176,63,40,.08);animation:chased 1s ease-in-out infinite alternate}
 .bt-intent.calm{border-style:dashed}
@@ -526,7 +536,7 @@ b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink
 <canvas id="map" aria-label="해도"></canvas>
 
 <header class="hud">
-  <div class="cartouche"><span class="brand">淸海</span><div class="when"><b id="hDate" class="num">828년 4월 1일</b><span class="season" id="hSeason">봄 · 변덕</span></div></div>
+  <div class="cartouche"><span class="brand">淸海</span><div class="when"><b id="hDate" class="num">828년 4월 1일</b><span class="season"><span id="hSeason">봄 · 변덕</span><i class="dif" id="hDiff" title="난이도"></i></span></div></div>
   <span class="sp"></span>
   <div class="meters">
     <div class="stat gold"><span class="k">냥</span><b id="hGold">5,000</b></div>
@@ -570,6 +580,8 @@ b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink
     <div class="title-mark"><span class="big">淸海</span><span class="vseal">바람의 장부</span></div>
     <p class="tagline">828년, 배 한 척과 오천 냥. 계절마다 청해진에 군자금을 바쳐라. 액수는 점점 오른다. 얼마나 버티겠는가.</p>
     <div class="caps" id="caps"></div>
+    <div class="diffs" id="diffs" role="radiogroup" aria-label="난이도"></div>
+    <p class="fine dif-line" id="diffLine"></p>
     <div class="start-row"><button class="btn main" id="bStart">닻을 올린다</button><button class="btn" id="bCont" hidden>이어하기</button></div>
     <p class="fine">스물아홉 항구, 일곱 개의 이야기, 스물일곱 곳의 발견. 돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
     <p class="fine" id="bestLine"></p>
