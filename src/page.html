@@ -415,6 +415,63 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
   #btCv{height:120px} .bt-bars{grid-template-columns:1fr} .dv{grid-template-columns:84px 1fr} .dv-col{height:230px}
 }
 .pop{z-index:70!important}
+
+/* v5 — 장부 */
+.bookbtn{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 6px;border:1px solid var(--ink);background:var(--hanji-2);box-shadow:var(--shadow);font-size:var(--fs-s);font-weight:600}
+.bookbtn span{width:24px;height:24px;display:grid;place-items:center;background:var(--ink);color:var(--hanji-2);font-family:var(--display);font-size:15px;font-weight:400}
+.bookbtn:hover{background:var(--ink);color:var(--hanji-2)}
+.card.book{width:min(860px,100%);height:min(760px,calc(100% - 16px));display:flex;flex-direction:column;padding-bottom:0}
+.bk-head{display:flex;justify-content:space-between;align-items:flex-start}
+.bk-head h2{margin:2px 0 8px!important}
+.bk-tabs{display:flex;gap:2px;border-bottom:1.5px solid var(--ink)}
+.bk-tabs button{padding:8px 16px;font-size:var(--fs-s);font-weight:600;color:var(--ink-3);border:1px solid transparent;border-bottom:0;margin-bottom:-1.5px}
+.bk-tabs button.on{color:var(--ink);background:var(--hanji);border-color:var(--ink);border-bottom:1.5px solid var(--hanji)}
+.bk-body{flex:1;overflow:auto;padding:12px 2px 18px}
+.bk-goods{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.bk-goods button{display:inline-flex;align-items:center;gap:4px;padding:3px 9px 3px 3px;border:1px solid var(--rule-2);font-size:var(--fs-xs);background:var(--hanji)}
+.bk-goods button:first-child{padding-left:9px}
+.bk-goods button.on{border-color:var(--ink);background:var(--ink);color:var(--hanji-2)}
+.bk-goods .glyph{width:20px;height:20px;font-size:12px}
+.bk-note{text-align:left!important;margin:4px 0 10px}
+.bk-nat{margin:14px 0 6px;font-size:10.5px;letter-spacing:.18em;color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--rule);padding-bottom:4px}
+.bk-nat small{letter-spacing:0;color:var(--ink-2);margin-left:6px}
+.bk-row{width:100%;display:grid;grid-template-columns:30px 150px 1fr 1fr;gap:10px;align-items:center;padding:7px 8px;border:1px solid transparent;border-bottom-color:var(--rule);text-align:left;font-size:var(--fs-s)}
+.bk-row:hover{border-color:var(--ink);background:var(--hanji)}
+.bk-row .seal{width:28px;height:28px;display:grid;place-items:center;background:var(--ju);color:var(--hanji-2);font-family:var(--display);font-size:16px}
+.bk-row .nm{display:flex;flex-direction:column;font-weight:600;line-height:1.25}
+.bk-row .nm small{font-weight:400;font-size:10.5px;color:var(--ink-3)} .bk-row .nm small.sp{color:var(--hwang)}
+.bk-row .gs{display:flex;flex-wrap:wrap;gap:4px}
+.bk-g{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 2px;font-size:var(--fs-xs);border:1px solid var(--rule)}
+.bk-g .glyph{width:18px;height:18px;font-size:11px}
+.bk-g.sell{border-color:rgba(77,122,70,.45)} .bk-g.want{border-color:rgba(176,63,40,.4);color:var(--ink)}
+.bk-g b{font-variant-numeric:tabular-nums;margin-left:2px}
+b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink-3)}
+.bk-row.one{grid-template-columns:30px 120px 1fr 120px}
+.bk-row.one .pr{display:flex;flex-direction:column;align-items:flex-end;font-size:16px;font-variant-numeric:tabular-nums}
+.bk-row.one .pr small{font-size:10.5px;color:var(--ink-3)}
+.bk-row.best{background:rgba(77,122,70,.08);border-color:var(--rok)}
+.bk-q{display:flex;gap:12px;align-items:flex-start;padding:10px;border:1px solid var(--rule-2);margin-bottom:6px;font-size:var(--fs-s)}
+.bk-q.on{border-color:#3f5a7a;border-width:1.5px}
+.bk-q .gr{flex:1;min-width:0} .bk-q small{color:var(--ink-3)}
+.qch{flex:none;width:36px;height:36px;display:grid;place-items:center;background:#3f5a7a;color:var(--hanji-2);font-family:var(--display);font-size:19px}
+.qch.dim{background:var(--ink-3)} .bk-q.fin{opacity:.6}
+.qgoal{margin-top:4px;font-family:var(--display);font-size:16px;line-height:1.45;color:#2f4a68} .qgoal.dim{color:var(--ink-3);font-size:14px}
+.qdone{font-size:var(--fs-xs);color:var(--ink-3);margin-top:2px}
+.bk-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.bk-stats div{padding:10px;border:1px solid var(--rule-2);background:var(--hanji);display:flex;flex-direction:column}
+.bk-stats b{font-family:var(--display);font-weight:400;font-size:26px;line-height:1.1} .bk-stats small{font-size:var(--fs-xs);color:var(--ink-3)}
+.dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}
+.dx{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px dashed var(--rule-2);text-align:left;font-size:var(--fs-s)}
+.dx small{font-size:var(--fs-xs);color:var(--ink-3);line-height:1.4}
+.dx.on{border-style:solid;border-color:var(--cheong);background:var(--hanji)} .dx.on b{font-family:var(--display);font-weight:400;font-size:16px}
+.dest li.pw{flex-direction:column;align-items:flex-start;gap:4px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+.dest li.pw>span{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:var(--fs-xs);color:var(--ink-2)}
+@media (max-width:620px){
+
+  .bk-row,.bk-row.one{grid-template-columns:28px 1fr;grid-template-areas:none} .bk-row .gs{grid-column:2} .bk-row.one .pr{grid-column:2;align-items:flex-start}
+  .bk-stats{grid-template-columns:repeat(2,1fr)} .bk-tabs button{padding:8px 10px}
+}
+@media (max-width:860px){.bookbtn{position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 68px);z-index:9;height:32px}}
 </style>
 
 <canvas id="map" aria-label="해도"></canvas>
@@ -429,6 +486,7 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
     <div class="gauge threat" id="hThreat" title="경계 — 30 감찰, 60 현상금, 85 그림자, 100이면 칼이 온다"><span class="k">경계 <b class="num">0</b></span><i><s></s></i></div>
     <div class="gauge hull" id="hHull"><span class="k">선체 <b class="num">100</b></span><i><s></s></i></div>
   </div>
+  <button class="bookbtn" id="bBook" aria-label="장부 — 시세·이야기·도감" title="장부 (B)"><span>簿</span><b>장부</b></button>
   <button class="icon" id="bMenu" aria-label="메뉴"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <div class="menu" id="menu" hidden><button id="mWide">해도 전체 보기</button><button id="mShip">내 배로</button><button id="mSound">소리 끄기</button><button id="mRetire">항해를 접고 결산</button></div>
   <button class="icon" id="bSound" aria-label="소리 켜고 끄기"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="sndWave" d="M16 8.5c1.4 1 1.4 6 0 7M18.5 6c2.8 2.2 2.8 9.8 0 12"/></svg></button>
@@ -452,6 +510,7 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
 <div class="modal" id="mReveal" hidden><div class="card reveal" id="rvCard"></div></div>
 <div class="modal" id="mBattle" hidden><div class="card battle" id="btCard"></div></div>
 <div class="modal" id="mDive" hidden><div class="card dive" id="dvCard"></div></div>
+<div class="modal" id="mBook" hidden><div class="card book"><div class="bk-head"><div><div class="eyebrow">바람의 장부</div><h2>장부</h2></div><button class="icon" id="bkClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="bk-tabs" id="bkTabs"></div><div class="bk-body" id="bkBody"></div></div></div>
 <div class="modal" id="mStory" hidden><div class="card" id="stCard"></div></div>
 <div class="modal" id="mQuota" hidden><div class="card quota" id="qCard"></div></div>
 <div class="modal" id="mRetire2" hidden><div class="card"><div class="eyebrow">결산</div><h2>항해를 접을까</h2><p>지금까지 바친 군자금과 남은 재산으로 점수를 매긴다. 이 항해는 이어서 할 수 없다.</p><div class="start-row" style="justify-content:flex-end"><button class="btn" id="mRetireNo">계속 간다</button><button class="btn main" id="mRetireYes">돛을 내린다</button></div></div></div>
@@ -462,7 +521,7 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
     <p class="tagline">828년, 배 한 척과 오천 냥. 계절마다 청해진에 군자금을 바쳐라. 액수는 점점 오른다. 얼마나 버티겠는가.</p>
     <div class="caps" id="caps"></div>
     <div class="start-row"><button class="btn main" id="bStart">닻을 올린다</button><button class="btn" id="bCont" hidden>이어하기</button></div>
-    <p class="fine">돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
+    <p class="fine">스물아홉 항구, 일곱 개의 이야기, 스물일곱 곳의 발견. 돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
     <p class="fine" id="bestLine"></p>
   </div>
 </section>

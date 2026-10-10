@@ -43,7 +43,10 @@ const GOODS = [
   { id: 'gold', name: '사금', ch: '金', base: 500, col: '#a8821f' },
   { id: 'shell', name: '야광패', ch: '貝', base: 350, col: '#2a8580' },
   { id: 'fur', name: '담비가죽', ch: '貂', base: 440, col: '#6b4a32' },
-  { id: 'sulfur', name: '유황', ch: '硫', base: 160, col: '#9a9a2a' }
+  { id: 'sulfur', name: '유황', ch: '硫', base: 160, col: '#9a9a2a' },
+  { id: 'tea', name: '차', ch: '茶', base: 240, col: '#6f7d2f' },
+  { id: 'books', name: '서적', ch: '書', base: 380, col: '#4b4d6e' },
+  { id: 'iron', name: '덩이쇠', ch: '鐵', base: 210, col: '#5a6266' }
 ];
 const G = Object.fromEntries(GOODS.map(g => [g.id, g]));
 
@@ -51,17 +54,32 @@ const PORTS_LL = {
   cheonghae: ['청해진', '淸', '신라', 126.85, 34.25, ['ginseng'], ['spice', 'porcelain'], { court: true }],
   dangeun:   ['당은포', '恩', '신라', 126.45, 37.12, ['ginseng'], ['silk', 'fur']],
   ulsan:     ['울산', '蔚', '신라', 129.5, 35.45, ['gold'], ['silk', 'spice'], { court: true }],
-  tamna:     ['탐라', '耽', '탐라', 126.55, 33.62, ['shell'], ['porcelain', 'silk']],
+  tamna:     ['탐라', '耽', '탐라', 126.55, 33.62, ['shell'], ['porcelain', 'iron']],
   jeoksan:   ['적산', '赤', '당', 122.35, 36.82, ['silk'], ['ginseng', 'gold']],
   deungju:   ['등주', '登', '당', 120.78, 37.92, ['silk'], ['fur', 'ginseng']],
   yangzhou:  ['양주', '揚', '당', 121.1, 32.25, ['porcelain', 'spice'], ['ginseng', 'shell']],
   mingzhou:  ['명주', '明', '당', 122.25, 29.95, ['porcelain'], ['sulfur', 'gold']],
-  hakata:    ['하카타', '博', '왜', 130.3, 33.72, ['sulfur'], ['silk', 'spice']],
+  hakata:    ['하카타', '博', '왜', 130.3, 33.72, ['sulfur'], ['silk', 'spice', 'books']],
   naniwa:    ['나니와', '難', '왜', 135.3, 34.5, ['gold'], ['porcelain', 'silk', 'spice'], { hidden: true }],
   quanzhou:  ['천주', '泉', '당', 118.85, 24.75, ['spice'], ['gold', 'ginseng', 'fur'], { hidden: true }],
   amami:     ['아마미', '奄', '남도', 129.25, 28.3, ['shell'], ['ginseng', 'porcelain'], { hidden: true }],
-  ryukyu:    ['유구', '流', '남도', 127.55, 26.35, ['shell', 'sulfur'], ['silk', 'gold'], { hidden: true }],
-  yeomju:    ['염주', '鹽', '발해', 130.95, 42.45, ['fur'], ['silk', 'porcelain'], { hidden: true }]
+  ryukyu:    ['유구', '流', '남도', 127.55, 26.35, ['shell', 'sulfur'], ['silk', 'iron'], { hidden: true }],
+  yeomju:    ['염주', '鹽', '발해', 130.95, 42.45, ['fur'], ['silk', 'tea'], { hidden: true }],
+  hyeolgu:   ['혈구진', '穴', '신라', 126.1, 37.65, ['iron'], ['tea', 'spice']],
+  hoejin:    ['회진', '會', '신라', 126.35, 34.9, ['ginseng', 'silk'], ['books', 'porcelain']],
+  gimhae:    ['김해', '伽', '신라', 128.88, 35.08, ['iron'], ['books', 'silk']],
+  samcheok:  ['실직', '悉', '신라', 129.2, 37.42, ['ginseng'], ['shell', 'tea']],
+  namgyeong: ['남경', '南', '발해', 128.4, 40.05, ['fur', 'iron'], ['silk', 'tea', 'porcelain'], { hidden: true }],
+  laizhou:   ['내주', '萊', '당', 119.95, 37.2, ['books', 'silk'], ['ginseng', 'fur']],
+  mizhou:    ['밀주', '密', '당', 120.15, 35.95, ['tea', 'silk'], ['ginseng', 'iron']],
+  chuzhou:   ['초주', '楚', '당', 119.45, 34.6, ['books', 'porcelain'], ['ginseng', 'gold']],
+  hangzhou:  ['항주', '杭', '당', 120.85, 30.35, ['tea', 'silk'], ['shell', 'iron']],
+  wenzhou:   ['온주', '溫', '당', 120.95, 28.0, ['tea', 'porcelain'], ['sulfur', 'fur']],
+  fuzhou:    ['복주', '福', '당', 119.55, 26.05, ['tea', 'spice'], ['gold', 'ginseng'], { hidden: true }],
+  izumo:     ['이즈모', '雲', '왜', 132.75, 35.5, ['iron'], ['books', 'porcelain']],
+  tsuruga:   ['쓰루가', '敦', '왜', 136.05, 35.66, ['gold', 'silk'], ['fur', 'books'], { hidden: true }],
+  satsuma:   ['사쓰마', '薩', '왜', 130.3, 31.55, ['sulfur'], ['tea', 'books'], { hidden: true }],
+  jilong:    ['계롱', '鷄', '남도', 121.75, 25.15, ['sulfur', 'gold'], ['iron', 'porcelain'], { hidden: true }]
 };
 const PORTS = {}; for (const [k, v] of Object.entries(PORTS_LL)) { const [x, y] = P(v[3], v[4]); PORTS[k] = Object.assign({ name: v[0], ch: v[1], nation: v[2], x, y, prod: v[5], want: v[6] }, v[7] || {}); }
 const PORT_IDS = Object.keys(PORTS);
@@ -75,9 +93,34 @@ const FINDS_LL = [
   ['tsushima', '대마도', 129.12, 34.35, 50, 300, '왜인 어부들이 물을 나눠준다.'],
   ['yaku', '구름 숲 섬', 130.55, 30.12, 80, 500, '천 년 묵은 삼나무가 구름을 뚫고 섰다. 남쪽으로 섬들이 이어진다.', s => { revealCircle(PORTS.amami.x, PORTS.amami.y, 70); }],
   ['yizhou', '이주(夷州)', 121.6, 25.5, 110, 700, '큰 섬의 북쪽 끝. 서쪽 바다 건너 천주의 불빛이 보인다고 한다.', s => { revealCircle(PORTS.quanzhou.x, PORTS.quanzhou.y, 90); }],
-  ['shoal', '거대 어군', 124.4, 35.4, 30, 900, '바다가 끓는다. 그물 가득 건져 소금에 절여 팔았다.']
+  ['shoal', '거대 어군', 124.4, 35.4, 30, 900, '바다가 끓는다. 그물 가득 건져 소금에 절여 팔았다.'],
+  ['baengnyeong', '백령도', 124.7, 37.95, 60, 300, '물범이 바위 위에서 존다. 당으로 건너는 배들이 여기서 바람을 기다린다.'],
+  ['gageo', '가거도', 125.12, 34.07, 60, 400, '신라의 마지막 섬. 여기서부터는 망망대해다.'],
+  ['chuja', '추자도', 126.3, 33.95, 40, 300, '탐라와 뭍 사이 징검다리 섬들. 멸치 떼가 은빛으로 뒤집힌다.'],
+  ['geomun', '거문도', 127.3, 34.03, 50, 400, '세 섬이 감싼 잔잔한 물. 폭풍을 피하기 좋은 천연 항구다.', s => { s.hull = Math.min(s.hullMax, s.hull + 20); }],
+  ['jindo', '울돌목', 126.3, 34.57, 70, 0, '바다가 울며 소용돌이친다. 곽이 키를 꽉 잡았다. 물때를 알면 지름길이다.'],
+  ['miaodao', '묘도 열도', 120.75, 38.2, 50, 400, '등주 앞바다에서 요동으로 이어지는 섬 사다리.'],
+  ['laotie', '두 물빛 바다', 121.3, 38.55, 70, 300, '요동 끝. 황해와 발해만의 물이 만나 색이 둘로 갈린다.'],
+  ['yangtze', '장강 하구', 122.1, 31.45, 60, 500, '장강의 흙탕물이 수십 리 바다를 누렇게 물들였다.'],
+  ['putuo', '보타산', 122.4, 30.0, 90, 0, '관음보살의 섬. 뱃사람들과 함께 무사 항해를 빌었다. 경계 -15', s => { s.threat = Math.max(0, s.threat - 15); }],
+  ['iki', '이키 섬', 129.7, 33.78, 40, 300, '하카타와 대마도 사이. 왜의 사신선이 쉬어 가는 섬.'],
+  ['okinoshima', '오키노시마', 130.1, 34.24, 120, 0, '현해탄 한가운데 신의 섬. 바위틈마다 옛 제물이 놓여 있다. 손대지 않고 절만 했다.'],
+  ['tokara', '도카라 열도', 129.7, 29.6, 60, 500, '연기를 뿜는 화산섬들이 남쪽으로 흩어져 있다.'],
+  ['kuroshio', '검은 물길', 128.4, 29.0, 100, 0, '바다 속에 강이 흐른다. 이 물길을 타는 법을 익혔다. 항해 +4%', s => { s.flags.kuroshio = 1; }],
+  ['miyako', '미야코 섬', 125.3, 24.8, 70, 600, '유구 남서쪽 끝 낮은 섬. 산호 바다가 끝없이 맑다.'],
+  ['yonaguni', '바다 밑 돌계단', 123.0, 24.45, 150, 0, '맑은 물 아래 거대한 돌계단. 누가 만들었는지 아무도 모른다.'],
+  ['tumen', '두만강 하구', 130.7, 42.25, 70, 500, '발해 땅의 큰 강이 바다로 든다. 강가에 사슴 떼.'],
+  ['whaleroad', '고래 길', 130.2, 39.6, 70, 600, '동해 한복판, 고래 떼가 북으로 올라가는 길.'],
+  ['noto', '노토 곶', 136.75, 37.45, 80, 500, '왜의 북쪽 바다 끝. 발해 사신선이 처음 닿는 곶이다.']
 ];
-const FINDS = FINDS_LL.map(([id, name, lon, lat, fame, gold, text, fx]) => { const [x, y] = P(lon, lat); return { id, name, x, y, fame, gold, text, fx }; });
+const FIND_META = { heuksan: ['서해', '청해진 서북쪽, 곧은 소나무가 자라는 섬'], shoal: ['서해', '서해 한가운데 물고기가 끓는 곳'], baengnyeong: ['서해', '서해 북쪽 끝, 당으로 건너는 길목의 섬'], gageo: ['서해', '흑산도 남서쪽 먼바다, 신라의 마지막 섬'], miaodao: ['서해', '등주 앞바다에서 요동으로 이어지는 섬들'], laotie: ['서해', '요동반도 남쪽 끝, 물빛이 갈리는 곳'],
+  ieodo: ['남해', '탐라 남서쪽 먼바다, 물에 잠긴 바위섬'], chuja: ['남해', '탐라와 뭍 사이 징검다리 섬들'], geomun: ['남해', '청해진 동쪽, 세 섬이 감싼 항구'], jindo: ['남해', '청해진 서쪽, 바다가 우는 좁은 물목'], tsushima: ['남해', '신라와 왜 사이의 큰 섬'],
+  usan: ['동해', '울산 북동쪽 동해 한가운데 외딴섬'], tumen: ['동해', '발해 염주 남쪽, 큰 강이 바다로 드는 곳'], whaleroad: ['동해', '동해 한복판, 고래가 지나는 길'],
+  oki: ['왜의 바다', '이즈모 북쪽 바다의 섬'], goto: ['왜의 바다', '하카타 서남쪽, 당으로 떠나는 왜 배의 마지막 섬들'], iki: ['왜의 바다', '하카타와 대마도 사이의 섬'], okinoshima: ['왜의 바다', '현해탄 한가운데 신의 섬'], noto: ['왜의 바다', '왜의 북쪽 바다 끝 곶'],
+  yangtze: ['당의 바다', '양주 동쪽, 바다가 누렇게 변하는 곳'], putuo: ['당의 바다', '명주 앞바다 관음보살의 섬'], yizhou: ['당의 바다', '복주 동쪽 큰 섬의 북쪽 끝'],
+  yaku: ['남쪽 바다', '규슈 남쪽, 천 년 삼나무의 섬'], tokara: ['남쪽 바다', '구름 숲 섬과 아마미 사이 화산섬들'], kuroshio: ['남쪽 바다', '남쪽 바다 한복판, 물이 검고 빠른 곳'], miyako: ['남쪽 바다', '유구 남서쪽 끝 낮은 섬'], yonaguni: ['남쪽 바다', '이주 동쪽 바다 밑 돌계단'] };
+const REGIONS = ['서해', '남해', '동해', '왜의 바다', '당의 바다', '남쪽 바다'];
+const FINDS = FINDS_LL.map(([id, name, lon, lat, fame, gold, text, fx]) => { const [x, y] = P(lon, lat); return { id, name, x, y, fame, gold, text, fx, region: (FIND_META[id] || ['남해'])[0], hint: (FIND_META[id] || ['', ''])[1] }; });
 
 /* 해적 해역 */
 const ZONES = [
@@ -135,8 +178,8 @@ const BOONS = [
 
 const RANKS = [[0, '뱃사공'], [40000, '선주'], [120000, '상단주'], [300000, '대상(大商)'], [700000, '해상왕']];
 const RIVALS = [
-  { id: 'wang', name: '왕씨 상단', ch: '王', col: '#8a3a2a', home: 'yangzhou', kind: 'trade', known: ['jeoksan', 'deungju', 'yangzhou', 'mingzhou', 'cheonghae', 'dangeun', 'tamna'] },
-  { id: 'otomo', name: '오토모 배', ch: '大', col: '#2f4f7a', home: 'hakata', kind: 'trade', known: ['hakata', 'ulsan', 'cheonghae', 'mingzhou', 'tamna', 'jeoksan'] },
+  { id: 'wang', name: '왕씨 상단', ch: '王', col: '#8a3a2a', home: 'yangzhou', kind: 'trade', known: ['jeoksan', 'deungju', 'yangzhou', 'mingzhou', 'cheonghae', 'dangeun', 'tamna', 'mizhou', 'chuzhou', 'laizhou', 'hangzhou', 'hoejin'] },
+  { id: 'otomo', name: '오토모 배', ch: '大', col: '#2f4f7a', home: 'hakata', kind: 'trade', known: ['hakata', 'ulsan', 'cheonghae', 'mingzhou', 'tamna', 'jeoksan', 'gimhae', 'izumo', 'hangzhou'] },
   { id: 'black', name: '흑기 해적선', ch: '黑', col: '#1e2829', kind: 'pirate' }
 ];
 
@@ -199,7 +242,7 @@ function wind(t, x, y) { const m = monsoon(t), h = t; const n1 = Math.sin(h * .9
 function windFactor(deg) { const a = Math.abs(deg); let f; if (a <= 45) f = 1; else if (a <= 90) f = 1 - (a - 45) / 45 * .2; else if (a <= 135) f = .8 - (a - 90) / 45 * .3; else f = .5 - (a - 135) / 45 * .15;
   if (S && S.boons) { const c = S.boons.charm || 0; f = f + (1 - f) * .3 * c; } return f; }
 const windWord = deg => { const a = Math.abs(deg); return a <= 55 ? '순풍' : a <= 115 ? '옆바람' : '역풍'; };
-const shipSpeed = () => ship().spd * (1 + .12 * ((S && S.boons.sails) || 0)) * (S && S.relics && S.relics.needle ? 1.08 : 1);
+const shipSpeed = () => ship().spd * (1 + .12 * ((S && S.boons.sails) || 0)) * (S && S.relics && S.relics.needle ? 1.08 : 1) * (S && S.flags.kuroshio ? 1.04 : 1);
 function estimateDays(path, t, spd) { let d = 0; for (let i = 0; i < path.length - 1; i++) { const [x1, y1] = path[i], [x2, y2] = path[i + 1]; const L = Math.hypot(x2 - x1, y2 - y1); if (!L) continue;
   const dir = Math.atan2(y2 - y1, x2 - x1), w = wind(t + d, (x1 + x2) / 2, (y1 + y2) / 2); d += L / (BASE_KMD * Math.min(1.05, w.str) * windFactor(angDiff(dir, w.dir) * 180 / Math.PI) * spd); } return d; }
 function pathWind(path, t) { const [x1, y1] = path[0], [x2, y2] = path[path.length - 1]; const w = wind(t, (x1 + x2) / 2, (y1 + y2) / 2); return windWord(angDiff(Math.atan2(y2 - y1, x2 - x1), w.dir) * 180 / Math.PI); }
@@ -215,7 +258,7 @@ function revealPath(a, b, r) { const p = findPath(PORTS[a].x, PORTS[a].y, PORTS[
 
 function newGame(capId) {
   const cap = CAPTAINS[capId] || CAPTAINS.gungbok, home = PORTS[cap.start];
-  S = { v: 4, cap: capId, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
+  S = { v: 5, cap: capId, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
     gold: cap.gold, slots: [], tier: 0, hull: 100, hullMax: 100, threat: 0, fame: 0, stage: 0,
     markets: {}, booms: [], nextBoom: 4, ledger: {}, rumors: [], found: {}, docked: { [cap.start]: 1 },
     known: Object.fromEntries(PORT_IDS.map(k => [k, !PORTS[k].hidden || (cap.knows || []).includes(k)])),
@@ -224,14 +267,14 @@ function newGame(capId) {
     quotaN: 0, nextDue: 90, paid: 0, boons: {}, draft: null, relief: 0, orders: [], offers: {}, rivals: [], spotted: {},
     stats: { trades: 0, bestMult: 0, bestTrade: null, profit: 0, voyages: 0, hits: 0, misses: 0, orders: 0, years: 0 }, ended: null,
     stamina: 100, rowing: false, news: [], nextNews: ri(12, 20), passenger: null, store: [], spCD: {}, slow: 0, escort: 0, blessed: 0, freed: 0, special: {},
-    maps: [], relics: {}, bounty: null, bOffers: {}, beaten: {}, battle: null, dive: null };
+    maps: [], relics: {}, bounty: null, bOffers: {}, beaten: {}, battle: null, dive: null, quests: {}, qDecl: {}, qNotes: [], regions: {} };
   initMarkets(); initRivals();
   for (const k of PORT_IDS) if (S.known[k]) revealCircle(PORTS[k].x, PORTS[k].y, 140);
-  for (const [a, b] of [['cheonghae', 'jeoksan'], ['cheonghae', 'hakata'], ['cheonghae', 'ulsan'], ['cheonghae', 'dangeun'], ['jeoksan', 'deungju'], ['jeoksan', 'yangzhou'], ['yangzhou', 'mingzhou'], ['cheonghae', 'tamna'], ['tamna', 'mingzhou']]) revealPath(a, b, 75);
+  for (const [a, b] of [['cheonghae', 'jeoksan'], ['cheonghae', 'hakata'], ['cheonghae', 'ulsan'], ['cheonghae', 'dangeun'], ['jeoksan', 'deungju'], ['jeoksan', 'yangzhou'], ['yangzhou', 'mingzhou'], ['cheonghae', 'tamna'], ['tamna', 'mingzhou'], ['cheonghae', 'hoejin'], ['dangeun', 'hyeolgu'], ['jeoksan', 'laizhou'], ['jeoksan', 'mizhou'], ['mizhou', 'chuzhou'], ['yangzhou', 'hangzhou'], ['ulsan', 'gimhae'], ['mingzhou', 'wenzhou'], ['hakata', 'izumo'], ['ulsan', 'samcheok']]) revealPath(a, b, 75);
   if (S.known.naniwa) { revealPath('hakata', 'naniwa', 60); revealCircle(PORTS.naniwa.x, PORTS.naniwa.y, 100); }
   for (const [k, id] of cap.rumors) { tickMarket(k); S.rumors.push({ k, id, price: sellPrice(k, id), day: -ri(4, 9), src: '소문' }); }
   observe(S.at, false); makeOffer(S.at); makeBounty(S.at, true);
-  addMap(1, { near: [home.x, home.y], rmin: 130, rmax: 260, name: '폭풍에 진 신라 배' });
+  addMap(1, { near: [home.x, home.y], rmin: 130, rmax: 260, name: '폭풍에 진 신라 배' }); offerQuests(S.at);
   return S;
 }
 
@@ -264,8 +307,8 @@ const buyPrice = (k, id) => Math.max(1, Math.round(rawPrice(k, id) * (1 - .08 * 
 const sellPrice = (k, id) => Math.max(1, Math.round(rawPrice(k, id) * .93 * sellBonus(k)));
 const pctOf = (k, id) => Math.round(S.markets[k].idx[id] * 100);
 function topDemand(k, n) { const m = S.markets[k]; return GOODS.map(g => g.id).filter(id => !m.stock.includes(id)).sort((a, b) => m.idx[b] - m.idx[a]).slice(0, n); }
-function observe(k, all) { const m = tickMarket(k), p = {}; const ids = all ? GOODS.map(g => g.id) : [...m.stock, ...topDemand(k, 3), ...S.slots.map(s => s.id)];
-  for (const id of new Set(ids)) p[id] = sellPrice(k, id); S.ledger[k] = { day: Math.floor(S.t), p, src: '본 값' }; }
+function observe(k, all) { const m = tickMarket(k), p = {}, b = {}; const ids = all ? GOODS.map(g => g.id) : [...m.stock, ...topDemand(k, 4), ...S.slots.map(s => s.id)];
+  for (const id of new Set(ids)) p[id] = sellPrice(k, id); for (const id of m.stock) b[id] = buyPrice(k, id); S.ledger[k] = { day: Math.floor(S.t), p, b, src: '본 값' }; }
 function infoFor(k, id) { let best = null; const L = S.ledger[k]; if (L && L.p[id] != null) best = { price: L.p[id], day: L.day, src: L.src };
   for (const r of S.rumors) if (r.k === k && r.id === id && (!best || r.day > best.day)) best = { price: r.price, day: r.day, src: r.src, fake: r.fake }; return best; }
 const ago = d => { const a = Math.floor(S.t) - d; return a <= 0 ? '오늘' : `${a}일 전`; };
@@ -313,7 +356,7 @@ const freeSlots = () => capacity() - S.slots.length;
 const cratePrice = (k, id) => buyPrice(k, id) * LOT;
 function buy(id) { const k = S.at; if (!k || S.mode !== 'port') return { ok: false, msg: '항구에서만 살 수 있다' }; tickMarket(k);
   if (!freeSlots()) return { ok: false, msg: '선창이 가득 찼다' }; const cost = cratePrice(k, id); if (S.gold < cost) return { ok: false, msg: '돈이 모자란다' };
-  S.gold -= cost; S.slots.push({ id, cost }); const m = S.markets[k]; m.idx[id] = clamp(m.idx[id] * (1 + LOT / 300), .25, 3.2); m.press[id] = (m.press[id] || 0) - LOT / 600;
+  S.gold -= cost; S.slots.push({ id, cost, from: k }); const m = S.markets[k]; m.idx[id] = clamp(m.idx[id] * (1 + LOT / 300), .25, 3.2); m.press[id] = (m.press[id] || 0) - LOT / 600;
   return { ok: true, cost }; }
 function sell(i) { const k = S.at, s = S.slots[i]; if (!s || !k) return null; tickMarket(k); const m = S.markets[k];
   const pct0 = pctOf(k, s.id), unit = sellPrice(k, s.id), rev = unit * LOT; const profit = rev - s.cost, mult = s.cost > 0 ? rev / s.cost : 3;
@@ -431,6 +474,12 @@ const SPECIALS = {
   quanzhou: { name: '대식 상선', ch: '食', kind: 'deal', good: 'spice', mult: .35, n: 3, cd: 30, desc: '아랍 큰 배가 향료를 헐값에 푼다. 세 상자까지.' },
   amami: { name: '조개 바꾸기', ch: '換', kind: 'swap', cd: 30, desc: '아무 상자 하나를 야광패 두 상자와 바꿔준다.' },
   ryukyu: { name: '유구 왕의 연회', ch: '宴', kind: 'feast', cd: 30, desc: '하루 머물며 연회에 앉으면 왕이 유황 한 상자를 선물한다. 명성 +30' },
+  gimhae: { name: '가야 대장간', ch: '冶', kind: 'deal', good: 'iron', mult: .45, n: 2, cd: 30, desc: '옛 가야의 대장장이들이 덩이쇠를 헐값에 넘긴다. 두 상자까지.' },
+  laizhou: { name: '서적 거리', ch: '書', kind: 'deal', good: 'books', mult: .5, n: 2, cd: 30, desc: '과거 낙방생들이 내놓은 책 더미. 두 상자까지 싸게.' },
+  chuzhou: { name: '초주 신라방', ch: '客', kind: 'inn', cd: 20, desc: '운하 끝 신라 사람들 마을. 동포에게 정확한 소식 두 개를 공짜로 준다.' },
+  hangzhou: { name: '서호 찻집', ch: '茶', kind: 'deal', good: 'tea', mult: .35, n: 3, cd: 30, desc: '햇차를 상자째 헐값에. 세 상자까지.' },
+  izumo: { name: '이즈모 대사', ch: '社', kind: 'temple', cost: 300, cd: 20, desc: '신들이 모이는 신사. 다음 항해에 폭풍과 용오름이 비켜 가고, 신관이 소식 하나를 일러준다.' },
+  tsuruga: { name: '송원관', ch: '館', kind: 'deal', good: 'fur', mult: .5, n: 2, cd: 30, desc: '발해 사신을 맞는 객관. 사신단이 남긴 담비가죽을 넘긴다.' },
   yeomju: { name: '발해 모피 시장', ch: '貂', kind: 'deal', good: 'fur', mult: .45, n: 2, cd: 30, desc: '발해 사냥꾼이 담비가죽을 직접 판다. 두 상자까지.' }
 };
 const STORE_MAX = 4;
@@ -483,7 +532,10 @@ function setRow(on) { if (S.mode !== 'sail') return false; S.rowing = !!on && S.
 
 function nextStory() {
   if (S.ended || S.mode !== 'port') return null;
-  while (S.pending.length) { const id = S.pending.shift(); const st = STORIES[id] && STORIES[id](); if (st) return st; }
+  while (S.pending.length) { const id = S.pending.shift();
+    if (id.startsWith('quest:')) { const q = QBY[id.slice(6)]; if (!q || S.quests[q.id]) continue;
+      return { who: q.who || 'quest', qch: q.ch, title: q.name, text: q.intro, sub: `${q.steps.length}단계 · 첫 목표 — ${q.steps[0].text}`, opts: [{ label: '맡는다', apply: () => { startQuest(q.id); return `이야기 「${q.name}」를 맡았다. 장부의 '이야기'에서 언제든 볼 수 있다.`; } }, { label: '나중에', apply: () => { S.qDecl[q.id] = S.t + 15; return null; } }] }; }
+    const st = STORIES[id] && STORIES[id](); if (st) return st; }
   for (const c of S.crew) { const d = CREW.find(x => x.k === c.k);
     if (c.alive && !c.asked && S.t >= d.appear) { c.asked = true; return { who: c.k, title: `${d.name}의 부탁`, text: `"${d.ask}"`, sub: `→ ${d.hint}`, opts: [{ label: '기억해 두겠다', apply: () => null }] }; }
     if (c.alive && c.asked && !c.done && S.flags[d.flag]) { c.done = true; return { who: c.k, title: `${d.name} — 부탁을 들어줬다`, text: d.done, sub: `→ ${d.perk}`, opts: [{ label: '고개를 끄덕인다', apply: () => null }] }; } }
@@ -685,6 +737,9 @@ function battleFinish(B) { const e = B.e, spec = B.spec || {}, R = { over: B.ove
       const bd = BOSSES.find(x => x.id === e.boss); const m = addMap(3, { name: `${bd.name}의 숨긴 보물`, near: P(...bd.ll) }); if (m) R.map = m; }
     else if (Math.random() < (spec.kind === 'black' ? .6 : .3)) { const m = addMap(Math.random() < .3 ? 2 : 1); if (m) R.map = m; }
     if (spec.kind === 'black') { const R0 = S.rivals.find(r => r.id === 'black'); if (R0) { R0.cool = 40; R0.chasing = false; } } }
+  if (B.over === 'win' && spec.quest && S.quests[spec.quest]) { S.quests[spec.quest].fought = true; }
+  if (B.over !== 'win' && spec.quest && S.quests[spec.quest]) S.quests[spec.quest].cool = S.t + 4;
+  if (B.over === 'win') questEval();
   if (B.over === 'lose') R.wreck = wreck();
   if (B.over === 'fled' && e.boss && S.bounty) S.bounty.cool = S.t + 4;
   if (B.over === 'surrender' && e.boss && S.bounty) S.bounty.cool = S.t + 4;
@@ -693,7 +748,7 @@ function battleFinish(B) { const e = B.e, spec = B.spec || {}, R = { over: B.ove
 function battleClose() { const B = S.battle; S.battle = null; return B && B.result; }
 
 /* ═══════════ 현상 수배 ═══════════ */
-const BOUNTY_PORTS = ['cheonghae', 'dangeun', 'ulsan', 'jeoksan', 'deungju', 'yangzhou', 'mingzhou', 'hakata', 'naniwa', 'quanzhou'];
+const BOUNTY_PORTS = ['cheonghae', 'dangeun', 'ulsan', 'jeoksan', 'deungju', 'yangzhou', 'mingzhou', 'hakata', 'naniwa', 'quanzhou', 'mizhou', 'chuzhou', 'laizhou', 'hangzhou', 'gimhae', 'izumo', 'hyeolgu'];
 function bossSpot(b) { for (let i = 0; i < 30; i++) { const [cx, cy] = P(...b.ll); const a = Math.random() * 7, r = ri(0, 40); const [x, y] = nearestSea(cx + Math.cos(a) * r, cy + Math.sin(a) * r); if (seaAt(x, y) && findPath(PORTS.cheonghae.x, PORTS.cheonghae.y, x, y)) return [x, y]; } return nearestSea(...P(...b.ll)); }
 const bountyReward = b => Math.round((2500 + quotaFor(S.quotaN) * .45 + b.hp * 30 * (1 + .35 * S.tier)) / 100) * 100;
 function makeBounty(k, force) { if (!BOUNTY_PORTS.includes(k)) return; const o = S.bOffers[k]; if (o && o.until > S.t) return;
@@ -756,6 +811,64 @@ function diveFinish(D) { const R = { gold: 0, crates: [], relics: [], sold: 0 };
   S.t += .4 + D.depth * .12; S.stats.relics = Object.keys(S.relics).length; return R; }
 function diveClose() { const D = S.dive; S.dive = null; return D && D.result; }
 
+
+/* ═══════════ 이야기 퀘스트 ═══════════ */
+const QUESTS = [
+  { id: 'chart', name: '할아버지의 해도', ch: '圖', giver: 'cheonghae', who: 'helm', intro: '청해진 창고 구석에서 곽이 좀먹은 해도를 꺼냈다. "우리 할아버지 해도요. 세 군데에 붉은 점이 찍혀 있소. 무엇이 있는지 평생 궁금했지."',
+    steps: [{ text: '첫 번째 붉은 점 — 흑산도 남서쪽 먼바다의 가거도를 찾는다', goal: { type: 'find', id: 'gageo' }, done: '가거도 바위에 할아버지의 이름이 새겨져 있다. 곽이 손끝으로 쓸어본다.', reward: { gold: 1200, fame: 30 } },
+      { text: '두 번째 붉은 점 — 탐라와 뭍 사이 추자도를 찾는다', goal: { type: 'find', id: 'chuja' }, done: '추자도 동굴 벽에 화살표가 그려져 있다. 남쪽, 물에 잠긴 섬을 가리킨다.', reward: { gold: 1500, fame: 30 } },
+      { text: '세 번째 붉은 점 — 탐라 남서쪽, 물에 잠긴 이어도를 찾는다', goal: { type: 'find', id: 'ieodo' }, done: '이어도 물 밑에서 곽이 끝내 울었다. 할아버지가 남긴 마지막 해도가 바위틈 통 속에 있었다.', reward: { gold: 2000, fame: 100, map: 3, mapName: '할아버지의 보물' } }] },
+  { id: 'monk', name: '적산의 승려', ch: '僧', giver: 'jeoksan', intro: '법화원 객사에 왜의 젊은 승려 원진이 묵고 있다. "장안에 가려면 공험(통행증)이 있어야 합니다. 그리고 언젠가는… 고향으로 돌아가야 하지요."',
+    steps: [{ text: '원진을 태우고 등주 관청에 가서 공험을 받는다', goal: { type: 'port', k: 'deungju' }, done: '관리가 도장을 찍었다. 원진이 공험을 품에 안고 운다.', reward: { gold: 800, fame: 30 } },
+      { text: '초주 신라방에 인삼 2상자를 바쳐 원진의 노잣돈을 마련한다', goal: { type: 'deliver', k: 'chuzhou', good: 'ginseng', n: 2 }, done: '신라방 사람들이 인삼을 받고 원진의 여비를 모아주었다.', reward: { gold: 4500, fame: 40 } },
+      { text: '순례를 마친 원진을 하카타까지 태워 간다', goal: { type: 'port', k: 'hakata' }, done: '원진이 고향 땅에 엎드린다. "이 은혜, 바다신께 빌겠습니다." 그가 낡은 방울 하나를 건넨다.', reward: { gold: 4000, fame: 120, relic: 'bell' } }] },
+  { id: 'navy', name: '해적의 뿌리', ch: '軍', giver: 'dangeun', intro: '당은포 수군장이 탁자를 내리친다. "신라 사람을 잡아다 당에 파는 놈들이 있소. 서해 해적의 뿌리를 뽑아주시오."',
+    steps: [{ text: '해적과 싸워 두 번 이긴다', goal: { type: 'wins', n: 2 }, done: '해적 둘을 잡아 넘겼다. 놈들이 두목의 소굴을 불었다.', reward: { gold: 2000, fame: 40 } },
+      { text: '서해 섬 사이 소굴에서 물귀신 장씨를 친다', goal: { type: 'fight', ll: [124.55, 35.95], boss: 'jang', name: '물귀신 장씨의 소굴' }, done: '장씨의 배가 가라앉았다. 소굴에 갇혀 있던 신라 사람들이 풀려났다.', reward: { fame: 80 } },
+      { text: '당은포 수군장에게 돌아가 알린다', goal: { type: 'port', k: 'dangeun' }, done: '수군장이 옛 장군의 활을 내민다. "이건 당신이 가져야 하오."', reward: { gold: 6000, fame: 150, relic: 'bow' } }] },
+  { id: 'balhae', name: '발해의 사신', ch: '使', giver: 'ulsan', intro: '울산 포구에서 발해 말씨의 사내가 다가온다. "왜로 가는 사신 배가 폭풍에 흩어졌소. 남경으로 가서 남은 일행을 찾아주시오."',
+    steps: [{ text: '동해안을 따라 북쪽 발해 땅, 남경 포구를 찾는다', goal: { type: 'port', k: 'namgyeong' }, done: '남경 포구에 사신 일행이 발이 묶여 있었다. 담비가죽을 왜 조정에 바쳐야 한다고 한다.', reward: { gold: 2000, fame: 60 } },
+      { text: '담비가죽 3상자를 왜의 북쪽 바다 쓰루가에 전한다', goal: { type: 'deliver', k: 'tsuruga', good: 'fur', n: 3 }, done: '송원관 관리가 사신의 물건을 받았다. 발해와 왜 사이에 다시 길이 열렸다.', reward: { gold: 9000, fame: 100 } },
+      { text: '사신선이 처음 닿았다는 노토 곶을 찾는다', goal: { type: 'find', id: 'noto' }, done: '노토 곶 바위에 발해 사신들의 고래뼈 나침반이 걸려 있다. 오래된 약속이었다.', reward: { gold: 3000, fame: 80, relic: 'needle' } }] },
+  { id: 'south', name: '남쪽 바다 끝', ch: '南', giver: 'mingzhou', intro: '명주 부두의 늙은 대식 뱃사람이 남쪽을 가리킨다. "큰 섬 너머에 천주라는 항구가 있지. 그 너머 바다 밑엔 계단이 있다더군."',
+    steps: [{ text: '남쪽 큰 섬의 북쪽 끝, 이주를 찾는다', goal: { type: 'find', id: 'yizhou' }, done: '이주 언덕에서 서쪽 바다 건너 불빛이 보인다.', reward: { gold: 1500, fame: 40 } },
+      { text: '천주 포구에 닻을 내린다', goal: { type: 'port', k: 'quanzhou' }, done: '천주에는 페르시아와 아랍 배가 가득하다. 늙은 뱃사람의 말이 맞았다.', reward: { gold: 2500, fame: 60 } },
+      { text: '이주 동쪽 바다 밑 돌계단을 찾는다', goal: { type: 'find', id: 'yonaguni' }, done: '돌계단 맨 아래, 비늘 같은 것이 반짝인다. 용의 비늘이라 불리는 것이다.', reward: { gold: 4000, fame: 120, relic: 'scale' } }] },
+  { id: 'books', name: '신라방 장부', ch: '簿', giver: 'mizhou', intro: '밀주 신라방의 큰손 설씨가 장부를 펼친다. "서라벌 귀족은 책에, 가야 대장장이는 차에, 당의 장인은 쇠에 목말라 하오. 세 길을 다 뚫으면 동업자로 모시겠소."',
+    steps: [{ text: '서적 2상자를 울산에 가져간다 (내주·초주에서 난다)', goal: { type: 'deliver', k: 'ulsan', good: 'books', n: 2 }, done: '서라벌 귀족들이 책을 보자 눈이 뒤집혔다.', reward: { gold: 5000, fame: 40 } },
+      { text: '차 2상자를 김해에 가져간다 (밀주·항주에서 난다)', goal: { type: 'deliver', k: 'gimhae', good: 'tea', n: 2 }, done: '가야 대장장이들이 찻잔을 돌린다.', reward: { gold: 4000, fame: 40 } },
+      { text: '덩이쇠 3상자를 항주에 가져간다 (김해·이즈모에서 난다)', goal: { type: 'deliver', k: 'hangzhou', good: 'iron', n: 3 }, done: '설씨가 금관 조각을 내민다. "동업의 증표요. 서라벌 조정도 이걸 보면 세금을 깎아줄 거요."', reward: { gold: 7000, fame: 120, relic: 'crown' } }] },
+  { id: 'whale', name: '고래의 노래', ch: '鯨', giver: 'samcheok', intro: '실직 바닷가의 늙은 어부가 노래를 부른다. "고래는 봄마다 북으로 간다네. 고래 길 끝에 큰 강, 그 강 끝에 발해가 있다네."',
+    steps: [{ text: '동해 한복판 고래 길을 찾는다', goal: { type: 'find', id: 'whaleroad' }, done: '고래 떼가 배 밑을 지나간다. 어부의 노래가 맞았다.', reward: { gold: 1500, fame: 40 } },
+      { text: '고래 길 끝, 두만강 하구를 찾는다', goal: { type: 'find', id: 'tumen' }, done: '강가에 사슴 떼. 발해 사냥꾼이 손을 흔든다.', reward: { gold: 2000, fame: 50 } },
+      { text: '실직으로 돌아가 노래를 들려준다', goal: { type: 'port', k: 'samcheok' }, done: '어부가 숨비소리 같은 휘파람을 가르쳐 준다. 바다 밑에서 숨을 아끼는 법이다.', reward: { gold: 2500, fame: 80, relic: 'breath' } }] }
+];
+const QBY = Object.fromEntries(QUESTS.map(q => [q.id, q]));
+const qStep = id => { const st = S.quests[id]; return st && !st.done ? QBY[id].steps[st.step] : null; };
+function offerQuests(k) { for (const q of QUESTS) if (q.giver === k && !S.quests[q.id] && !(S.qDecl[q.id] > S.t) && !S.pending.includes('quest:' + q.id)) S.pending.push('quest:' + q.id); }
+function startQuest(id) { const q = QBY[id]; if (!q || S.quests[id]) return; S.quests[id] = { step: 0, base: S.stats.wins || 0, t0: S.t }; questEval(); }
+function goalMet(id) { const st = S.quests[id], g = qStep(id).goal;
+  if (g.type === 'port') return S.mode === 'port' && S.at === g.k;
+  if (g.type === 'find') return !!S.found[g.id];
+  if (g.type === 'wins') return (S.stats.wins || 0) - st.base >= g.n;
+  if (g.type === 'fight') return !!st.fought;
+  if (g.type === 'deliver') { if (S.mode !== 'port' || S.at !== g.k) return false; return S.slots.filter(x => x.id === g.good && x.from !== g.k).length >= g.n; }
+  return false; }
+function questEval() { if (!S || !S.quests) return []; const out = [];
+  for (const id of Object.keys(S.quests)) { let guard = 0; while (qStep(id) && goalMet(id) && guard++ < 5) { const q = QBY[id], st = S.quests[id], step = q.steps[st.step], g = step.goal;
+      if (g.type === 'deliver') { let n = g.n; for (let i = S.slots.length - 1; i >= 0 && n; i--) if (S.slots[i].id === g.good && S.slots[i].from !== g.k) { S.slots.splice(i, 1); n--; } }
+      const R = step.reward || {}, got = []; if (R.gold) { S.gold += R.gold; got.push(`+${R.gold.toLocaleString('ko-KR')}냥`); } if (R.fame) { S.fame += R.fame; got.push(`명성 +${R.fame}`); }
+      if (R.relic) { if (!S.relics[R.relic]) { gainRelic(R.relic); const r = RELICS.find(x => x.id === R.relic); got.push(`유물 ${r.ch} ${r.name} — ${r.text}`); } else { S.gold += 3000; got.push('+3,000냥 (이미 가진 유물 대신)'); } }
+      if (R.map) { const m = addMap(R.map, { name: R.mapName }); if (m) got.push(`寶 ${m.name}`); }
+      st.step++; const fin = st.step >= q.steps.length; if (fin) { st.done = true; S.stats.quests = (S.stats.quests || 0) + 1; }
+      const note = { id, name: q.name, ch: q.ch, text: step.done, got, fin, next: fin ? null : q.steps[st.step].text, n: st.step, of: q.steps.length }; S.qNotes.push(note); out.push(note); } }
+  return out; }
+function questSpots() { const out = []; for (const id of Object.keys(S.quests)) { const step = qStep(id); if (!step) continue; const g = step.goal;
+    if (g.type === 'fight' && !S.quests[id].fought) { const [x, y] = nearestSea(...P(...g.ll)); out.push({ id, kind: 'fight', x, y, r: 45, name: g.name, g }); } }
+  return out; }
+/* 도감: 해역을 다 찾으면 보상 */
+function regionCheck() { const out = []; for (const r of REGIONS) { if (S.regions[r]) continue; const fs = FINDS.filter(f => f.region === r); if (fs.length && fs.every(f => S.found[f.id])) { S.regions[r] = 1; const g = 2500 + 500 * fs.length; S.gold += g; S.fame += 100; const m = addMap(2, { name: `${r}의 숨은 보물` }); out.push({ type: 'region', region: r, gold: g, map: m }); } } return out; }
+
 /* ─────────── 매 프레임 진행 ─────────── */
 function update(dt) {
   const out = []; if (!S || S.ended || S.draft) return out;
@@ -775,9 +888,10 @@ function update(dt) {
     const d = spd * step, L = Math.hypot(tx - S.x, ty - S.y);
     if (d >= L) { S.x = tx; S.y = ty; S.seg++; } else { S.x += Math.cos(dir) * d; S.y += Math.sin(dir) * d; }
     if (Math.floor(S.t * 4) !== Math.floor(t0 * 4)) revealCircle(S.x, S.y, REVEAL);
-    for (const f of FINDS) if (!S.found[f.id] && Math.hypot(f.x - S.x, f.y - S.y) < 50) { S.found[f.id] = 1; S.fame += f.fame; S.gold += f.gold; if (f.fx) f.fx(S); S.voyage.finds.push(f.id); revealCircle(f.x, f.y, 80); out.push({ type: 'find', find: f }); if (Math.random() < .35) { const m = addMap(2); if (m) out.push({ type: 'map', map: m, from: f.name }); } }
+    for (const f of FINDS) if (!S.found[f.id] && Math.hypot(f.x - S.x, f.y - S.y) < 50) { S.found[f.id] = 1; S.fame += f.fame; S.gold += f.gold; if (f.fx) f.fx(S); S.voyage.finds.push(f.id); revealCircle(f.x, f.y, 80); out.push({ type: 'find', find: f }); questEval(); out.push(...regionCheck()); if (Math.random() < .35) { const m = addMap(2); if (m) out.push({ type: 'map', map: m, from: f.name }); } }
     { const m = S.maps.find(m => Math.hypot(m.x - S.x, m.y - S.y) < m.r); if (m) { S.maps.splice(S.maps.indexOf(m), 1); makeDive(m); out.push({ type: 'dive', site: m }); break; } }
     if (S.bounty && !(S.bounty.cool > S.t) && Math.hypot(S.bounty.x - S.x, S.bounty.y - S.y) < S.bounty.r) { bossBattle(); out.push({ type: 'battle', boss: true }); break; }
+    { const sp = questSpots().find(q => Math.hypot(q.x - S.x, q.y - S.y) < q.r && !(S.quests[q.id].cool > S.t)); if (sp) { const bd = BOSSES.find(b => b.id === sp.g.boss); makeBattle({ kind: 'boss', boss: bd.id, name: bd.name, ch: bd.ch, g: bd.g, hp: bd.hp, atk: bd.atk, line: bd.line, quest: sp.id }); out.push({ type: 'battle', quest: true }); break; } }
     for (const k of PORT_IDS) if (!S.known[k] && Math.hypot(PORTS[k].x - S.x, PORTS[k].y - S.y) < 95) { S.known[k] = true; S.fame += 150; revealCircle(PORTS[k].x, PORTS[k].y, 90); out.push({ type: 'port', port: k }); }
     if (Math.floor(S.t) !== Math.floor(t0)) {
       const se = seasonOf(S.t); if (se !== S.season) { S.season = se; out.push({ type: 'season', season: se }); }
@@ -791,7 +905,7 @@ function update(dt) {
   return out;
 }
 /* 항구에 머무는 동안 흐른 시간도 상납 기한에 걸린다 */
-function portTick() { const out = []; if (S.mode === 'port' && !S.ended && !S.draft && S.t >= S.nextDue) out.push({ type: 'quota', res: collectQuota() }); out.push(...expireOrders().map(o => ({ type: 'orderLost', order: o }))); if (!S.ended) out.push(...newsTick()); return out; }
+function portTick() { const out = []; if (S.mode === 'port' && !S.ended && !S.draft && S.t >= S.nextDue) out.push({ type: 'quota', res: collectQuota() }); out.push(...expireOrders().map(o => ({ type: 'orderLost', order: o }))); if (!S.ended) out.push(...newsTick()); questEval(); return out; }
 function arrive(k) {
   const v = S.voyage; S.mode = 'port'; S.at = k; S.stamina = 100; S.rowing = false; S.slow = 0; S.x = PORTS[k].x; S.y = PORTS[k].y; S.path = null; S.dest = null; tickMarket(k);
   const first = !S.docked[k]; S.docked[k] = 1; const fresh = first && !!PORTS[k].hidden; if (first) S.fame += 60;
@@ -804,7 +918,7 @@ function arrive(k) {
     if (verdict === 'better' || verdict === 'right') S.stats.hits++; else if (verdict !== 'unknown') S.stats.misses++;
     return { i, id: s.id, cost: s.cost, inf: inf && { price: inf.price * LOT, ago: ago(inf.day), src: inf.src }, act: act * LOT, profit: act * LOT - s.cost, verdict }; });
   const rivalHere = S.rivals.map(R => R.last).filter(l => l && l.k === k && Math.floor(S.t) - l.day < 12).map(l => ({ id: l.id, rival: RIVALS.find(r => S.rivals.find(x => x.last === l).id === r.id) }));
-  observe(k, fresh); revealCircle(S.x, S.y, 110); makeOffer(k); makeBounty(k);
+  observe(k, fresh); revealCircle(S.x, S.y, 110); makeOffer(k); makeBounty(k); offerQuests(k); questEval();
   let letter = null; if (perk('tongue') || S.boons.letters) letter = makeRumor('true');
   S.threat = Math.max(0, S.threat - (S.t - v.t0) * .05); addThreat(.5);
   return { k, days: S.t - v.t0, first, fresh, items, storms: v.storms, finds: v.finds, letter, delivered, rivalHere, passenger, race };
@@ -822,6 +936,7 @@ return { WORLD, VIEW, CELL, GW, GH, YEAR, LOT, LAND, LABELS, GOODS, G, PORTS, PO
   newGame, update, portTick, plan, depart, buy, sell, sellAll, buyRumor, rumorCost, tribute, tributeCost, canTribute, repair, repairCost, upgrade, nextShip,
   choose, nextStory, infoFor, tickMarket, buyPrice, sellPrice, cratePrice, pctOf, topDemand, activeBoom, freeSlots, capacity, ship, crewOf, perk,
   acceptOffer, quotaNow, quotaFor, takeBoon, daysToDue, inZone, pirateOdds, zoneR, NEWS, SPECIALS, STORE_MAX,
+  QUESTS, QBY, FIND_META, REGIONS, qStep, startQuest, questEval, questSpots, regionCheck,
   BOSSES, RELICS, GIMMICK, battleOpts, battleAct, battleClose, makeBattle, acceptBounty, makeBounty, addMap, diveAct, diveClose, diveCost, makeDive, arrowDmg, boardDmg,
   setRow, racers, specialInfo, useSpecial, storePut, storeTake, shipPrice, isClosed, liveNews,
   wind, monsoon, windWord, dateStr, seasonOf, doyOf, ago, assets, score, rankOf, seaAt, onLand, revealed, findPath, estimateDays, angDiff, pathZones };

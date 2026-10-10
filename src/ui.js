@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   청해 — 화면 · 소리 · 흐름 (v4)
+   청해 — 화면 · 소리 · 흐름 (v5)
    ═══════════════════════════════════════════════════════════ */
 (() => {
 'use strict';
@@ -7,7 +7,7 @@ const C = CORE, JO = C.JO, $ = id => document.getElementById(id);
 const fmt = n => Math.round(n).toLocaleString('ko-KR');
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const COL = { hanji: css('--hanji'), hanji2: css('--hanji-2'), hanji3: css('--hanji-3'), ink: css('--ink'), ink2: css('--ink-2'), ink3: css('--ink-3'), cheong: css('--cheong'), rok: css('--rok'), ju: css('--ju'), hwang: css('--hwang') };
-const KEY = 'chunghae.v4.save', MKEY = 'chunghae.v2.meta';
+const KEY = 'chunghae.v5.save', MKEY = 'chunghae.v2.meta';
 const SEC_PER_DAY = .5, SPEEDS = [1, 2, 4];
 const SEASON_BANNER = [
   ['冬', '겨울 · 북풍이 내려온다 — 당과 왜에서 신라로 돌아오기 좋다'],
@@ -24,8 +24,8 @@ const S = () => C.S;
 const META = (() => { const d = { runs: 0, best: 0, unlocked: {}, tut: false, sound: true }; try { return Object.assign(d, JSON.parse(localStorage.getItem(MKEY) || '{}')); } catch (e) { return d; } })();
 const saveMeta = () => { try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} };
 function saveGame() { const s = S(); if (!s || s.ended || s.mode !== 'port' || s.draft) return; try { const d = Object.assign({}, s); delete d.reveals; localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
-function hasSave() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(d && d.v === 4 && !d.ended); } catch (e) { return false; } }
-function loadGame() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!d || d.v !== 4) return false; d.battle = null; d.dive = null; d.reveals = []; d.ev = null; C.S = d; return true; } catch (e) { return false; } }
+function hasSave() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(d && d.v === 5 && !d.ended); } catch (e) { return false; } }
+function loadGame() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!d || d.v !== 5) return false; d.battle = null; d.dive = null; d.reveals = []; d.ev = null; C.S = d; return true; } catch (e) { return false; } }
 const dropSave = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
 
 /* ─────────── 소리 ─────────── */
@@ -159,7 +159,7 @@ function draw() {
   fogPump(); ctx.drawImage(fog, 0, 0, C.WORLD.w, C.WORLD.h);
   ctx.restore();
   if (!s) return;
-  drawTargets(s); drawMarks(s); drawRivals(s); drawShip(s);
+  drawTargets(s); drawMissed(s); drawMarks(s); drawQuestMarks(s); drawRivals(s); drawShip(s);
 }
 function seal(x, y, ch, size, rot, alpha) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = alpha; ctx.fillStyle = COL.ju; ctx.fillRect(-size / 2, -size / 2, size, size);
   ctx.strokeStyle = COL.hanji2; ctx.lineWidth = 1.2; ctx.strokeRect(-size / 2 + 2.5, -size / 2 + 2.5, size - 5, size - 5);
@@ -184,6 +184,7 @@ function drawMarks(s) {
     seal(x, y, P.ch, sz * e, ((P.x * 7 + P.y) % 9 - 4) * .012, Math.min(1, t * 1.6));
     if (s.orders.some(o => o.to === k)) { ctx.strokeStyle = COL.cheong; ctx.lineWidth = 2; ctx.strokeRect(x - sz / 2 - 4, y - sz / 2 - 4, sz + 8, sz + 8); }
     label(P.name, x, y + sz / 2 + 4, NARROW() ? 12 : 13, COL.ink, css('--ui'));
+    if (cam.z > cam.fit * 1.25) { const n = P.prod.length, gy = y + sz / 2 + (NARROW() ? 24 : 26); P.prod.forEach((id, i) => glyphDot(x + (i - (n - 1) / 2) * 15, gy, 6.5, C.G[id], .95)); }
     if (C.isClosed(k)) { ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - sz * .7, y - sz * .7); ctx.lineTo(x + sz * .7, y + sz * .7); ctx.moveTo(x + sz * .7, y - sz * .7); ctx.lineTo(x - sz * .7, y + sz * .7); ctx.stroke(); ctx.restore();
       ctx.fillStyle = COL.ink; ctx.fillRect(x - sz / 2 - 22, y - 9, 18, 18); ctx.fillStyle = COL.hanji2; ctx.font = `12px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('閉', x - sz / 2 - 13, y + 1); }
     else if (news.fest[k]) { const bx = x - sz / 2 - 13, by = y - sz / 2 + 2; ctx.fillStyle = COL.hwang; ctx.beginPath(); ctx.arc(bx, by, 9 + Math.sin(clock * 4), 0, 7); ctx.fill(); ctx.fillStyle = COL.hanji2; ctx.font = `11px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('祭', bx, by + .5); }
@@ -279,7 +280,7 @@ function toast(msg, kind) { const el = document.createElement('div'); el.classNa
 function pop(txt, x, y, kind) { const el = document.createElement('div'); el.className = 'pop ' + (kind || ''); el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 1400); }
 const popAt = (el, txt, kind) => { const r = el.getBoundingClientRect(); pop(txt, r.left + r.width / 2, r.top + r.height / 2, kind); };
 function banner(big, small) { $('bnBig').textContent = big; $('bnSmall').textContent = small; const b = $('banner'); b.hidden = false; const d = b.firstElementChild; d.style.animation = 'none'; void d.offsetWidth; d.style.animation = ''; clearTimeout(banner.t); banner.t = setTimeout(() => b.hidden = true, 2800); }
-const anyModal = () => ['mEvent', 'mReveal', 'mStory', 'mQuota', 'sEnd', 'mRetire2', 'mBattle', 'mDive'].some(id => !$(id).hidden);
+const anyModal = () => ['mEvent', 'mReveal', 'mStory', 'mQuota', 'sEnd', 'mRetire2', 'mBattle', 'mDive', 'mBook'].some(id => !$(id).hidden);
 
 /* ─────────── 첫 판 안내 ─────────── */
 let coachStep = -1;
@@ -289,7 +290,7 @@ const COACH = [
   '빨간 점선이 지름길이다. 붉은 빗금(<b>海賊</b>)을 지나면 해적을 만나기 쉽다. 파란 길은 돌아가는 길. 골라서 <b>출항</b>.',
   '배는 알아서 간다. 역풍이거나 해적이 쫓아오면 <b>노 저어라</b>(Space). 해도의 금빛 <b>寶</b> 원은 보물 자리 — 원 안으로 몰면 잠수한다.',
   '소문이 맞았을까? 상자가 하나씩 열린다. <b>팔고 내린다</b>.',
-  '잘했다. 항구마다 <b>그곳에서만</b> 할 수 있는 일이 있고, <b>報</b>는 바다 너머 소식이다. 상납을 내면 <b>특권</b>을 고른다. <b>흰 종이</b>는 아직 아무도 그리지 않은 바다 — 숨은 항구는 값이 두 배다.'
+  '잘했다. 항구마다 <b>그곳에서만</b> 할 수 있는 일이 있고, <b>報</b>는 바다 너머 소식, 위의 <b>장부</b>(B)에는 항구별 시세·이야기·탐험 도감이 있다. 상납을 내면 <b>특권</b>을 고른다. <b>흰 종이</b>는 아직 아무도 그리지 않은 바다 — 숨은 항구는 값이 두 배다.'
 ];
 function coach(step) { if (META.tut || coachStep >= step || coachStep === -2) return; coachStep = step; $('coachText').innerHTML = COACH[step]; $('coach').hidden = false; document.body.classList.add('coaching');
   if (step === 5) { setTimeout(() => { if (coachStep === 5) { $('coach').hidden = true; document.body.classList.remove('coaching'); META.tut = true; saveMeta(); } }, 10000); } }
@@ -376,12 +377,13 @@ function routeRow(id, r, lab) { const wcls = r.wind === '순풍' ? 'fair' : r.wi
   return `<button class="route ${routePick === id ? 'on' : ''} ${id}" data-route="${id}"><b>${lab}</b><span class="chip ${wcls}">${r.wind}</span><span class="chip plain num">약 ${Math.max(1, Math.round(r.days))}일</span>${r.zones.length ? `<span class="chip head">${r.zones.map(z => z.name).join(' · ')}</span>` : '<span class="chip fair">안전</span>'}</button>`; }
 function showDest(p, keepPick) {
   const s = S(); destPlan = p; if (!keepPick) routePick = p.alt && s.slots.length >= 3 ? 'alt' : 'main'; const P = p.port && C.PORTS[p.port]; let rows = '';
-  if (P) { if (s.slots.length) { const byId = {}; s.slots.forEach(it => { (byId[it.id] = byId[it.id] || []).push(it); });
-      rows = Object.entries(byId).map(([id, arr]) => { const g = C.G[id], inf = C.infoFor(p.port, id), cost = arr.reduce((a, x) => a + x.cost, 0) / arr.length;
+  if (P) { rows = `<li class="pw"><span>● 나는 것 ${P.prod.map(id => gl(C.G[id]) + C.G[id].name).join(' ')}</span><span>▲ 비싸게 산다 ${P.want.map(id => gl(C.G[id]) + C.G[id].name).join(' ')}</span></li>`;
+    if (s.slots.length) { const byId = {}; s.slots.forEach(it => { (byId[it.id] = byId[it.id] || []).push(it); });
+      rows += Object.entries(byId).map(([id, arr]) => { const g = C.G[id], inf = C.infoFor(p.port, id), cost = arr.reduce((a, x) => a + x.cost, 0) / arr.length;
         if (!inf) return `<li>${gl(g)}<span>${g.name} ×${arr.length} — 이 항구 값은 모른다</span></li>`;
         const v = inf.price * C.LOT, pl = v - cost; return `<li>${gl(g)}<span>${g.name} ×${arr.length} — ${inf.src} <b class="num">${fmt(v)}</b> <span style="color:var(--ink-3)">(${C.ago(inf.day)})</span> <span class="${pl >= 0 ? 'up' : 'dn'} num">${pl >= 0 ? '+' : ''}${fmt(pl)}</span></span></li>`; }).join(''); }
     else { const known = C.GOODS.map(g => ({ g, inf: C.infoFor(p.port, g.id) })).filter(x => x.inf).sort((a, b) => b.inf.price / b.g.base - a.inf.price / a.g.base).slice(0, 3);
-      rows = known.length ? known.map(({ g, inf }) => `<li>${gl(g)}<span>${g.name} — ${inf.src} <b class="num">${fmt(inf.price * C.LOT)}</b> <span style="color:var(--ink-3)">(${C.ago(inf.day)})</span></span></li>`).join('') : '<li><span>이 항구에 대해 아는 게 없다.</span></li>'; }
+      rows += known.length ? known.map(({ g, inf }) => `<li>${gl(g)}<span>${g.name} — ${inf.src} <b class="num">${fmt(inf.price * C.LOT)}</b> <span style="color:var(--ink-3)">(${C.ago(inf.day)})</span></span></li>`).join('') : '<li><span>이 항구에 대해 아는 게 없다.</span></li>'; }
     if (s.passenger && s.passenger.to === p.port) rows += `<li><span class="glyph" style="background:var(--ink-2)">客</span><span>승객 — ${s.passenger.who}를 내려주면 <b class="up">사례</b></span></li>`;
     rows += s.orders.filter(o => o.to === p.port).map(o => `<li>${gl(C.G[o.good])}<span>의뢰 — ${C.G[o.good].name} ${o.n}상자 넘기면 <b class="up">${fmt(o.reward)}냥</b></span></li>`).join(''); }
   else { const end = p.main.path[p.main.path.length - 1], tn = targetNear(end[0], end[1]);
@@ -470,12 +472,12 @@ function openQuota(res) {
 }
 
 /* ─────────── 이야기 ─────────── */
-function runStories() { const s = S(); if (!s || anyModal()) return; if (s.ended) { finish(); return; } const st = C.nextStory(); if (!st) return; openStory(st); }
-function openStory(st) { const ch = st.who === 'inspector' ? '監' : CREW_CH[st.who] || '話'; AU[st.who === 'inspector' ? 'drum' : 'chime']();
+function runStories() { const s = S(); if (!s || anyModal()) return; if (s.ended) { finish(); return; } if (s.qNotes && s.qNotes.length) { drainQuests(); return; } const st = C.nextStory(); if (!st) return; openStory(st); }
+function openStory(st) { const ch = st.qch && st.who === 'quest' ? st.qch : st.who === 'inspector' ? '監' : CREW_CH[st.who] || st.qch || '話'; AU[st.who === 'inspector' ? 'drum' : 'chime']();
   $('stCard').innerHTML = `<span class="who ${st.who === 'inspector' ? 'inspector' : ''}">${ch}</span><div class="eyebrow">이야기</div><h2 style="padding-right:64px">${st.title}</h2><p>${st.text}</p>${st.sub ? `<p class="sub">${st.sub}</p>` : ''}
     <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
   $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
-  $('stCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = st.opts[+b.dataset.i].apply(); $('mStory').hidden = true; if (r) toast(r); after(); setTimeout(runStories, 250); }); }
+  $('stCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = st.opts[+b.dataset.i].apply(); $('mStory').hidden = true; if (r) toast(r); if (S().mode === 'port') after(); else paintHud(); setTimeout(runStories, 250); }); }
 
 
 /* ═══════════ 해전 화면 ═══════════ */
@@ -536,7 +538,7 @@ function battleEnd() { const s = S(), B = s.battle, R = B.result || {}; const T 
   $('btOk').focus({ preventScroll: true }); $('btOk').onclick = () => { const res = C.battleClose(); $('mBattle').hidden = true; BT.open = false; paintHud();
     if (res && res.map) { mapAppear[res.map.id] = performance.now(); }
     if (res && res.wreck) { hideSailbar(); trail = []; openPanel(); lookAt(S().x, S().y); saveGame(); }
-    if (S().mode === 'port') after(); }; }
+    if (S().mode === 'port') after(); setTimeout(runStories, 200); }; }
 
 /* ═══════════ 잠수 화면 ═══════════ */
 function openDive() { const s = S(), D = s.dive; if (!D) return; hideDest(); AU.chime();
@@ -581,6 +583,64 @@ function drawTargets(s) { const now = performance.now();
 function targetAt(x, y) { const s = S(); for (const m of s.maps) { const [px, py] = toS(m.x, m.y); if (Math.hypot(px - x, py - y) < 20) return { x: m.x, y: m.y }; } if (s.bounty) { const [px, py] = toS(s.bounty.x, s.bounty.y); if (Math.hypot(px - x, py - y) < 20) return { x: s.bounty.x, y: s.bounty.y }; } return null; }
 function targetNear(x, y) { const s = S(); const m = s.maps.find(m => Math.hypot(m.x - x, m.y - y) < m.r); if (m) return { kind: 'map', m }; if (s.bounty && Math.hypot(s.bounty.x - x, s.bounty.y - y) < s.bounty.r) return { kind: 'bounty', b: s.bounty }; return null; }
 
+
+/* ═══════════ 장부: 시세 · 이야기 · 도감 ═══════════ */
+let bookTab = 'market', bookGood = null;
+const hashOff = (id, r) => { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0; const a = (h % 628) / 100; return [Math.cos(a) * r, Math.sin(a) * r]; };
+function questTargets(s) { const out = []; for (const id of Object.keys(s.quests || {})) { const st = C.qStep(id); if (!st) continue; const q = C.QBY[id], g = st.goal;
+    if (g.type === 'port' || g.type === 'deliver') { const P = C.PORTS[g.k]; if (s.known[g.k]) out.push({ id, q, kind: 'port', k: g.k, x: P.x, y: P.y, good: g.good }); else { const [dx, dy] = hashOff(id + g.k, 55); out.push({ id, q, kind: 'area', x: P.x + dx, y: P.y + dy, r: 110 }); } }
+    if (g.type === 'find') { const f = C.FINDS.find(f => f.id === g.id); const [dx, dy] = hashOff(id + g.id, 45); out.push({ id, q, kind: 'area', x: f.x + dx, y: f.y + dy, r: 95 }); }
+    if (g.type === 'fight') { const sp = C.questSpots().find(x => x.id === id); if (sp) out.push({ id, q, kind: 'fight', x: sp.x, y: sp.y, r: sp.r, name: sp.name }); } }
+  return out; }
+function drawQuestMarks(s) { for (const t of questTargets(s)) { const [x, y] = toS(t.x, t.y); if (!onScreen(x, y, (t.r || 0) * cam.z + 40)) continue;
+    if (t.kind === 'area') { const r = t.r * cam.z; ctx.save(); ctx.strokeStyle = '#3f5a7a'; ctx.lineWidth = 1.6; ctx.setLineDash([2, 5]); ctx.lineDashOffset = clock * 6; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = 'rgba(63,90,122,.07)'; ctx.fill(); ctx.restore();
+      label(`書 ${t.q.name} — 이 근처`, x, y - 6, 11, '#3f5a7a'); }
+    if (t.kind === 'fight') { const r = t.r * cam.z; ctx.save(); ctx.strokeStyle = COL.ju; ctx.lineWidth = 2; ctx.globalAlpha = .6 + Math.sin(clock * 4) * .25; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke(); ctx.restore(); label(`書 ${t.name}`, x, y - 6, 11, COL.ju); }
+    if (t.kind === 'port') { const sz = NARROW() ? 20 : 24, bx = x + sz / 2 + 2, by = y + sz / 2 + 2, pz = 1 + Math.sin(clock * 4) * .08; ctx.save(); ctx.translate(bx, by); ctx.scale(pz, pz); ctx.rotate(Math.PI / 4); ctx.fillStyle = '#3f5a7a'; ctx.fillRect(-7, -7, 14, 14); ctx.restore();
+      ctx.fillStyle = COL.hanji2; ctx.font = `bold 11px ${css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', bx, by + .5); } } }
+function drawMissed(s) { for (const f of C.FINDS) { if (s.found[f.id] || !C.revealed(f.x, f.y)) continue; const [x, y] = toS(f.x, f.y); if (!onScreen(x, y)) continue;
+    ctx.save(); ctx.globalAlpha = .55 + Math.sin(clock * 2 + f.x) * .2; ctx.strokeStyle = COL.ink2; ctx.setLineDash([2, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = COL.ink2; ctx.font = `bold 11px ${css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + .5); ctx.restore(); } }
+function openBook(tab) { if (tab) bookTab = tab; AU.init(); paintBook(); $('mBook').hidden = false; }
+function paintBook() { const s = S(); if (!s) return;
+  const tabs = [['market', '시세'], ['quest', `이야기${Object.values(s.quests || {}).filter(q => !q.done).length ? ' ·' + Object.values(s.quests).filter(q => !q.done).length : ''}`], ['dex', `도감 ${Object.keys(s.found).length}/${C.FINDS.length}`]];
+  $('bkTabs').innerHTML = tabs.map(([id, l]) => `<button class="${bookTab === id ? 'on' : ''}" data-tab="${id}">${l}</button>`).join('');
+  $('bkBody').innerHTML = bookTab === 'market' ? bookMarket(s) : bookTab === 'quest' ? bookQuest(s) : bookDex(s);
+  $('bkTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bookTab = b.dataset.tab; paintBook(); });
+  $('bkBody').querySelectorAll('[data-good]').forEach(b => b.onclick = () => { bookGood = b.dataset.good || null; paintBook(); });
+  $('bkBody').querySelectorAll('[data-go]').forEach(b => b.onclick = () => { const k = b.dataset.go; $('mBook').hidden = true; if (s.mode === 'sail') { lookAt(C.PORTS[k].x, C.PORTS[k].y); return; } if (k === s.at && s.mode === 'port') { openPanel(); return; } const p = C.plan(k); if (!p) return; if (p.closedPort) { toast(`${C.PORTS[k].name}은 포구를 닫았다.`, 'bad'); return; } showDest(p); });
+  $('bkBody').querySelectorAll('[data-lookxy]').forEach(b => b.onclick = () => { const [x, y] = b.dataset.lookxy.split(',').map(Number); $('mBook').hidden = true; cam.wide = false; lookAt(x, y, Math.max(cam.z, cam.fit * 1.5)); }); }
+const ageCls = d => { const a = Math.floor(S().t) - d; return a < 15 ? 'ag-new' : a < 40 ? 'ag-mid' : 'ag-old'; };
+function bookMarket(s) { const known = C.PORT_IDS.filter(k => s.known[k]);
+  const chips = `<div class="bk-goods"><button class="${!bookGood ? 'on' : ''}" data-good="">전체</button>${C.GOODS.map(g => `<button class="${bookGood === g.id ? 'on' : ''}" data-good="${g.id}">${gl(g)}${g.name}</button>`).join('')}</div>`;
+  if (!bookGood) { const NAT = ['신라', '탐라', '발해', '당', '왜', '남도'];
+    return chips + `<p class="fine bk-note">● 그 항구에서 <b>나는 것</b>(싸게 산다) · ▲ <b>비싸게 사 주는 것</b>. 숫자는 내가 아는 한 상자 값과 언제 알았는지.</p>` + NAT.map(n => { const ks = known.filter(k => C.PORTS[k].nation === n); if (!ks.length) return '';
+      return `<h4 class="bk-nat">${n}</h4>` + ks.map(k => { const P = C.PORTS[k], L = s.ledger[k];
+        const sells = P.prod.map(id => { const b = L && L.b && L.b[id]; return `<span class="bk-g sell">${gl(C.G[id])}${C.G[id].name}${b ? `<b>${fmt(b * C.LOT)}</b>` : ''}</span>`; }).join('');
+        const wants = P.want.map(id => { const inf = C.infoFor(k, id); return `<span class="bk-g want">▲${gl(C.G[id])}${C.G[id].name}${inf ? `<b class="${ageCls(inf.day)}">${fmt(inf.price * C.LOT)}</b>` : ''}</span>`; }).join('');
+        const sp = C.SPECIALS[k]; return `<button class="bk-row" data-go="${k}"><span class="seal">${P.ch}</span><span class="nm">${P.name}${s.at === k && s.mode === 'port' ? ' <small>여기</small>' : ''}${C.isClosed(k) ? ' <small class="dn">閉</small>' : ''}${L ? `<small>${C.ago(L.day)} 들름</small>` : '<small>안 가 봄</small>'}${sp ? `<small class="sp">${sp.name}</small>` : ''}</span><span class="gs">${sells}</span><span class="gs">${wants}</span></button>`; }).join(''); }).join(''); }
+  const g = C.G[bookGood]; const rows = known.map(k => { const inf = C.infoFor(k, bookGood), L = s.ledger[k], prod = C.PORTS[k].prod.includes(bookGood), want = C.PORTS[k].want.includes(bookGood); return { k, inf, buy: L && L.b && L.b[bookGood], prod, want }; })
+    .filter(r => r.inf || r.prod || r.want).sort((a, b) => (b.inf ? b.inf.price : b.want ? 1 : 0) - (a.inf ? a.inf.price : a.want ? 1 : 0));
+  return chips + `<p class="fine bk-note">${gl(g)} <b>${g.name}</b> — 어디서 싸게 사서 어디에 팔까. 값은 내가 아는 마지막 소식이다.</p>` + (rows.length ? rows.map((r, i) => { const P = C.PORTS[r.k];
+    return `<button class="bk-row one ${i === 0 && r.inf ? 'best' : ''}" data-go="${r.k}"><span class="seal">${P.ch}</span><span class="nm">${P.name}<small>${P.nation}</small></span><span class="gs">${r.prod ? `<span class="bk-g sell">● 여기서 난다${r.buy ? ` · 사는 값 <b>${fmt(r.buy * C.LOT)}</b>` : ''}</span>` : ''}${r.want ? '<span class="bk-g want">▲ 비싸게 산다</span>' : ''}</span><span class="pr">${r.inf ? `<b class="${ageCls(r.inf.day)}">${fmt(r.inf.price * C.LOT)}</b><small>${r.inf.src} · ${C.ago(r.inf.day)}</small>` : '<small>값 모름</small>'}</span></button>`; }).join('') : '<p class="fine">아는 항구가 없다.</p>'); }
+function bookQuest(s) { const act = [], done = [], avail = [];
+  for (const q of C.QUESTS) { const st = s.quests[q.id]; if (st && st.done) done.push(q); else if (st) act.push(q); else if (s.known[q.giver]) avail.push(q); }
+  const tgt = questTargets(s);
+  const A = act.map(q => { const st = s.quests[q.id], step = q.steps[st.step], t = tgt.find(x => x.id === q.id);
+    return `<div class="bk-q on"><span class="qch">${q.ch}</span><div class="gr"><b>${q.name}</b> <small>${st.step + 1}/${q.steps.length}단계</small><div class="qgoal">→ ${step.text}</div>${q.steps.slice(0, st.step).map(x => `<div class="qdone">✓ ${x.text}</div>`).join('')}</div>${t ? `<button class="btn" data-lookxy="${Math.round(t.x)},${Math.round(t.y)}">해도</button>` : ''}</div>`; }).join('');
+  const V = avail.map(q => `<div class="bk-q"><span class="qch dim">${q.ch}</span><div class="gr"><b>${q.name}</b> <small>${q.steps.length}단계</small><div class="qgoal dim">${C.PORTS[q.giver].name}에 가면 이야기를 들을 수 있다</div></div><button class="btn" data-go="${q.giver}">${C.PORTS[q.giver].name}</button></div>`).join('');
+  const D = done.map(q => `<div class="bk-q fin"><span class="qch">${q.ch}</span><div class="gr"><b>${q.name}</b> <small>끝냄</small></div></div>`).join('');
+  const hidden = C.QUESTS.length - act.length - done.length - avail.length;
+  return `${A ? `<h4 class="bk-nat">진행 중</h4>${A}` : '<p class="fine bk-note">맡은 이야기가 없다. 항구에 들르면 누군가 말을 걸어온다.</p>'}${V ? `<h4 class="bk-nat">들을 수 있는 이야기</h4>${V}` : ''}${D ? `<h4 class="bk-nat">끝낸 이야기</h4>${D}` : ''}${hidden ? `<p class="fine bk-note">아직 모르는 항구에 이야기 ${hidden}개가 더 있다.</p>` : ''}`; }
+function bookDex(s) { let sea = 0, seen = 0; for (let c = 0; c < s.fog.length; c++) { const x = (c % C.GW) * C.CELL + C.CELL / 2, y = ((c / C.GW) | 0) * C.CELL + C.CELL / 2; if (C.seaAt(x, y)) { sea++; if (s.fog[c]) seen++; } }
+  const pct = Math.round(seen / Math.max(1, sea) * 100), ports = C.PORT_IDS.filter(k => s.known[k]).length;
+  return `<div class="bk-stats"><div><b>${pct}%</b><small>그린 바다</small></div><div><b>${ports}/${C.PORT_IDS.length}</b><small>아는 항구</small></div><div><b>${Object.keys(s.found).length}/${C.FINDS.length}</b><small>발견</small></div><div><b>${Object.keys(s.relics || {}).length}/${C.RELICS.length}</b><small>유물</small></div></div>
+    <p class="fine bk-note">해역의 발견을 모두 찾으면 보상과 숨은 보물 지도를 준다. 해도에 <b>?</b>가 보이면 근처를 스치고 지나간 것이다.</p>` +
+    C.REGIONS.map(r => { const fs = C.FINDS.filter(f => f.region === r), n = fs.filter(f => s.found[f.id]).length;
+      return `<h4 class="bk-nat">${r} <small>${n}/${fs.length}${s.regions && s.regions[r] ? ' · 다 찾았다 ✓' : ''}</small></h4><div class="dex">${fs.map(f => s.found[f.id] ? `<button class="dx on" data-lookxy="${f.x},${f.y}"><b>${f.name}</b><small>${f.text}</small></button>` : `<div class="dx"><b>???</b><small>${f.hint}</small></div>`).join('')}</div>`; }).join(''); }
+function drainQuests() { const s = S(); if (!s || !s.qNotes || !s.qNotes.length || anyModal() || s.ended) return; const n = s.qNotes.shift(); AU[n.fin ? 'pay' : 'good']();
+  if (n.fin) banner(n.ch, `「${n.name}」 끝`);
+  openStory({ who: 'quest', qch: n.ch, title: `${n.name} — ${n.fin ? '끝' : `${n.n}/${n.of}`}`, text: n.text, sub: `${n.got.join(' · ')}${n.next ? `<br>다음 → ${n.next}` : ''}`, opts: [{ label: n.fin ? '이야기를 닫는다' : '다음으로', apply: () => null }] }); }
+
 /* ─────────── 흐름 ─────────── */
 function handle(out) {
   const s = S();
@@ -595,6 +655,7 @@ function handle(out) {
     if (o.type === 'explored') { showSailbar(); toast('바다 한가운데 닻을 내렸다. 지도를 눌러 다음 행선지를 고르자.'); saveGame(); }
     if (o.type === 'quota') openQuota(o.res);
     if (o.type === 'news') { const n = o.news; AU.chime(); banner('報', n.title); toast(`<b>${n.title}</b><br>${n.text}`, n.closed || n.zone || n.storm || n.tax ? 'bad' : 'good'); if (n.k) rumorPulse[n.k] = performance.now(); if (n.closed) rumorPulse[n.closed] = performance.now(); if (s.mode === 'port') paintPanel(); }
+    if (o.type === 'region') { AU.pay(); banner('圖', `${o.region}를 다 그렸다`); toast(`<b>${o.region}</b>의 발견을 모두 찾았다 — +${fmt(o.gold)}냥 · 명성 +100${o.map ? ` · 寶 ${o.map.name}` : ''}`, 'good'); if (o.map) mapAppear[o.map.id] = performance.now(); }
     if (o.type === 'battle') openBattle();
     if (o.type === 'dive') openDive();
     if (o.type === 'map') { mapAppear[o.map.id] = performance.now(); toast(`<b>${o.from}</b>에서 낡은 해도를 주웠다 — 寶 <b>${o.map.name}</b>`, 'good'); }
@@ -605,10 +666,11 @@ function handle(out) {
     if (o.type === 'bounced') { AU.bad(); toast(`<b>${C.PORTS[o.k].name}</b> 포구가 닫혀 있다${o.news ? ` — ${o.news.title}` : ''}. 뱃머리를 돌려야 한다.`, 'bad'); showSailbar(); }
     if (o.type === 'passengerLost') toast(`${o.passenger.who}가 기다리다 지쳐 다른 배로 옮겨 탔다. 명성 -15`, 'bad');
   }
+  setTimeout(drainQuests, 60);
   if (s.mode === 'sail' && Math.floor(s.t * 2) !== Math.floor((trail.t || 0) * 2)) { trail.t = s.t; trail.push([s.x, s.y]); if (trail.length > 500) trail.shift(); }
 }
 function finish(retire) {
-  const s = S(); if (!s || !$('sEnd').hidden) return; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); $('coach').hidden = true; document.body.classList.remove('coaching');
+  const s = S(); if (!s || !$('sEnd').hidden) return; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); $('coach').hidden = true; document.body.classList.remove('coaching');
   if (retire && !s.ended) s.ended = 'retire';
   const sc = C.score(), rank = C.rankOf(sc), why = s.ended;
   const wasAra = META.unlocked.ara, wasTomo = META.unlocked.tomo; META.runs++; META.best = Math.max(META.best, sc);
@@ -621,7 +683,7 @@ function finish(retire) {
     <h2>${T[0]}</h2><p class="lead">${T[1]}</p>
     <dl class="ledger"><dt>버틴 상납</dt><dd>${s.quotaN}번 · ${Math.floor(s.quotaN / 4)}년 ${s.quotaN % 4}계절</dd><dt>바친 군자금</dt><dd>${fmt(s.paid)}냥</dd><dt>남긴 재산</dt><dd>${fmt(C.assets())}냥</dd><dt>점수</dt><dd>${fmt(sc)}</dd>
       <dt>항해</dt><dd>${s.stats.voyages}번</dd><dt>소문 적중</dt><dd>${hit}%</dd><dt>닻 내린 항구</dt><dd>${Object.keys(s.docked).length} / ${C.PORT_IDS.length}</dd><dt>발견</dt><dd>${Object.keys(s.found).length} / ${C.FINDS.length}</dd>
-      <dt>완수한 의뢰</dt><dd>${s.stats.orders}건</dd><dt>해전 승리</dt><dd>${s.stats.wins || 0}번 · 잡은 두목 ${s.stats.bounties || 0}</dd><dt>유물</dt><dd>${Object.keys(s.relics || {}).length} / ${C.RELICS.length}</dd><dt>가장 큰 거래</dt><dd>${s.stats.bestTrade || '없음'}</dd><dt>최고 기록</dt><dd>${fmt(META.best)}</dd></dl>
+      <dt>완수한 의뢰</dt><dd>${s.stats.orders}건</dd><dt>해전 승리</dt><dd>${s.stats.wins || 0}번 · 잡은 두목 ${s.stats.bounties || 0}</dd><dt>유물</dt><dd>${Object.keys(s.relics || {}).length} / ${C.RELICS.length}</dd><dt>끝낸 이야기</dt><dd>${s.stats.quests || 0} / ${C.QUESTS.length}</dd><dt>가장 큰 거래</dt><dd>${s.stats.bestTrade || '없음'}</dd><dt>최고 기록</dt><dd>${fmt(META.best)}</dd></dl>
     <ul class="fates">${s.crew.map(c => `<li><b>${C.CREW.find(x => x.k === c.k).name}</b><span>${fate(c)}</span></li>`).join('')}</ul>
     ${unl.length ? `<div class="unlock">${unl.join('<br>')}</div>` : ''}
     <div class="start-row" style="margin-top:20px;justify-content:flex-start"><button class="btn main" id="eAgain">다시 바다로</button><button class="btn" id="eTitle">선장 고르기</button></div>`;
@@ -632,6 +694,8 @@ function finish(retire) {
 
 /* ─────────── 메뉴 ─────────── */
 function hideMenu() { $('menu').hidden = true; }
+$('bBook').onclick = e => { e.stopPropagation(); hideMenu(); if (anyModal() && $('mBook').hidden) return; if (!$('mBook').hidden) { $('mBook').hidden = true; return; } openBook(); };
+$('bkClose').onclick = () => { $('mBook').hidden = true; };
 $('bMenu').onclick = e => { e.stopPropagation(); AU.init(); $('mSound').textContent = AU.on ? '소리 끄기' : '소리 켜기'; $('menu').hidden = !$('menu').hidden; };
 $('mWide').onclick = () => { const s = S(); cam.wide = !cam.wide; $('mWide').textContent = cam.wide ? '가까이 보기' : '해도 전체 보기'; lookAt(cam.wide ? C.WORLD.w / 2 : s.x, cam.wide ? C.WORLD.h / 2 : s.y, cam.wide ? cam.fit : defaultZoom()); hideMenu(); };
 $('mShip').onclick = () => { const s = S(); cam.wide = false; $('mWide').textContent = '해도 전체 보기'; lookAt(s.x, s.y, defaultZoom()); hideMenu(); };
@@ -654,12 +718,15 @@ function startGame(cap) {
   const c = C.CAPTAINS[cap]; toast(`${c.name} — ${c.title}. ${C.PORTS[c.start].name}에서 시작한다. 첫 상납은 ${fmt(C.quotaNow())}냥, ${Math.round(C.daysToDue())}일 뒤.`);
   setTimeout(() => banner('春', '봄 · 계절이 끝날 때마다 청해진 군자금을 바친다'), 300);
   coachStep = META.tut ? -2 : -1; if (!META.tut && cap === 'gungbok') setTimeout(() => coach(0), 1600);
+  setTimeout(runStories, 1300);
 }
 $('bStart').onclick = () => startGame(capSel);
 $('bCont').onclick = () => { AU.init(); if (!loadGame()) { toast('이어할 항해가 없다.'); return; } fogRebuild(); resetView(); $('sTitle').hidden = true; coachStep = -2; cam.touched = 0; openPanel(); relayout(true); paintHud(); toast('항해를 이어간다.'); runStories(); };
 $('bSound').onclick = () => { AU.init(); AU.set(!AU.on); };
 addEventListener('keydown', e => { const s = S(); if (s && !$('mBattle').hidden && s.battle && !s.battle.over && /^[1-5]$/.test(e.key)) { const o = C.battleOpts()[+e.key - 1]; if (o && o.ok) battleDo(o.id); return; }
   if (s && !$('mDive').hidden && s.dive && !s.dive.over) { if (e.key === 'ArrowDown') { e.preventDefault(); diveDo('down'); } if (e.key === 'ArrowUp') { e.preventDefault(); diveDo('up'); } return; }
+  if (s && !$('mBook').hidden && e.key === 'Escape') { $('mBook').hidden = true; return; }
+  if (s && $('sTitle').hidden && (e.key === 'b' || e.key === 'B') && (!anyModal() || !$('mBook').hidden)) { if ($('mBook').hidden) openBook(); else $('mBook').hidden = true; return; }
   if (!s || anyModal() || !$('sTitle').hidden) return; if (e.key === 'Escape') { hideDest(); hideMenu(); }
   if (s.mode === 'sail' && ['1', '2', '3'].includes(e.key)) { speedIdx = +e.key - 1; showSailbar(); }
   if (s.mode === 'sail' && (e.code === 'Space' || e.key === ' ')) { e.preventDefault(); toggleRow(); } });
@@ -680,5 +747,5 @@ paintSoundIcon();
 const fontsReady = (document.fonts && document.fonts.load) ? Promise.race([Promise.all([document.fonts.load(`40px "Song Myung"`), document.fonts.load(`15px "IBM Plex Sans KR"`)]), new Promise(r => setTimeout(r, 1800))]) : Promise.resolve();
 fontsReady.then(() => { paintBase(); });
 C.newGame('gungbok'); fogReset(); relayout(true); cam.z = cam.fit; cam.x = C.WORLD.w / 2; cam.y = C.WORLD.h / 2; showTitle(); requestAnimationFrame(frame);
-window.__CHUNGHAE = { C, startGame, openBattle, openDive, battleDo, diveDo, toggleRow, paintPanel, openPanel, finish, openReveal, openEvent, openQuota, showDest, cam, relayout, lookAt };
+window.__CHUNGHAE = { C, startGame, openBook, drainQuests, runStories, openBattle, openDive, battleDo, diveDo, toggleRow, paintPanel, openPanel, finish, openReveal, openEvent, openQuota, showDest, cam, relayout, lookAt };
 })();
