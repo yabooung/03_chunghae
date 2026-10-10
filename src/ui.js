@@ -159,7 +159,7 @@ const cam = { x: 1000, y: 1000, z: 1, fit: 1, touched: 0, wide: false };
 function relayout(recenter) {
   W = innerWidth; H = innerHeight; const dpr = Math.min(2, devicePixelRatio || 1); if (dpr !== DPR) sealCache.clear(); DPR = dpr; cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const top = NARROW() ? 110 : 76, pan = $('panel'); let a = { x: 12, y: top, w: W - 24, h: H - top - 12 };
-  if (!pan.hidden) { if (NARROW()) a.h = H - top - pan.getBoundingClientRect().height - 8; else a.w = W - 24 - 396; }
+  if (!pan.hidden) { if (NARROW()) a.h = H - top - pan.getBoundingClientRect().height - 8; else if (!pan.classList.contains('min')) a.w = W - 24 - 396; }
   AREA = a; cam.fit = Math.min(a.w / C.WORLD.w, a.h / C.WORLD.h);
   if (recenter) { cam.z = cam.wide ? cam.fit : defaultZoom(); const s = S(); if (s) { cam.x = s.x; cam.y = s.y; } }
   clampCam();
@@ -384,7 +384,7 @@ $('coachSkip').onclick = () => { showCoach(false); coachStep = -2; META.tut = tr
 let lastQuote = null, panelMin = false;
 function openPanel() { const p = $('panel'); p.hidden = false; panelMin = false; p.classList.remove('min'); $('pGrab').textContent = '접기'; paintPanel(); relayout(false); }
 function closePanel() { $('panel').hidden = true; relayout(false); }
-$('pHead').onclick = () => { if (!NARROW()) return; panelMin = !panelMin; $('panel').classList.toggle('min', panelMin); $('pGrab').textContent = panelMin ? '펼치기' : '접기'; relayout(false); };
+$('pHead').onclick = () => { panelMin = !panelMin; $('panel').classList.toggle('min', panelMin); $('pGrab').textContent = panelMin ? '펼치기' : '접기'; relayout(false); };
 function tagFor(pct) { return pct <= 80 ? ['cheap', '싸다'] : pct >= 130 ? ['dear', '비싸다'] : ['mid', '보통']; }
 function gl(g, cls) { return `<span class="glyph ${cls || ''}" style="background:${g.col}">${g.ch}</span>`; }
 /* 물건 그림 — 32칸, 1.7 굵기 둥근 선 하나로 통일. 모서리에 한자 도장 */
@@ -514,7 +514,7 @@ function showDest(p, keepPick) {
     <div class="routes">${routes}</div>${warn ? `<div class="chips">${warn}</div>` : ''}<ul>${rows}</ul><div class="row"><button class="btn" id="dCancel">그만둔다</button><button class="btn main" id="dGo">출항</button></div>`;
   $('dest').hidden = false; $('dCancel').onclick = hideDest; $('dGo').onclick = () => go(p);
   $('dest').querySelectorAll('[data-route]').forEach(b => b.onclick = () => { routePick = b.dataset.route; showDest(p, true); });
-  if (NARROW() && !$('panel').hidden) { panelMin = true; $('panel').classList.add('min'); $('pGrab').textContent = '펼치기'; relayout(false); }
+  if (!$('panel').hidden) { panelMin = true; $('panel').classList.add('min'); $('pGrab').textContent = '펼치기'; relayout(false); }
   if (!keepPick) { const end = p.main.path[p.main.path.length - 1]; const mx = (s.x + end[0]) / 2, my = (s.y + end[1]) / 2, span = Math.max(Math.abs(end[0] - s.x) / (AREA.w * .75), Math.abs(end[1] - s.y) / (AREA.h * .65));
     lookAt(mx, my, Math.max(cam.fit, Math.min(cam.z, 1 / Math.max(span, 1e-3)))); }
   if (coachStep === 1 && p.port === 'jeoksan') coach(2);
@@ -834,7 +834,7 @@ function tavernHtml(k) { const s = S(), t = C.tavern(k), cap = C.mateCap();
   return `<div class="sec"><h3>소문</h3><div class="acts"><button class="act" data-act="rumor" ${s.gold < C.rumorCost() ? 'disabled' : ''}><b>소문 듣기</b><small>${fmt(C.rumorCost())}냥 · 다른 항구 값${s.boons.clerk || C.hasMate('seer') || s.cap === 'ara' ? ' · 정확' : ''}</small></button></div>${lastQuote ? `<div class="quote">${lastQuote}</div>` : ''}</div>
     <div class="sec"><h3>뱃사람 구함<span>내 선원 ${s.mates.length}/${cap}</span></h3><div class="hold">${offer}</div>${mine ? `<div class="hold" style="margin-top:8px">${mine}</div>` : ''}</div>
     <div class="sec"><h3>홀짝<span>오늘 ${dl}판 남음</span></h3><div class="dice" id="dice"><div class="dcup" id="dcup">${die(1)}${die(1)}</div><div class="dbtns">${[500, 2000].map(b => `<div class="drow"><small>${fmt(b)}냥</small><button class="btn" data-dice="${b}:odd" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>홀</button><button class="btn" data-dice="${b}:even" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>짝</button></div>`).join('')}</div><p class="fine dres" id="dres">두 주사위의 합이 홀일까 짝일까. 맞히면 건 돈의 0.9배를 번다.</p></div></div>`; }
-function journal(text, kind, ext) { const s = S(); if (!s || !s.log || s.ended) return; const t = String(text).replace(/<br\s*\/?>/g, ' — ').replace(/<[^>]+>/g, ''); const e = Object.assign({ t: Math.floor(s.t), x: t, k: kind || '' }, ext || {}); if (!ext) e.h = String(text).replace(/<br\s*\/?>/g, ' — '); s.log.push(e); if (s.log.length > 200) s.log.splice(0, s.log.length - 200); if ($('sTitle').hidden) feedAdd(e); }
+function journal(text, kind, ext) { const s = S(); if (!s || !s.log || s.ended) return; const t = String(text).replace(/<br\s*\/?>/g, ' — ').replace(/<[^>]+>/g, ''); const e = Object.assign({ t: Math.floor(s.t), x: t, k: kind || '' }, ext || {}); if (!ext) e.h = String(text).replace(/<br\s*\/?>/g, ' — '); const pv = s.log[s.log.length - 1]; if (pv && pv.x === e.x && pv.t === e.t) return; s.log.push(e); if (s.log.length > 200) s.log.splice(0, s.log.length - 200); if ($('sTitle').hidden) feedAdd(e); }
 const feedVisible = () => !FEED.min && !$('feed').hidden && getComputedStyle($('feed')).display !== 'none';
 function bookLog(s) { if (!s.log || !s.log.length) return '<p class="fine bk-note">아직 적은 것이 없다.</p>'; let day = null, h = '';
   for (const e of s.log.slice().reverse()) { if (e.t !== day) { day = e.t; h += `<h4 class="bk-nat">${C.dateStr(e.t)}</h4>`; } h += `<div class="logl ${e.k}">${e.x}</div>`; } return h; }
@@ -863,7 +863,7 @@ function paintFeedHead() { $('feed').classList.toggle('min', FEED.min); $('feedU
   const s = S(), lastE = s && s.log && s.log.length ? s.log[s.log.length - 1] : null; $('feedPeek').innerHTML = lastE ? feedHtml(lastE) : ''; }
 function feedAdd(e) { const el = $('feedList'); if (!el || !feedOk(e)) return; const near = el.scrollHeight - el.scrollTop - el.clientHeight < 40; const emp = el.querySelector('.fempty'); if (emp) emp.remove();
   el.insertAdjacentHTML('beforeend', feedHtml(e, !RM)); while (el.children.length > FEED.max) el.firstElementChild.remove(); if (near || e.c === 'mkt') el.scrollTop = el.scrollHeight;
-  if (FEED.min) FEED.unread++; paintFeedHead(); const pk = $('feedPeek').firstElementChild; if (pk && !RM) { pk.classList.add('new'); } }
+  if (FEED.min) FEED.unread++; paintFeedHead(); const lv = $('feedLive'); if (lv && !RM) { lv.classList.remove('ping'); void lv.offsetWidth; lv.classList.add('ping'); } const pk = $('feedPeek').firstElementChild; if (pk && !RM) { pk.classList.add('new'); } }
 function feedWire(w) { const P = C.PORTS[w.k], g = C.G[w.id]; const up = w.kind === 'up';
   const x2 = w.end ? (up ? '— 남아돌던 값이 돌아왔다' : '— 바람이 잦아들었다') : up ? `— 바람이 분다 · 약 ${fmt(w.price)}냥` : `— 남아돈다 · 약 ${fmt(w.price)}냥`;
   const e = { c: 'mkt', p: w.k, g: w.id, dir: w.kind, pct: w.end ? null : w.pct, x2, src: `${w.src} · 소문`, mine: w.hold || w.dest };
