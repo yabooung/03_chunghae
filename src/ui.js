@@ -559,7 +559,7 @@ function battleEnd() { const s = S(), B = s.battle, R = B.result || {}; const T 
 /* ═══════════ 잠수 화면 ═══════════ */
 function openDive() { const s = S(), D = s.dive; if (!D) return; hideDest(); AU.chime();
   const stars = '★'.repeat(D.site.lv) + '☆'.repeat(3 - D.site.lv);
-  $('dvCard').innerHTML = `<div class="eyebrow">잠수 · ${C.dateStr(s.t)}</div><h2>${D.site.name} <span class="stars">${stars}</span></h2><p class="sub" style="margin:0 0 10px">${D.site.pearl ? '해녀들이 앞서 내려간다. 얕지만 진주가 많다.' : D.site.lv >= 3 ? `두목이 숨긴 보물. <b>맨 밑(${D.max}길)</b>에는 반드시 유물이 있다.` : '깊이 갈수록 값진 것이 있다. 숨이 다하면 건진 것의 반을 놓친다.'}</p>
+  $('dvCard').innerHTML = `<div class="eyebrow">잠수 · ${C.dateStr(s.t)}</div><h2>${D.site.name} <span class="stars">${stars}</span></h2><p class="sub" style="margin:0 0 10px">${D.site.pearl ? '해녀들이 앞서 내려간다. 얕지만 진주가 많다.' : D.site.lv >= 3 ? `두목이 숨긴 보물. <b>맨 밑(${D.max}길)</b>에는 반드시 유물이 있다.` : '깊이 갈수록 값진 것이 있다.'} 숨이 끊기면 이번에 건진 것을 <b>모두</b> 놓치고 며칠을 앓는다.</p>
     <div class="dv"><div class="dv-col" id="dvCol">${Array.from({ length: D.max }, (_, i) => `<div class="band" style="top:${(i + 1) / (D.max + 1) * 100}%"><span>${i + 1}길</span></div>`).join('')}<div class="diver" id="dvDiver">潛<i></i><i></i><i></i></div></div>
       <div class="dv-side"><div class="breath"><span>숨</span><s><i id="dvBr"></i></s><b id="dvBrN"></b></div><div class="dv-find" id="dvFind"><span class="fch">水</span><span>뱃전에서 숨을 크게 들이쉰다.</span></div><div class="haul" id="dvHaul"></div></div></div>
     <div class="dv-row" id="dvRow"></div>`;
@@ -568,8 +568,8 @@ function paintDive() { const s = S(), D = s.dive; if (!D) return; const pct = Ma
   $('dvBr').style.width = pct + '%'; $('dvBr').classList.toggle('low', pct < 30); $('dvBrN').textContent = Math.max(0, Math.round(D.breath));
   $('dvDiver').style.top = `calc(${D.depth / (D.max + 1) * 100}% - 4px)`;
   $('dvHaul').innerHTML = D.haul.length ? D.haul.map(h => `<span class="hchip ${h.relic ? 'relic' : ''}" title="${h.text}">${h.ch}</span>`).join('') : '<small class="fine">아직 건진 것이 없다</small>';
-  if (D.over) return; const cost = C.diveCost(D), deep = D.depth >= D.max;
-  $('dvRow').innerHTML = `<button class="btn" data-d="up">${D.depth ? '올라온다' : '그만둔다'}</button><button class="btn main ${!deep && D.breath < cost + 5 ? 'risky' : ''}" data-d="down" ${deep ? 'disabled' : ''}>${deep ? '바닥이다' : D.breath < cost ? `숨이 모자라다 — 그래도 간다 (-${cost}~${cost + 5})` : `더 깊이 · 숨 약 -${cost}~${cost + 5}`}</button>`;
+  if (D.over) return; const cost = C.diveCost(D), deep = D.depth >= D.max, gasp = D.breath - cost - 5 < C.GASP;
+  $('dvRow').innerHTML = `<button class="btn" data-d="up">${D.depth ? '올라온다' : '그만둔다'}</button><button class="btn main ${!deep && gasp ? 'risky' : ''}" data-d="down" ${deep ? 'disabled' : ''}>${deep ? '바닥이다' : D.breath < cost ? `숨이 모자라다 — 그래도 간다 (-${cost}~${cost + 5})` : `더 깊이 · 숨 약 -${cost}~${cost + 5}${gasp ? ' · 숨이 가빠 위험' : ''}`}</button>`;
   $('dvRow').querySelectorAll('[data-d]').forEach(b => b.onclick = () => diveDo(b.dataset.d)); }
 function diveDo(a) { const D = C.diveAct(a); if (!D) return; AU.init();
   if (a === 'down') { AU.noise(.5, { freq: 300, q: .8, gain: .14, type: 'lowpass' }); const r = D.last; if (r) { const el = $('dvFind'); el.className = 'dv-find ' + (r.relic ? 'relic' : r.good ? 'fgood' : r.bad ? 'fbad' : ''); el.innerHTML = `<span class="fch">${r.ch}</span><span>${D.depth}길 — ${r.text}</span>`; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
@@ -577,7 +577,7 @@ function diveDo(a) { const D = C.diveAct(a); if (!D) return; AU.init();
   paintDive(); if (D.over) diveEnd(); }
 function diveEnd() { const D = S().dive, R = D.result || { gold: 0, crates: [], relics: [] };
   const lines = [R.gold ? `<b class="num">+${fmt(R.gold)}냥</b>` : '', R.crates.length ? `상자 ${R.crates.map(id => C.G[id].name).join(', ')}` : '', R.sold ? `선창이 차서 ${R.sold}상자는 반값에 넘겼다` : '', ...R.relics.map(id => { const r = C.RELICS.find(x => x.id === id); return `<b style="color:var(--hwang)">유물 ${r.ch} ${r.name}</b> — ${r.text}`; })].filter(Boolean);
-  const head = D.over === 'blackout' ? `<b>숨이 끊겼다</b> — 선원들이 줄을 당겨 끌어올렸다. 건진 것 ${D.lostHaul ? D.lostHaul.length : 0}개를 놓쳤다.` : '<b>물 위로 올라왔다.</b>';
+  const head = D.over === 'blackout' ? `<b>숨이 끊겼다</b> — 선원들이 줄을 당겨 끌어올렸다. ${D.lostHaul && D.lostHaul.length ? `건진 것 ${D.lostHaul.length}개를 모두 놓쳤다. ` : ''}잠수부가 ${D.faint}일을 앓아누웠고 선원들은 지쳤다.` : '<b>물 위로 올라왔다.</b>';
   $('dvRow').innerHTML = `<div class="result ${D.over === 'blackout' ? 'bad' : lines.length ? 'good' : ''}" style="flex:1">${head}${lines.length ? '<br>' + lines.join('<br>') : '<br>빈손이다.'}</div><button class="btn main" id="dvOk">계속</button>`;
   if (R.relics.length) setTimeout(() => banner('寶', `유물 — ${C.RELICS.find(x => x.id === R.relics[0]).name}`), 300); else if (D.over !== 'blackout' && R.gold) AU.pay();
   $('dvOk').focus({ preventScroll: true }); $('dvOk').onclick = () => { C.diveClose(); $('mDive').hidden = true; paintHud(); if (S().mode === 'port') after(); }; }

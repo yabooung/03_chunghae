@@ -786,8 +786,9 @@ function addMap(lv, opt) { opt = opt || {}; if (S.maps.length >= 3) return null;
   return null; }
 function makeDive(site) { S.dive = { site, depth: 0, max: site.max || 5, breath: 100 + (S.relics.breath ? 40 : 0) + (hasMate('diver') ? 30 : 0), haul: [], last: null, over: null }; S.dive.full = S.dive.breath; S.stats.dives = (S.stats.dives || 0) + 1; return S.dive; }
 const diveCost = D => 8 + (D.depth + 1) * 4;
-function rollDive(D) { const d = D.depth, lv = D.site.lv, pearl = D.site.pearl;
-  const W = { silver: Math.max(8, 36 - d * 3), crate: pearl ? 6 : 16, relic: pearl ? 0 : lv >= 3 ? (d >= 5 ? 9999 : d >= 3 ? 30 : 0) : d >= 4 ? (lv === 2 ? 16 : 7) : 0, pearl: pearl ? 30 : 0, shark: 5 + d * 3, weed: 9, empty: 11, collapse: d >= 3 && !pearl ? 6 : 0 };
+const FAINT_DAYS = 2, GASP = 25, GASP_K = 3;
+function rollDive(D) { const d = D.depth, lv = D.site.lv, pearl = D.site.pearl, gasp = D.breath < GASP ? GASP_K : 1; // 숨이 가쁘면 허우적대다 상어·해초에 더 걸린다
+  const W = { silver: Math.max(8, 36 - d * 3), crate: pearl ? 6 : 16, relic: pearl ? 0 : lv >= 3 ? (d >= D.max ? 9999 : d >= 3 ? 30 : 0) : d >= 4 ? (lv === 2 ? 16 : 7) : 0, pearl: pearl ? 30 : 0, shark: (5 + d * 3) * gasp, weed: 9 * gasp, empty: 11, collapse: d >= 3 && !pearl ? 6 : 0 };
   const bag = []; for (const [k, w] of Object.entries(W)) for (let i = 0; i < w; i++) bag.push(k); const k = pick(bag);
   const mult = (1 + d * .6) * (lv === 3 ? 3 : lv === 2 ? 1.7 : 1) * (1 + .3 * yearOf());
   if (k === 'silver') { const g = Math.round(ri(5, 10) * 100 * mult / 10) * 10; return { k, ch: '銀', text: `은자 꾸러미 — ${g.toLocaleString('ko-KR')}냥`, gold: g, good: true }; }
@@ -806,7 +807,8 @@ function diveAct(a) { const D = S.dive; if (!D || D.over) return null;
   if (r.breath) D.breath -= r.breath;
   if (r.collapse) { const lost = D.haul.pop(); r.lost = lost; if (!lost) r.text = '썩은 갑판이 무너졌다! 간신히 피했다.'; }
   if (r.gold || r.relic || (r.good && typeof r.good === 'string')) D.haul.push({ ch: r.ch, text: r.text, gold: r.gold || 0, crate: typeof r.good === 'string' ? r.good : null, relic: r.relic || null });
-  if (D.breath <= 0) { D.breath = 0; D.over = 'blackout'; const n = Math.floor(D.haul.length / 2); const lost = []; for (let i = 0; i < n; i++) lost.push(D.haul.splice(ri(0, D.haul.length - 1), 1)[0]); D.lostHaul = lost; D.result = diveFinish(D); }
+  if (D.breath <= 0) { // 숨이 끊기면 이번에 건진 것을 모두 놓치고, 잠수부가 앓아눕고, 선원들은 끌어올리느라 지친다
+    D.breath = 0; D.over = 'blackout'; D.lostHaul = D.haul.splice(0); D.faint = FAINT_DAYS; S.t += FAINT_DAYS; S.stamina = 0; D.result = diveFinish(D); }
   return D; }
 function gainRelic(id) { if (S.relics[id]) return; S.relics[id] = 1; if (id === 'anchor') { S.hullMax += 30; S.hull += 30; } }
 function diveFinish(D) { const R = { gold: 0, crates: [], relics: [], sold: 0 };
@@ -1084,7 +1086,7 @@ return { WORLD, VIEW, CELL, GW, GH, YEAR, LOT, LAND, LABELS, GOODS, G, PORTS, PO
   acceptOffer, quotaNow, quotaFor, takeBoon, daysToDue, inZone, pirateOdds, zoneR, NEWS, SPECIALS, STORE_MAX,
   ARCS, ENDINGS, NUM, MATES, MBY, arcOf, curAct, mainGoals, mainTick, mainPay, mainDeliver, mainSpots, mainStory, hasMate, mateCap, wages, tavern, hireMate, fireMate, rollDice, portEvent,
   QUESTS, QBY, FIND_META, REGIONS, qStep, startQuest, questEval, questSpots, regionCheck,
-  BOSSES, RELICS, GIMMICK, battleOpts, battleAct, battleClose, makeBattle, acceptBounty, makeBounty, addMap, diveAct, diveClose, diveCost, makeDive, arrowDmg, boardDmg,
+  BOSSES, RELICS, GIMMICK, battleOpts, battleAct, battleClose, makeBattle, acceptBounty, makeBounty, addMap, diveAct, diveClose, diveCost, makeDive, GASP, arrowDmg, boardDmg,
   setRow, racers, specialInfo, useSpecial, storePut, storeTake, shipPrice, isClosed, liveNews,
   wind, monsoon, windWord, dateStr, seasonOf, doyOf, ago, assets, score, rankOf, seaAt, onLand, revealed, findPath, estimateDays, angDiff, pathZones };
 })();
