@@ -1,0 +1,15 @@
+{
+  "name": "chunghae",
+  "version": "0.6.0",
+  "private": true,
+  "description": "청해 — 바람의 장부. 9세기 동아시아 바다의 교역·해전·탐험 게임",
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node test/smoke.js",
+    "sim:economy": "node test/sim/economy.js 6 2500 gungbok",
+    "sim:battle": "node test/sim/battle.js",
+    "sim:dive": "node test/sim/dive.js",
+    "shots": "npm run build && python3 test/screenshots.py"
+  },
+  "engines": { "node": ">=18" }
+}
