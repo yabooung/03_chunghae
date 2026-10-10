@@ -38,10 +38,56 @@ Object.keys(C.CAPTAINS).forEach((cap, i) => { const diff = Object.keys(C.DIFFS)[
 
 // 5. 결말 데이터가 모두 연결돼 있다
 const endIds = new Set(Object.keys(C.ENDINGS)); ok(endIds.size >= 10, `결말 ${endIds.size}개`);
+// 7. 사전: 항목 형식 · 관련 항목 · 여는 조건 · 게임 속 모든 항구·물건·두목·선원·인물이 항목에 닿는다 · 봇 판에서 열린다 · 저장 왕복
+{ const X = require('../src/codex.js'), fs = require('fs'), path = require('path'), vm = require('vm');
+  const E = X.ENTRIES, cats = new Set(X.CATS.map(c => c.id)), bad = [];
+  const sentences = t => (t.match(/[다요음함까][.」"]|[.!?](\s|$)/g) || []).length;
+  for (const e of E) { const why = [];
+    if (!/^[a-z0-9]+$/.test(e.id)) why.push('id'); if (!cats.has(e.cat)) why.push('cat'); if (!e.title || !e.sum || e.sum.length > 80) why.push('title/sum');
+    if (!Array.isArray(e.hist) || !e.hist.length) why.push('hist'); else { const n = sentences(e.hist.join(' ')); if (n < 3 || n > 9) why.push(`hist ${n}문장`); }
+    if (!e.game) why.push('game'); if (e.fic && !/^게임이 지어낸/.test(e.game)) why.push('fic 표시');
+    if (!Array.isArray(e.src) || e.src.length < 1) why.push('src'); if (!Array.isArray(e.terms) || e.terms.some(t => t.length < 2)) why.push('terms');
+    if (!Array.isArray(e.on) || !e.on.length || !e.art) why.push('on/art');
+    if (why.length) bad.push(`${e.id}(${why.join(',')})`); }
+  ok(!bad.length && new Set(E.map(e => e.id)).size === E.length, `사전 ${E.length}항목 형식 (${X.CATS.map(c => `${c.name} ${E.filter(e => e.cat === c.id).length}`).join(' · ')})${bad.length ? ' — ' + bad.join(' ') : ''}`);
+  const dead = E.flatMap(e => e.rel.filter(r => !X.BY[r] || r === e.id).map(r => `${e.id}→${r}`)); ok(!dead.length, `관련 항목 링크 ${E.reduce((a, e) => a + e.rel.length, 0)}개가 모두 이어진다${dead.length ? ' — 끊김 ' + dead.join(' ') : ''}`);
+  const EVIDS = new Set(['rival', 'pirate', 'black']), srcEv = fs.readFileSync(path.join(__dirname, '../src/core.js'), 'utf8'); for (const m of srcEv.matchAll(/\{ id: '(\w+)', w: \(\) =>/g)) EVIDS.add(m[1]);
+  const valid = t => { const [k, a, b] = t.split(':'); switch (k) {
+    case 'start': case 'voyage': case 'rival': return !a; case 'cap': case 'capopen': return !!C.CAPTAINS[a]; case 'port': return !!C.PORTS[a]; case 'good': return !!C.G[a];
+    case 'find': return C.FINDS.some(f => f.id === a); case 'mate': return !!C.MBY[a]; case 'crew': case 'ask': return C.CREW.some(c => c.k === a); case 'boss': return C.BOSSES.some(x => x.id === a);
+    case 'quest': return !!C.QBY[a]; case 'act': return !!C.ARCS[a] && +b >= 0 && +b < C.ARCS[a].acts.length; case 'flag': return ['woojing', 'refused', 'refuge', 'shut', 'help', 'buy'].includes(a);
+    case 'relic': return C.RELICS.some(r => r.id === a); case 'news': return C.NEWS.some(n => n.id === a); case 'ev': return EVIDS.has(a); case 'story': return ['inspector', 'main', 'port', 'quest', 'helm', 'deck', 'tongue'].includes(a);
+    case 'battle': return ['pirate', 'black', 'slaver', 'boss'].includes(a); case 'ending': return !!C.ENDINGS[a]; case 'ship': return +a >= 1 && +a < C.SHIPS.length; } return false; };
+  const badOn = E.flatMap(e => e.on.filter(t => !valid(t)).map(t => `${e.id}:${t}`)); ok(!badOn.length, `여는 조건 ${E.reduce((a, e) => a + e.on.length, 0)}개가 모두 게임에 있는 것을 가리킨다${badOn.length ? ' — ' + badOn.join(' ') : ''}`);
+  const hints = E.map(e => X.hint(e)); ok(hints.every(h => typeof h === 'string' && h.length > 3), '잠긴 항목마다 귀띔이 있다');
+  const opens = t => E.some(e => e.on.includes(t)), miss = [];
+  for (const k of C.PORT_IDS) if (!opens('port:' + k) || !X.BY[X.portEntry(k)]) miss.push('항구 ' + k);
+  for (const g of C.GOODS) if (!opens('good:' + g.id) || !X.BY[X.goodEntry(g.id)]) miss.push('물건 ' + g.id);
+  for (const b of C.BOSSES) if (!opens('boss:' + b.id) || !X.BY[X.WHO[b.id]]) miss.push('두목 ' + b.id);
+  for (const m of C.MATES) if (!opens('mate:' + m.id) || !X.BY[X.WHO[m.id]]) miss.push('뱃사람 ' + m.id);
+  for (const c of C.CREW) if (!opens('crew:' + c.k) || !X.BY[X.WHO[c.k]]) miss.push('선원 ' + c.k);
+  for (const k of Object.keys(C.CAPTAINS)) if (!X.BY[X.WHO[k]]) miss.push('선장 ' + k);
+  const ctx = {}; vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/art/portraits.js'), 'utf8') + ';this.ids = PORTRAIT.ids;', ctx);
+  for (const id of ctx.ids) if (!X.BY[X.WHO[id]]) miss.push('인물 ' + id);
+  for (const q of C.QUESTS) if (!opens('quest:' + q.id) && !E.some(e => e.on.some(t => t === 'port:' + q.giver))) miss.push('이야기 ' + q.id);
+  for (const [cap, arc] of Object.entries(C.ARCS)) arc.acts.forEach((a, i) => { if (!opens(`act:${cap}:${i}`) && i > 0) miss.push(`막 ${cap}${i}`); });
+  ok(!miss.length, `게임 속 항구 ${C.PORT_IDS.length}·물건 ${C.GOODS.length}·두목 ${C.BOSSES.length}·뱃사람 ${C.MATES.length}·선원 ${C.CREW.length}·초상 ${ctx.ids.length}명이 모두 사전에 닿는다${miss.length ? ' — 빠짐 ' + miss.join(', ') : ''}`);
+  // 봇 판: 항해 출력도 사전에 먹인다
+  const st = X.blank(), base = X.check(X.blank(), null).length, S = C.newGame('gungbok', 'baram'), up = C.update;
+  try { C.update = dt => { const o = up(dt); X.feedOut(st, o); return o; }; botRun(S, 500); } finally { C.update = up; }
+  X.check(st, S); const got = Object.keys(st.u), kinds = ['person', 'place', 'good'].filter(c => E.some(e => e.cat === c && st.u[e.id]));
+  ok(got.length > base + 10 && kinds.length === 3 && Object.keys(st.seen).some(t => t.startsWith('ev:')), `봇 판에서 사전이 열린다 — 처음 ${base}개 → ${got.length}개 (항해 사건 ${Object.keys(st.seen).filter(t => t.startsWith('ev:')).length}종)`);
+  // 저장 왕복: 판을 저장했다 불러도 같은 항목이 열리고, 메타에 남긴 사전도 그대로다. 옛 메타·깨진 값은 빈 사전으로
+  const before = [...X.scan(S)].sort().join(), txt = C.saveData(); C.newGame('ara'); const L = C.loadData(txt), after = [...X.scan(L)].sort().join();
+  const st2 = X.norm(JSON.parse(JSON.stringify(st))), again = X.check(st2, L);
+  ok(before === after && Object.keys(st2.u).length === got.length && !again.length && JSON.stringify(X.norm(undefined)) === JSON.stringify(X.blank()) && !Object.keys(X.norm({ u: { 없는항목: 1 } }).u).length,
+    `저장→불러오기·메타 왕복에도 사전 ${got.length}항목 그대로 · 옛 메타는 빈 사전`);
+  const one = E.find(e => st.u[e.id] && e.terms.length); ok(one && X.search(st, one.terms[0].slice(0, 2)).includes(one) && !X.search(st, '없는낱말qq').length, `찾기(한글 부분 일치) — 「${one && one.terms[0].slice(0, 2)}」`);
+  const T = X.terms(st); ok(T.every(([t], i) => i === 0 || T[i - 1][0].length >= t.length), `글 속 낱말 ${T.length}개 (긴 것부터)`); }
 // 6. 한 파일 빌드에 넣는 글꼴이 게임 글자를 모두 덮는다 (글을 고치면 python tools/fonts.py)
 { const fs = require('fs'), path = require('path'), root = path.join(__dirname, '..');
   const have = new Set([...fs.readFileSync(path.join(root, 'assets/fonts/charset.txt'), 'utf8')]), SYS = new Set([...'≈═✓']);
-  const used = new Set([...['core.js', 'art/scenes.js', 'ui.js', 'page.html'].map(f => fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('')]);
+  const used = new Set([...['core.js', 'codex.js', 'art/scenes.js', 'ui.js', 'page.html'].map(f => fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('')]);
   const miss = [...used].filter(c => c.codePointAt(0) > 0x7f && !have.has(c) && !SYS.has(c));
   ok(!miss.length, `글꼴 글자표 ${have.size}자${miss.length ? ` — 빠진 글자 ${miss.join('')} (python tools/fonts.py)` : ''}`); }
 

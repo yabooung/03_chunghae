@@ -357,11 +357,11 @@ function goldDelta(d) { d = Math.round(d); if (!d) return; const box = $('hGoldB
   box.querySelectorAll('.delta').forEach(x => x.remove()); const sp = document.createElement('span'); sp.className = 'delta ' + (d > 0 ? 'up' : 'dn'); sp.textContent = (d > 0 ? '+' : '') + fmt(d); box.appendChild(sp); setTimeout(() => sp.remove(), 1700); }
 
 /* ─────────── 알림 · 팝 · 띠 ─────────── */
-function toast(msg, kind) { journal(msg, kind); const el = document.createElement('div'); el.className = 'toast ' + (kind || ''); el.innerHTML = msg; $('toasts').appendChild(el); setTimeout(() => el.remove(), 3600); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); }
+function toast(msg, kind) { if (kind !== 'cx') journal(msg, kind); const el = document.createElement('div'); el.className = 'toast ' + (kind || ''); el.innerHTML = msg; $('toasts').appendChild(el); setTimeout(() => el.remove(), 3600); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); return el; }
 function pop(txt, x, y, kind) { const el = document.createElement('div'); el.className = 'pop ' + (kind || ''); el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 1400); }
 const popAt = (el, txt, kind) => { const r = el.getBoundingClientRect(); pop(txt, r.left + r.width / 2, r.top + r.height / 2, kind); };
 function banner(big, small) { $('bnBig').textContent = big; $('bnSmall').textContent = small; const b = $('banner'); b.hidden = false; const d = b.firstElementChild; d.style.animation = 'none'; void d.offsetWidth; d.style.animation = ''; clearTimeout(banner.t); banner.t = setTimeout(() => b.hidden = true, 2800); }
-const anyModal = () => ['mEvent', 'mReveal', 'mStory', 'mQuota', 'sEnd', 'mRetire2', 'mBattle', 'mDive', 'mBook'].some(id => !$(id).hidden);
+const anyModal = () => ['mEvent', 'mReveal', 'mStory', 'mQuota', 'sEnd', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex'].some(id => !$(id).hidden);
 
 /* ─────────── 첫 판 안내 ─────────── */
 let coachStep = -1;
@@ -437,6 +437,7 @@ function paintPanel() {
     : tavernHtml(k);
   $('pBody').innerHTML = `<div class="ptabs">${tabsDef.map(([id, l, b]) => `<button class="${panelTab === id ? 'on' : ''}" data-ptab="${id}">${l}${b ? `<i>${b === '·' ? '' : b}</i>` : ''}</button>`).join('')}</div>${body}`;
   $('pLeft').textContent = `상납까지 ${Math.ceil(C.daysToDue())}일`;
+  cxLink($('pBody'), { sel: '.special small, .newsl small', max: 3 });
 }
 let spNote = null;
 function specialHtml(k) { const s = S(), sp = C.specialInfo(k); if (!sp) return ''; let btns = '';
@@ -533,7 +534,7 @@ function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.in
 const EV_CH = { storm: '風', calm: '靜', wreck: '破', sail: '帆', castaway: '漂', reef: '礁', fairwind: '順', monk: '僧', captives: '奴', ghost: '鬼', spout: '龍', whale: '鯨', fog: '霧', fever: '病', grumble: '怨', smuggler: '密', stars: '星', envoy: '使', drift: '流', pirate: '賊', rival: '商' };
 function openEvent(ev) { const s = S(); AU[['storm', 'pirate'].includes(ev.id) ? 'drum' : 'chime']();
   $('evCard').innerHTML = `<span class="ev-ink" aria-hidden="true">${EV_CH[ev.id] || '海'}</span><div class="eyebrow">바다에서 · ${C.dateStr(s.t)}</div><h2 style="padding-right:56px">${ev.title}</h2><p>${ev.text}</p><div class="choices">${ev.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
-  ART.cardArt($('evCard'), 'ev', ev.id); $('mEvent').hidden = false; $('evCard').querySelector('.choice').focus({ preventScroll: true });
+  cxLink($('evCard'), { sel: ':scope > p', max: 3 }); ART.cardArt($('evCard'), 'ev', ev.id); $('mEvent').hidden = false; $('evCard').querySelector('.choice').focus({ preventScroll: true });
   $('evCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = C.choose(+b.dataset.i); if (r.battle) { $('mEvent').hidden = true; openBattle(); return; } if (r.map) mapAppear[r.map.id] = performance.now(); if (r.good) AU.good(); else if (r.bad) AU.bad();
     $('evCard').querySelector('.choices').outerHTML = `<div class="result ${r.good ? 'good' : r.bad ? 'bad' : ''}">${r.text}</div><div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn main" id="evOk">계속</button></div>`;
     $('evOk').focus({ preventScroll: true });
@@ -593,7 +594,7 @@ function openStory(st) { if (st.who === 'main' && !st.title.includes('마지막'
   const sp = PORTRAIT.speaker(Object.assign({ fin: /막이 내린다$/.test(st.title) }, st), S().cap, C.NUM.indexOf(st.act)); // 말하는 사람 초상, 없으면 글자 도장
   $('stCard').innerHTML = `${sp ? `<span class="who pt">${PORTRAIT.svg(sp.id, { size: 84, expr: sp.expr, frame: st.who === 'main' ? 'card' : 'round' })}</span>` : `<span class="who ${st.who === 'inspector' ? 'inspector' : ''}">${ch}</span>`}<div class="eyebrow">이야기</div><h2 style="padding-right:${sp ? 92 : 64}px">${st.title}</h2><p>${st.text}</p>${st.sub ? `<p class="sub">${st.sub}</p>` : ''}
     <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
-  $('stCard').classList.toggle('chapter', st.who === 'main'); if (st.who === 'port' && ART.PE_BY_TITLE[st.title]) ART.cardArt($('stCard'), 'ev', ART.PE_BY_TITLE[st.title]); else ART.clearArt($('stCard')); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
+  cxMark('story:' + st.who); cxLink($('stCard'), { sel: ':scope > p', max: 3 }); $('stCard').classList.toggle('chapter', st.who === 'main'); if (st.who === 'port' && ART.PE_BY_TITLE[st.title]) ART.cardArt($('stCard'), 'ev', ART.PE_BY_TITLE[st.title]); else ART.clearArt($('stCard')); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
   $('stCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = st.opts[+b.dataset.i].apply(); $('mStory').hidden = true; if (r) toast(r); if (S().mode === 'port') after(); else paintHud(); setTimeout(runStories, 250); }); }
 
 
@@ -651,7 +652,7 @@ function drawBattle() { const c = $('btCv'); if (!c || !BT.w) return; const g = 
   BT.fx = BT.fx.filter(f => now - f.t0 < f.dur + 50);
   for (const p of BT.sparks) { p.x += p.vx; p.y += p.vy; p.vy += .13; p.life -= .03; g.globalAlpha = Math.max(0, p.life); g.fillStyle = p.col; g.fillRect(p.x, p.y, p.sz || 2.4, p.sz || 2.4); } g.globalAlpha = 1; BT.sparks = BT.sparks.filter(p => p.life > 0);
   g.fillStyle = 'rgba(27,35,36,.6)'; g.font = `12px ${css('--display')}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText(B.dist === 'near' ? '— 맞붙었다 —' : '— 활 거리 —', w / 2, h - 8); }
-function openBattle() { const s = S(), B = s.battle; if (!B) return; hideDest(); AU.drum(); BT.fx = []; BT.sparks = []; BT.me.lunge = BT.foe.lunge = 0; BT.me.sink = BT.foe.sink = 0;
+function openBattle() { const s = S(), B = s.battle; if (!B) return; hideDest(); AU.drum(); { const sp = B.spec || {}; CODEX.mark(CX.st, 'battle:' + (sp.kind || 'pirate')); if (sp.boss) CODEX.mark(CX.st, 'boss:' + sp.boss); } BT.fx = []; BT.sparks = []; BT.me.lunge = BT.foe.lunge = 0; BT.me.sink = BT.foe.sink = 0;
   $('btCard').innerHTML = `<div class="eyebrow">해전 · ${C.dateStr(s.t)}</div><div class="bt-head">${B.e.boss && PORTRAIT.has(B.e.boss) ? `<span class="bseal pt">${PORTRAIT.svg(B.e.boss, { size: 72, frame: 'seal' })}</span>` : `<span class="bseal ${B.e.boss ? 'boss' : ''}">${B.e.ch}</span>`}<div><h2>${B.e.name}</h2><small>${B.e.boss ? '현상 수배 두목 · ' : ''}${B.e.line || '평범한 해적'}</small></div></div>
     <canvas id="btCv" aria-hidden="true"></canvas><div class="bt-bars"><div class="hb me"><span>내 배</span><s><i class="ghost" id="btMeG"></i><i id="btMe"></i></s><b id="btMeN"></b></div><div class="hb foe"><span>${B.e.name}</span><s><i class="ghost" id="btFoeG"></i><i id="btFoe"></i></s><b id="btFoeN"></b></div></div>
     <div class="bt-intent" id="btIntent" aria-live="polite"></div><div class="bt-log" id="btLog">${B.e.boss ? '두목의 배가 앞을 막아선다. 도망칠 생각은 없어 보인다.' : '적이 다가온다. 저쪽의 다음 수를 읽고 맞받아라.'}</div>
@@ -777,10 +778,10 @@ function drawMissed(s) { for (const f of C.FINDS) { if (s.found[f.id] || !C.reve
     ctx.save(); ctx.globalAlpha = .55 + Math.sin(clock * 2 + f.x) * .2; ctx.strokeStyle = COL.ink2; ctx.setLineDash([2, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = COL.ink2; ctx.font = `bold 11px ${css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + .5); ctx.restore(); } }
 function openBook(tab) { if (tab) bookTab = tab; AU.init(); paintBook(); $('mBook').hidden = false; }
 function paintBook() { const s = S(); if (!s) return;
-  const tabs = [['market', '시세'], ['quest', `이야기${Object.values(s.quests || {}).filter(q => !q.done).length ? ' ·' + Object.values(s.quests).filter(q => !q.done).length : ''}`], ['dex', `도감 ${Object.keys(s.found).length}/${C.FINDS.length}`], ['log', '일지']];
+  const tabs = [['market', '시세'], ['quest', `이야기${Object.values(s.quests || {}).filter(q => !q.done).length ? ' ·' + Object.values(s.quests).filter(q => !q.done).length : ''}`], ['dex', `도감 ${Object.keys(s.found).length}/${C.FINDS.length}`], ['log', '일지'], ['codex', `사전 ${CODEX.count(CX.st).n}/${CODEX.count(CX.st).m}`]];
   $('bkTabs').innerHTML = tabs.map(([id, l]) => `<button class="${bookTab === id ? 'on' : ''}" data-tab="${id}">${l}</button>`).join('');
   $('bkBody').innerHTML = bookTab === 'market' ? bookMarket(s) : bookTab === 'quest' ? bookQuest(s) : bookTab === 'log' ? bookLog(s) : bookDex(s);
-  $('bkTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { bookTab = b.dataset.tab; paintBook(); });
+  $('bkTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { if (b.dataset.tab === 'codex') { openCodex(); return; } bookTab = b.dataset.tab; paintBook(); });
   $('bkBody').querySelectorAll('[data-good]').forEach(b => b.onclick = () => { bookGood = b.dataset.good || null; paintBook(); });
   $('bkBody').querySelectorAll('[data-go]').forEach(b => b.onclick = () => { const k = b.dataset.go; $('mBook').hidden = true; if (s.mode === 'sail') { lookAt(C.PORTS[k].x, C.PORTS[k].y); return; } if (k === s.at && s.mode === 'port') { openPanel(); return; } const p = C.plan(k); if (!p) return; if (p.closedPort) { toast(`${C.PORTS[k].name}은 포구를 닫았다.`, 'bad'); return; } showDest(p); });
   $('bkBody').querySelectorAll('[data-lookxy]').forEach(b => b.onclick = () => { const [x, y] = b.dataset.lookxy.split(',').map(Number); $('mBook').hidden = true; cam.wide = false; lookAt(x, y, Math.max(cam.z, cam.fit * 1.5)); }); }
@@ -845,11 +846,11 @@ function paintTracker() { const s = S(), el = $('tracker'); if (!el) return; if 
 
 /* ─────────── 흐름 ─────────── */
 function handle(out) {
-  const s = S();
+  const s = S(); CODEX.feedOut(CX.st, out);
   for (const o of out) {
     if (o.type === 'find') { findAppear[o.find.id] = performance.now(); AU.gong(); toast(`<b>${o.find.name}</b> — ${o.find.text}${o.find.gold ? ` +${fmt(o.find.gold)}냥` : ''}`, 'good'); const [x, y] = toS(o.find.x, o.find.y); pop('발견', x, y - 20, 'big'); }
     if (o.type === 'port') { portAppear[o.port] = performance.now(); AU.gong(); toast(`새 항구 — <b>${C.PORTS[o.port].name}</b>. 해도에 도장을 찍었다. 아무도 이곳 값을 모른다.`, 'good'); }
-    if (o.type === 'season') { AU.season(); banner(...SEASON_BANNER[o.season]); }
+    if (o.type === 'season') { AU.season(); banner(...SEASON_BANNER[o.season]); setTimeout(cxFact, 3200); }
     if (o.type === 'rival') { rivalMark[o.k] = { t: s.t, ch: o.rival.ch, col: o.rival.col, id: o.id }; if (s.slots.some(x => x.id === o.id) || s.dest === o.k) toast(`<b>${o.rival.name}</b>이 ${C.PORTS[o.k].name}에 ${C.G[o.id].name}${JO(C.G[o.id].name,'을','를')} 풀었다. 값이 눌린다.`, 'bad'); }
     if (o.type === 'orderLost') toast(`의뢰 기한이 지났다 — ${C.PORTS[o.order.to].name}의 ${C.G[o.order.good].name}. 명성 -20`, 'bad');
     if (o.type === 'event') openEvent(o.ev);
@@ -868,11 +869,11 @@ function handle(out) {
     if (o.type === 'bounced') { AU.bad(); toast(`<b>${C.PORTS[o.k].name}</b> 포구가 닫혀 있다${o.news ? ` — ${o.news.title}` : ''}. 뱃머리를 돌려야 한다.`, 'bad'); showSailbar(); }
     if (o.type === 'passengerLost') toast(`${o.passenger.who}가 기다리다 지쳐 다른 배로 옮겨 탔다. 명성 -15`, 'bad');
   }
-  setTimeout(drainQuests, 60);
+  setTimeout(drainQuests, 60); if (out.length) cxCheck();
   if (s.mode === 'sail' && Math.floor(s.t * 2) !== Math.floor((trail.t || 0) * 2)) { trail.t = s.t; trail.push([s.x, s.y]); if (trail.length > 500) trail.shift(); }
 }
 function finish(retire) {
-  const s = S(); if (!s || !$('sEnd').hidden) return; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); showCoach(false);
+  const s = S(); if (!s || !$('sEnd').hidden) return; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); showCoach(false);
   if (retire && !s.ended) s.ended = 'retire';
   const sc = C.score(), rank = C.rankOf(sc), why = s.ended;
   const wasAra = META.unlocked.ara, wasTomo = META.unlocked.tomo; META.runs++; META.best = Math.max(META.best, sc);
@@ -897,6 +898,99 @@ function finish(retire) {
   $('eTitle').onclick = () => { $('sEnd').hidden = true; showTitle(); };
 }
 
+/* ═══════════ 사전 — 바다의 백과 (항목과 여는 규칙은 src/codex.js) ═══════════ */
+/* 열린 항목은 메타(MKEY)에 남아 판이 바뀌어도 그대로다. 저장(KEY)은 건드리지 않는다 */
+const CX = { st: CODEX.norm(META.codex), cat: 'all', q: '', id: null, back: [], sheet: false, queue: [], qt: 0, t: 0, re: null, reN: -1 };
+META.codex = CX.st;
+const cxOpen = () => !$('mCodex').hidden;
+const cxEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function cxCheck() { const s = S(); if (!s || !$('sTitle').hidden) return;
+  for (const c of ['ara', 'tomo']) if (META.unlocked[c]) CODEX.mark(CX.st, 'capopen:' + c);
+  const fresh = CODEX.check(CX.st, s); if (!fresh.length) return; saveMeta(); paintCxBadge();
+  CX.queue.push(...fresh); clearTimeout(CX.qt); CX.qt = setTimeout(cxToast, 900); if (cxOpen()) paintCodex(true); }
+function cxMark(t) { CODEX.mark(CX.st, t); cxCheck(); }
+/* 새 항목은 한 번에 묶어 알린다. 누르면 사전이 열린다 */
+function cxToast() { const ids = CX.queue.splice(0).filter(id => CODEX.BY[id]); if (!ids.length) return;
+  const el = toast(`<span class="cx-tch" aria-hidden="true">典</span><span><b>사전에 새 항목</b> — ${ids.slice(0, 3).map(id => CODEX.BY[id].title).join(' · ')}${ids.length > 3 ? ` 외 ${ids.length - 3}` : ''}</span>`, 'cx');
+  if (el) { el.setAttribute('role', 'button'); el.onclick = () => openCodex(ids.length === 1 ? { id: ids[0] } : {}); } }
+function cxFact() { const e = CODEX.fact(CX.st); if (!e) return; const el = toast(`<span class="cx-tch" aria-hidden="true">知</span><span><b>알고 있었나요?</b> ${e.fact}</span>`, 'cx'); if (el) el.onclick = () => openCodex({ id: e.id, sheet: true }); }
+function paintCxBadge() { const n = Object.keys(CX.st.n).length, c = CODEX.count(CX.st); $('bCodex').classList.toggle('new', n > 0); $('bMenu').classList.toggle('cxnew', n > 0);
+  $('mDict').textContent = `사전 — 바다의 백과 ${c.n}/${c.m}${n ? ` · 새 ${n}` : ''}`; $('cxTN').textContent = `${c.n}/${c.m}`; }
+
+/* 글 속 낱말을 사전으로 잇는다 — 열린 항목만, 한 글에 한 항목은 처음 한 번, 몇 개까지만 */
+const CX_LOW = new Set(['silla', 'tang', 'wa', 'balhae']); // 나라 이름은 자리가 남을 때만 잇는다
+function cxRe(T) { return { re: new RegExp(T.map(([t]) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g'), map: Object.fromEntries(T.slice().reverse()) }; }
+function cxLink(root, opt = {}) { if (!root) return; const T = CODEX.terms(CX.st); if (!T.length) return;
+  if (CX.reN !== T.length) { CX.reN = T.length; const hi = T.filter(([, id]) => !CX_LOW.has(id)), lo = T.filter(([, id]) => CX_LOW.has(id)); CX.res = [hi, lo].filter(x => x.length).map(cxRe); }
+  const used = new Set(opt.self ? [opt.self] : []), max = opt.max || 3; let n = 0;
+  const text = (tn, R) => { const s = tn.nodeValue; R.re.lastIndex = 0; let m, last = 0, frag = null;
+    while (n < max && (m = R.re.exec(s))) { const id = R.map[m[0]]; if (!id || used.has(id)) continue; used.add(id); n++;
+      frag = frag || document.createDocumentFragment(); frag.append(s.slice(last, m.index));
+      const a = document.createElement('span'); a.className = 'cx-link'; a.dataset.cxl = id; a.tabIndex = 0; a.setAttribute('role', 'button'); a.setAttribute('aria-label', `${m[0]} — 사전 보기`); a.textContent = m[0]; frag.append(a); last = m.index + m[0].length; }
+    if (frag) { frag.append(s.slice(last)); tn.replaceWith(frag); } };
+  const walk = (el, R) => { for (const ch of [...el.childNodes]) { if (n >= max) return; if (ch.nodeType === 3) text(ch, R); else if (ch.nodeType === 1 && !ch.matches('button,a,input,svg,canvas,h2,h3,h4,.cx-link,.choice,.num')) walk(ch, R); } };
+  const els = opt.sel ? [...root.querySelectorAll(opt.sel)] : [root];
+  for (const R of CX.res) for (const el of els) { if (n >= max) break; walk(el, R); } }
+
+function openCodex(o = {}) { AU.init(); CX.sheet = !!o.sheet; CX.back = []; CX.q = ''; $('cxQ').value = ''; if (o.cat) CX.cat = o.cat;
+  CX.id = o.id && CODEX.isOpen(CX.st, o.id) ? o.id : null; if (CX.id) cxRead(CX.id);
+  $('mCodex').classList.toggle('sheet', CX.sheet && !!CX.id); $('cxFull').hidden = !(CX.sheet && CX.id); $('mCodex').hidden = false; paintCodex(); $('cxCard').focus({ preventScroll: true }); }
+function closeCodex() { $('mCodex').hidden = true; const s = S(); if (s && s.mode === 'port' && $('sTitle').hidden && !anyModal()) paintPanel(); }
+function cxRead(id) { if (CX.st.n[id]) { delete CX.st.n[id]; saveMeta(); paintCxBadge(); } }
+function cxGo(id, push) { if (!CODEX.isOpen(CX.st, id)) return; if (push && CX.id && CX.id !== id) CX.back.push(CX.id); CX.id = id; cxRead(id); paintCodex(); $('cxBody').scrollTop = 0; }
+
+const cxGlyph = e => e.art.good ? gi(C.G[e.art.good]) : (e.art.seal || [...(e.hanja || '')].find(c => c.codePointAt(0) >= 0x3400 && c.codePointAt(0) <= 0x9fff) || CODEX.CATS.find(c => c.id === e.cat).ch);
+function cxSeal(e, size) { const pt = e.art.pt || (e.art.pts && size < 60 && e.art.pts[0]); if (pt && PORTRAIT.has(pt)) return `<span class="cx-s pt">${PORTRAIT.svg(pt, { size, frame: size > 60 ? 'card' : 'round', expr: e.art.expr })}</span>`;
+  return `<span class="cx-s cat-${e.cat}">${cxGlyph(e)}</span>`; }
+function cxCard(e) { const st = CX.st;
+  if (!st.u[e.id]) return `<div class="cx-card lock"><span class="cx-s" aria-hidden="true">?</span><span class="cx-t"><b>아직 모른다</b><small>${CODEX.hint(e)}</small></span></div>`;
+  return `<button class="cx-card ${st.n[e.id] ? 'new' : ''}" data-cx="${e.id}">${cxSeal(e, 40)}<span class="cx-t"><b>${e.title}${e.hanja ? `<span class="hj">${e.hanja}</span>` : ''}${e.fic ? '<span class="cx-fictag">지어냄</span>' : ''}</b><small>${e.sum}</small></span></button>`; }
+function cxList() { const cats = CX.cat === 'all' ? CODEX.CATS : CODEX.CATS.filter(c => c.id === CX.cat);
+  return cats.map(c => { const k = CODEX.count(CX.st, c.id), es = CODEX.ENTRIES.filter(e => e.cat === c.id).sort((a, b) => (CX.st.u[b.id] ? 1 : 0) - (CX.st.u[a.id] ? 1 : 0));
+    return `<h4 class="cx-cat"><i>${c.ch}</i>${c.name}<span class="num">${k.n} / ${k.m}</span><span class="cx-bar" aria-hidden="true"><s style="width:${Math.round(k.n / k.m * 100)}%"></s></span></h4><div class="cx-grid">${es.map(cxCard).join('')}</div>`; }).join('')
+    + '<p class="cx-note">항목은 바다에서 그것을 만날 때 열린다. 한 번 연 항목은 새 항해에도 남는다. 「역사 기록」은 사료와 연구로 확인한 것, 「게임 속 각색」은 이 게임이 바꾸거나 지어낸 것이다.</p>'; }
+function cxResults() { const r = CODEX.search(CX.st, CX.q), k = CODEX.count(CX.st);
+  return `<h4 class="cx-cat"><i>尋</i>「${cxEsc(CX.q)}」<span class="num">${r.length}건</span></h4>` + (r.length ? `<div class="cx-grid">${r.map(cxCard).join('')}</div>` : `<p class="cx-none">열린 항목에서 찾지 못했다.${k.n < k.m ? ` 아직 모르는 항목 ${k.m - k.n}개는 찾지 않는다.` : ''}</p>`); }
+function cxEntry(e) { const st = CX.st, cat = CODEX.CATS.find(c => c.id === e.cat), A = e.art;
+  const ban = A.port || A.end || A.ev || A.ship ? `<canvas class="cx-ban" aria-hidden="true"></canvas>` : '';
+  const side = A.pts ? '' : `<div class="cx-art">${cxSeal(e, 96)}</div>`;
+  const pts = A.pts ? `<div class="cx-pts">${A.pts.map(id => `<figure>${PORTRAIT.svg(id, { size: 56 })}<figcaption>${cxWho(id)}</figcaption></figure>`).join('')}</div>` : '';
+  const rel = e.rel.map(id => { const r = CODEX.BY[id]; if (!r) return ''; return st.u[id] ? `<button class="cx-chip" data-cx="${id}"><i>${r.art.good ? C.G[r.art.good].ch : cxGlyph(r)}</i>${r.title}</button>` : '<span class="cx-chip lock">? 아직 모른다</span>'; }).join('');
+  return `<div class="cx-nav">${CX.back.length ? '<button class="btn" data-cxback="1">← 앞 항목</button>' : ''}${CX.sheet ? '' : '<button class="btn" data-cxlist="1">목록으로</button>'}</div>
+    <article class="cx-e" aria-labelledby="cxEh">${ban}<header class="cx-eh"><div><div class="eyebrow">${cat.ch} ${cat.name}</div><h3 id="cxEh">${e.title}${e.hanja ? `<span class="hj">${e.hanja}</span>` : ''}</h3><p class="cx-sum">${e.sum}</p>${e.fic ? '<span class="cx-fic">게임이 지어낸 것</span>' : ''}</div>${side}</header>${pts}
+    <h4>${e.fic ? '바탕이 된 역사' : '역사 기록'}</h4><div class="cx-hist">${e.hist.map(p => `<p>${p}</p>`).join('')}</div>
+    ${e.debate ? `<div class="cx-debate"><b>학설이 갈린다</b> — ${e.debate}</div>` : ''}
+    <h4>게임 속 각색</h4><div class="cx-game"><p>${e.game}</p></div>
+    ${rel ? `<h4>함께 볼 항목</h4><div class="cx-rel">${rel}</div>` : ''}
+    <h4>출전</h4><div class="cx-src"><ul>${e.src.map(s => `<li>${s}</li>`).join('')}</ul></div></article>`; }
+const cxWho = id => { const m = C.MATES.find(x => x.id === id), b = C.BOSSES.find(x => x.id === id); return m ? `${m.name}<br><small>${m.role}</small>` : b ? b.name : ''; };
+function cxArt() { const e = CODEX.BY[CX.id], cv = $('cxBody').querySelector('.cx-ban'); if (!e || !cv) return; const A = e.art, s = S();
+  let n = 0; const go = () => { const w = cv.clientWidth, h = cv.clientHeight; if (!w && n++ < 10) { requestAnimationFrame(go); return; } if (!w) return; const g = ART.prep(cv, w, h);
+    if (A.port) ART.portScene(g, w, h, A.port, ART.portMood(A.port, s && $('sTitle').hidden ? s.t : 40)); else if (A.end) ART.ending(g, w, h, A.end); else if (A.ev) ART.eventScene(g, w, h, A.ev, ''); else if (A.ship) ART.shipCard(g, w, h, A.ship, (C.BOSSES.find(b => b.id === A.ship) || {}).ch || '', 'boss'); };
+  go(); }
+function paintCodex(keep) { const st = CX.st, all = CODEX.count(st), sc = keep ? $('cxBody').scrollTop : 0;
+  $('cxCount').textContent = `${all.n} / ${all.m}`;
+  const tabs = [['all', '전체', all], ...CODEX.CATS.map(c => [c.id, c.name, CODEX.count(st, c.id)])];
+  $('cxTabs').innerHTML = tabs.map(([id, l, k]) => { const on = CX.cat === id && !CX.id && !CX.q; return `<button class="${on ? 'on' : ''}" data-cxcat="${id}" role="tab" aria-selected="${on}">${l}<small class="num">${k.n}/${k.m}</small></button>`; }).join('');
+  $('cxBody').innerHTML = CX.id ? cxEntry(CODEX.BY[CX.id]) : CX.q ? cxResults() : cxList();
+  if (CX.id) { cxLink($('cxBody').querySelector('.cx-e'), { sel: '.cx-hist p, .cx-debate, .cx-game p', max: 6, self: CX.id }); cxArt(); }
+  $('cxBody').scrollTop = sc; }
+$('mCodex').addEventListener('click', e => { const b = e.target.closest('[data-cx],[data-cxl],[data-cxcat],[data-cxback],[data-cxlist]'); if (!b) return;
+  if (b.dataset.cx || b.dataset.cxl) { cxGo(b.dataset.cx || b.dataset.cxl, true); return; }
+  if (b.dataset.cxcat) { CX.cat = b.dataset.cxcat; CX.id = null; CX.back = []; CX.q = ''; $('cxQ').value = ''; paintCodex(); return; }
+  if (b.dataset.cxback) { CX.id = CX.back.pop() || null; paintCodex(); return; }
+  if (b.dataset.cxlist) { CX.id = null; CX.back = []; paintCodex(); } });
+$('cxQ').addEventListener('input', () => { CX.q = $('cxQ').value.trim(); CX.id = null; CX.back = []; paintCodex(); });
+$('cxClose').onclick = closeCodex;
+$('cxFull').onclick = () => { CX.sheet = false; $('mCodex').classList.remove('sheet'); $('cxFull').hidden = true; paintCodex(); };
+/* 이야기·사건·항구 글의 낱말 — 지금 장면은 그대로 두고 사전 쪽지만 얹는다 */
+document.addEventListener('click', e => { const a = e.target.closest('.cx-link'); if (!a || a.closest('#mCodex')) return; e.preventDefault(); e.stopPropagation(); openCodex({ id: a.dataset.cxl, sheet: true }); }, true);
+document.addEventListener('keydown', e => { const a = e.target.closest && e.target.closest('.cx-link'); if (a && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); a.click(); } }, true);
+$('bCodex').onclick = e => { e.stopPropagation(); hideMenu(); if (cxOpen()) { closeCodex(); return; } if (anyModal() && $('mBook').hidden) return; openCodex(); };
+$('mDict').onclick = () => { hideMenu(); openCodex(); };
+$('bCodexT').onclick = () => openCodex();
+function paintTitleCodex() { paintCxBadge(); const e = CODEX.fact(CX.st); $('cxFactT').innerHTML = e ? `<b>알고 있었나요?</b> ${e.fact}` : ''; }
+
 /* ─────────── 메뉴 ─────────── */
 function hideMenu() { $('menu').hidden = true; }
 $('tracker').onclick = () => { if (!anyModal()) openBook('quest'); };
@@ -920,7 +1014,7 @@ function showTitle() { const t = $('sTitle'); t.classList.remove('out'); t.hidde
   $('caps').innerHTML = Object.entries(C.CAPTAINS).map(([id, c]) => { const open = !c.unlock || META.unlocked[id];
     return `<button class="cap ${capSel === id ? 'on' : ''}" data-cap="${id}" aria-pressed="${capSel === id}" ${open ? '' : 'disabled'}><span class="cs pt">${PORTRAIT.svg(id, { size: 60, expr: capSel === id && open ? 'determined' : 'neutral' })}</span><span class="nm">${c.name}</span><small>${c.title}</small>${open ? `<p>${c.perk}</p>` : `<span class="lock">${c.unlock}</span>`}</button>`; }).join('');
   $('caps').querySelectorAll('.cap').forEach(b => b.onclick = () => { capSel = b.dataset.cap; showTitle(); $('caps').querySelector(`[data-cap="${capSel}"]`).focus({ preventScroll: true }); });
-  $('bestLine').textContent = META.best ? `최고 기록 ${fmt(META.best)} · ${META.runs}번 항해 · 엔딩 ${Object.keys(META.endings || {}).length}/${Object.keys(C.ENDINGS).length}` : ''; }
+  paintTitleCodex(); $('bestLine').textContent = META.best ? `최고 기록 ${fmt(META.best)} · ${META.runs}번 항해 · 엔딩 ${Object.keys(META.endings || {}).length}/${Object.keys(C.ENDINGS).length}` : ''; }
 /* 첫 화면에서 바다로: 종이가 걷히듯 사라진다 */
 function leaveTitle() { const t = $('sTitle'); if (RM) { t.hidden = true; return; } t.classList.add('out'); setTimeout(() => { t.hidden = true; t.classList.remove('out'); }, 480); }
 function resetView() { GT.v = null; spNote = null; mapAppear = {}; BT.open = false; DV.open = false; trail = []; portAppear = {}; findAppear = {}; rumorPulse = {}; rivalMark = {}; lastQuote = null; speedIdx = 0; for (const k of Object.keys(last)) delete last[k]; camGoal = null; }
@@ -1005,7 +1099,10 @@ function titleFrame(now) { if (TA.last && now - TA.last < 33) return; TA.last = 
   for (let j = 0; j < rows; j++) if (rowsY[j] > sY + 4) row(j); }
 
 $('bSound').onclick = () => { AU.init(); AU.set(!AU.on); };
-addEventListener('keydown', e => { const s = S(); if (s && !$('mBattle').hidden && s.battle && !s.battle.over && /^[1-5]$/.test(e.key)) { const o = C.battleOpts()[+e.key - 1]; if (o && o.ok) battleDo(o.id); return; }
+addEventListener('keydown', e => { const s = S();
+  if (cxOpen()) { if (e.key === 'Escape') { e.preventDefault(); closeCodex(); } else if (e.target !== $('cxQ') && (e.key === 'd' || e.key === 'D')) closeCodex(); return; }
+  if (s && $('sTitle').hidden && (e.key === 'd' || e.key === 'D') && (!anyModal() || !$('mBook').hidden)) { openCodex(); return; }
+  if (s && !$('mBattle').hidden && s.battle && !s.battle.over && /^[1-5]$/.test(e.key)) { const o = C.battleOpts()[+e.key - 1]; if (o && o.ok) battleDo(o.id); return; }
   if (s && !$('mDive').hidden && s.dive && !s.dive.over) { if (e.key === 'ArrowDown') { e.preventDefault(); diveDo('down'); } if (e.key === 'ArrowUp') { e.preventDefault(); diveDo('up'); } return; }
   if (s && !$('mBook').hidden && e.key === 'Escape') { $('mBook').hidden = true; return; }
   if (s && $('sTitle').hidden && (e.key === 'b' || e.key === 'B') && (!anyModal() || !$('mBook').hidden)) { if ($('mBook').hidden) openBook(); else $('mBook').hidden = true; return; }
@@ -1022,6 +1119,7 @@ function frame(now) { const dt = Math.min(.1, (now - prev) / 1000); prev = now; 
   if (s && !s.ended && s.mode === 'sail' && !anyModal() && !title) { handle(C.update(dt / SEC_PER_DAY * SPEEDS[speedIdx]));
     if (!cam.wide && performance.now() - cam.touched > 2500 && !camGoal) { cam.x += (s.x - cam.x) * .06; cam.y += (s.y - cam.y) * .06; clampCam(); } }
   if (camGoal) { const k = RM ? 1 : .12; cam.x += (camGoal.x - cam.x) * k; cam.y += (camGoal.y - cam.y) * k; cam.z += (camGoal.z - cam.z) * k; clampCam(); if (Math.abs(camGoal.x - cam.x) < 1 && Math.abs(camGoal.y - cam.y) < 1 && Math.abs(camGoal.z - cam.z) < .002) camGoal = null; }
+  if (!title && s && now - CX.t > 1500) { CX.t = now; cxCheck(); }
   if (title) titleFrame(now); if (!titleOnly) draw(); if (s && !titleOnly) paintHud(); if (BT.open) drawBattle(); if (DV.open) drawDive(now); requestAnimationFrame(frame); }
 
 /* ─────────── 시작 ─────────── */
@@ -1030,6 +1128,6 @@ const FONTS = [['40px "Chunghae Myeong"', '청해'], ['600 15px "Chunghae Sans"'
 const fontsReady = (document.fonts && document.fonts.load) ? Promise.race([Promise.all(FONTS.map(([f, t]) => document.fonts.load(f, t))), new Promise(r => setTimeout(r, 2500))]) : Promise.resolve();
 fontsReady.then(() => { sealCache.clear(); TA.bg = null; paintBase(); });
 C.newGame('gungbok'); fogReset(); relayout(true); cam.z = cam.fit; cam.x = C.WORLD.w / 2; cam.y = C.WORLD.h / 2; showTitle(); requestAnimationFrame(frame);
-window.__CHUNGHAE = { C, startGame, paintTracker, setTab: t => { panelTab = t; paintPanel(); }, openBook, drainQuests, runStories, openBattle, openDive, battleDo, diveDo, toggleRow, paintPanel, openPanel, finish, openReveal, openEvent, openQuota, showDest, cam, relayout, lookAt };
+window.__CHUNGHAE = { C, CODEX, CX, openCodex, cxCheck, cxLink, startGame, paintTracker, setTab: t => { panelTab = t; paintPanel(); }, openBook, drainQuests, runStories, openBattle, openDive, battleDo, diveDo, toggleRow, paintPanel, openPanel, finish, openReveal, openEvent, openQuota, showDest, cam, relayout, lookAt };
 })();
 

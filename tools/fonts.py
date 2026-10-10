@@ -27,9 +27,12 @@ def is_hanja(c):
     o = ord(c)
     return 0x3400 <= o <= 0x9FFF or 0xF900 <= o <= 0xFAFF
 
-def source_chars():
+GAME = ('core.js', 'art/scenes.js', 'ui.js', 'page.html')
+CODEX = ('codex.js',)  # 사전 글 — 본문·제목·도장 글꼴에만 넣는다(큰 붓글씨는 게임 화면 글자만)
+
+def source_chars(files=GAME + CODEX):
     txt = ''
-    for f in ('core.js', 'art/scenes.js', 'ui.js', 'page.html'):
+    for f in files:
         with open(os.path.join(ROOT, 'src', f), encoding='utf8') as fh:
             txt += fh.read()
     chars = set(txt) | {chr(c) for c in range(0x20, 0x7F)} | set('0123456789+-−×·…—–%,.₩')
@@ -57,12 +60,14 @@ def rename(font, family, style):
 
 def main():
     chars = source_chars()
+    game = source_chars(GAME)
     os.makedirs(OUT, exist_ok=True)
     covered = set()
     for out, rel, family, style, kind in FONTS:
         f = TTFont(fetch(rel))
         cmap = f.getBestCmap()
-        want = [c for c in chars if (is_hanja(c) if kind == 'hanja' else not is_hanja(c))]
+        pool = game if out == 'ch-brush' else chars
+        want = [c for c in pool if (is_hanja(c) if kind == 'hanja' else not is_hanja(c))]
         have = [ord(c) for c in want if ord(c) in cmap]
         covered |= {chr(u) for u in have}
         o = subset.Options()
