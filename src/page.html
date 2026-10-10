@@ -716,6 +716,35 @@ b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink
 }
 @media (max-width:420px){ .slots{display:none} .meters .stat.gold b{font-size:14px} .t-sheet{gap:12px} }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition:none!important}}
+
+/* ═══ 인물 초상 (src/art/portraits.js가 그린 SVG) ═══ */
+.portrait{display:block;width:100%;height:100%;overflow:visible}
+.capb{flex:none;width:48px;height:48px;align-self:center;margin-left:-4px}
+.cap .cs.pt{width:60px;height:60px;background:none;box-shadow:none;grid-row:span 3;transition:transform .2s var(--ease)}
+.cap.on .cs.pt{background:none;transform:scale(1.04)}
+.cap small,.cap .nm{word-break:keep-all}
+.cap:disabled .cs.pt{filter:grayscale(1) contrast(.8);opacity:.55}
+.mate.pt{padding:0;border:0;background:none;overflow:visible}
+.mate.pt>svg{border-radius:50%}
+.mate.pt.ask::after{top:0;right:0}
+.mate.pt.done{box-shadow:0 0 0 3px var(--hanji-2),0 0 0 4.5px var(--cheong),var(--shadow)}
+.mate.pt.gone{filter:grayscale(1);opacity:.4}
+.mate.pt:not(.done){box-shadow:var(--shadow);border-radius:50%}
+.who.pt{width:72px;height:72px;border:0;background:none;top:14px;right:16px;border-radius:0}
+#stCard.chapter .who.pt{width:84px;height:84px;background:none;border-radius:0;box-shadow:var(--shadow)}
+.mc.pt{width:56px;height:56px;border:0;background:none}
+.bseal.pt{width:72px;height:72px;background:none;box-shadow:var(--shadow)}
+.tgt .tch.pt{width:52px;height:52px;background:none;border-radius:0}
+@media (max-width:860px){
+  .capb{width:40px;height:40px}
+}
+@media (max-width:520px){
+  .cartouche .brand{display:none}
+  .capb{width:36px;height:36px;margin-left:0}
+  .cap .cs.pt{width:60px;height:60px}
+  .who.pt,#stCard.chapter .who.pt{width:68px;height:68px;top:14px;right:12px}
+  .bseal.pt{width:60px;height:60px}
+}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -729,7 +758,7 @@ b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink
 <canvas id="map" aria-label="해도"></canvas>
 
 <header class="hud">
-  <div class="cartouche"><span class="brand">淸海</span><div class="when"><b id="hDate" class="num">828년 4월 1일</b><span class="season"><svg class="vane" id="hVane" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 2.5v11M8 2.5l-2.6 3.2M8 2.5l2.6 3.2"/></svg><span id="hSeason">봄 · 변덕</span><i class="dif" id="hDiff" title="난이도"></i></span></div></div>
+  <div class="cartouche"><span class="brand">淸海</span><span class="capb" id="hCap" aria-hidden="true"></span><div class="when"><b id="hDate" class="num">828년 4월 1일</b><span class="season"><svg class="vane" id="hVane" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 2.5v11M8 2.5l-2.6 3.2M8 2.5l2.6 3.2"/></svg><span id="hSeason">봄 · 변덕</span><i class="dif" id="hDiff" title="난이도"></i></span></div></div>
   <span class="sp"></span>
   <div class="meters">
     <div class="stat gold" id="hGoldBox"><span class="k"><svg viewBox="0 0 14 14" aria-hidden="true"><circle class="coin" cx="7" cy="7" r="6"/><rect class="hole" x="5.2" y="5.2" width="3.6" height="3.6"/></svg>냥</span><b id="hGold">5,000</b></div>

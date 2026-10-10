@@ -27,8 +27,9 @@ src/
   page.html   화면 뼈대와 스타일 (한지·먹·단청 — 색·글꼴·움직임 토큰이 맨 위 :root에 있다)
   core.js     규칙 엔진 — DOM 없음. node에서 require 해서 시뮬레이션할 수 있다
   ui.js       캔버스 해도, 모달, 소리, 입력, 흐름
+  art/        손으로 짠 SVG 그림 — portraits.js: 인물 초상 34명(선장·선원·두목·이야기 인물)
 assets/fonts/     게임 글자만 남긴 woff2 글꼴 4벌과 사용 허락(SIL OFL 1.1)
-tools/build.js   세 파일과 글꼴을 dist/index.html 하나로
+tools/build.js   page·core·art·ui와 글꼴을 dist/index.html 하나로
 tools/fonts.py   글꼴 부분 집합 만들기 (pip install fonttools brotli)
 test/
   smoke.js       CI에서 매번 도는 빠른 점검
