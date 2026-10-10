@@ -38,4 +38,11 @@ Object.keys(C.CAPTAINS).forEach((cap, i) => { const diff = Object.keys(C.DIFFS)[
 
 // 5. 결말 데이터가 모두 연결돼 있다
 const endIds = new Set(Object.keys(C.ENDINGS)); ok(endIds.size >= 10, `결말 ${endIds.size}개`);
+// 6. 한 파일 빌드에 넣는 글꼴이 게임 글자를 모두 덮는다 (글을 고치면 python tools/fonts.py)
+{ const fs = require('fs'), path = require('path'), root = path.join(__dirname, '..');
+  const have = new Set([...fs.readFileSync(path.join(root, 'assets/fonts/charset.txt'), 'utf8')]), SYS = new Set([...'≈═✓']);
+  const used = new Set([...['core.js', 'ui.js', 'page.html'].map(f => fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('')]);
+  const miss = [...used].filter(c => c.codePointAt(0) > 0x7f && !have.has(c) && !SYS.has(c));
+  ok(!miss.length, `글꼴 글자표 ${have.size}자${miss.length ? ` — 빠진 글자 ${miss.join('')} (python tools/fonts.py)` : ''}`); }
+
 process.exit(fail ? 1 : 0);

@@ -6,7 +6,9 @@
 const C = CORE, JO = C.JO, $ = id => document.getElementById(id);
 const fmt = n => Math.round(n).toLocaleString('ko-KR');
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
-const COL = { hanji: css('--hanji'), hanji2: css('--hanji-2'), hanji3: css('--hanji-3'), ink: css('--ink'), ink2: css('--ink-2'), ink3: css('--ink-3'), cheong: css('--cheong'), rok: css('--rok'), ju: css('--ju'), hwang: css('--hwang') };
+const COL = { hanji: css('--hanji'), hanji2: css('--hanji-2'), hanji3: css('--hanji-3'), ink: css('--ink'), ink2: css('--ink-2'), ink3: css('--ink-3'), cheong: css('--cheong'), rok: css('--rok'), rok2: css('--rok-2'), ju: css('--ju'), hwang: css('--hwang'), gold: css('--gold'), jok: css('--jok') };
+/* 움직임 줄이기 — 켜져 있으면 물결·흔들림·숫자 굴리기를 멈춘다 */
+const RMQ = matchMedia('(prefers-reduced-motion: reduce)'); let RM = RMQ.matches; RMQ.addEventListener && RMQ.addEventListener('change', e => { RM = e.matches; });
 const KEY = 'chunghae.v6.save', MKEY = 'chunghae.v2.meta';
 const SEC_PER_DAY = .5, SPEEDS = [1, 2, 4];
 const SEASON_BANNER = [
@@ -71,40 +73,78 @@ function polyPath(g, poly, jitter, r) { g.beginPath(); for (let i = 0; i < poly.
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / 8)); for (let j = 0; j < n; j++) { const k = j / n; let x = a[0] + (b[0] - a[0]) * k, y = a[1] + (b[1] - a[1]) * k; if (jitter) { x += (r() - .5) * jitter; y += (r() - .5) * jitter; } i === 0 && j === 0 ? g.moveTo(x, y) : g.lineTo(x, y); } } g.closePath(); }
 function inPoly(x, y, poly) { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; }
 function paintBase() {
-  const g = base.getContext('2d'), r = rng(828); g.setTransform(RS, 0, 0, RS, 0, 0); const W = C.WORLD.w, H = C.WORLD.h;
+  const g = base.getContext('2d'), r = rng(828); g.setTransform(RS, 0, 0, RS, 0, 0); const W = C.WORLD.w, H = C.WORLD.h, D = css('--display'), BR = css('--brush');
   g.fillStyle = COL.hanji; g.fillRect(0, 0, W, H); paperTexture(g, W, H, r, 9000);
-  const sea = g.createLinearGradient(600, 300, 1700, 2100); sea.addColorStop(0, 'rgba(118,163,150,.42)'); sea.addColorStop(1, 'rgba(62,120,128,.58)'); g.fillStyle = sea; g.fillRect(0, 0, W, H);
-  for (const poly of Object.values(C.LAND)) { polyPath(g, poly, 0, r); g.lineJoin = 'round'; g.strokeStyle = 'rgba(232,227,211,.3)'; g.lineWidth = 40; g.stroke(); g.strokeStyle = 'rgba(232,227,211,.36)'; g.lineWidth = 16; g.stroke(); }
+  // 바다: 남동쪽으로 갈수록 짙은 석청 물빛, 먹 번짐 얼룩
+  const sea = g.createLinearGradient(600, 300, 1700, 2100); sea.addColorStop(0, 'rgba(118,163,150,.40)'); sea.addColorStop(1, 'rgba(52,108,122,.60)'); g.fillStyle = sea; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 46; i++) { const x = r() * W, y = r() * H, R = 60 + r() * 180, gr = g.createRadialGradient(x, y, 0, x, y, R); gr.addColorStop(0, `rgba(36,70,84,${.03 + r() * .05})`); gr.addColorStop(1, 'rgba(36,70,84,0)'); g.fillStyle = gr; g.fillRect(x - R, y - R, R * 2, R * 2); }
+  // 해안 둘레: 얕은 물의 밝은 띠와 점선 물금
+  for (const poly of Object.values(C.LAND)) { polyPath(g, poly, 0, r); g.lineJoin = 'round'; g.strokeStyle = 'rgba(232,227,211,.26)'; g.lineWidth = 46; g.stroke(); g.strokeStyle = 'rgba(232,227,211,.34)'; g.lineWidth = 20; g.stroke(); g.strokeStyle = 'rgba(35,80,110,.18)'; g.lineWidth = 30; g.setLineDash([1.2, 8]); g.stroke(); g.setLineDash([]); }
   g.lineCap = 'round';
   for (let row = 0, y = 8; y < H; y += 13, row++) for (let x = (row % 2) * 10; x < W; x += 20) {
     if (!C.seaAt(x, y)) continue;
-    g.strokeStyle = `rgba(43,84,112,${.15 + r() * .08})`; g.lineWidth = .9; g.beginPath(); g.arc(x, y + 4, 7, Math.PI * 1.13, Math.PI * 1.87); g.stroke();
-    g.strokeStyle = 'rgba(43,84,112,.08)'; g.lineWidth = .7; g.beginPath(); g.arc(x, y + 4, 4, Math.PI * 1.18, Math.PI * 1.82); g.stroke(); }
+    g.strokeStyle = `rgba(35,80,110,${.12 + r() * .08})`; g.lineWidth = .9; g.beginPath(); g.arc(x, y + 4, 7, Math.PI * 1.13, Math.PI * 1.87); g.stroke();
+    g.strokeStyle = 'rgba(35,80,110,.07)'; g.lineWidth = .7; g.beginPath(); g.arc(x, y + 4, 4, Math.PI * 1.18, Math.PI * 1.82); g.stroke(); }
   for (const z of C.ZONES) { g.save(); g.beginPath(); g.arc(z.x, z.y, z.r, 0, 7); g.clip();
-    g.strokeStyle = 'rgba(176,63,40,.22)'; g.lineWidth = 1.2; for (let d = -z.r * 2; d < z.r * 2; d += 9) { g.beginPath(); g.moveTo(z.x + d - z.r, z.y - z.r); g.lineTo(z.x + d + z.r, z.y + z.r); g.stroke(); } g.restore();
-    g.setLineDash([6, 5]); g.strokeStyle = 'rgba(176,63,40,.6)'; g.lineWidth = 1.4; g.beginPath(); g.arc(z.x, z.y, z.r, 0, 7); g.stroke(); g.setLineDash([]);
-    g.fillStyle = 'rgba(176,63,40,.75)'; g.font = `22px ${css('--display')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('海賊', z.x, z.y); }
-  for (const [name, poly] of Object.entries(C.LAND)) { polyPath(g, poly, 1.6, r); g.fillStyle = '#dcd0a6'; g.fill(); g.save(); g.clip();
-    const sh = g.createLinearGradient(0, 0, 0, H); sh.addColorStop(0, 'rgba(160,140,90,.10)'); sh.addColorStop(1, 'rgba(120,110,70,.16)'); g.fillStyle = sh; g.fillRect(0, 0, W, H); g.restore(); }
+    g.strokeStyle = 'rgba(176,58,38,.2)'; g.lineWidth = 1.2; for (let d = -z.r * 2; d < z.r * 2; d += 9) { g.beginPath(); g.moveTo(z.x + d - z.r, z.y - z.r); g.lineTo(z.x + d + z.r, z.y + z.r); g.stroke(); }
+    const zg = g.createRadialGradient(z.x, z.y, z.r * .4, z.x, z.y, z.r); zg.addColorStop(0, 'rgba(176,58,38,0)'); zg.addColorStop(1, 'rgba(176,58,38,.12)'); g.fillStyle = zg; g.fillRect(z.x - z.r, z.y - z.r, z.r * 2, z.r * 2); g.restore();
+    g.setLineDash([7, 5]); g.strokeStyle = 'rgba(176,58,38,.62)'; g.lineWidth = 1.5; g.beginPath(); g.arc(z.x, z.y, z.r, 0, 7); g.stroke(); g.setLineDash([]);
+    g.fillStyle = 'rgba(176,58,38,.72)'; g.font = `26px ${BR}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('海賊', z.x, z.y); }
+  // 땅: 종이 위 담채, 해안 안쪽으로 먹이 번진 띠
+  for (const poly of Object.values(C.LAND)) { polyPath(g, poly, 1.6, r); g.fillStyle = '#dccea2'; g.fill(); g.save(); g.clip();
+    const sh = g.createLinearGradient(0, 0, 0, H); sh.addColorStop(0, 'rgba(160,140,90,.10)'); sh.addColorStop(1, 'rgba(120,110,70,.16)'); g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < Math.min(60, poly.length); i++) { const xs = poly[Math.floor(r() * poly.length)]; const R = 30 + r() * 90, gr = g.createRadialGradient(xs[0], xs[1], 0, xs[0], xs[1], R); gr.addColorStop(0, `rgba(118,128,92,${.06 + r() * .08})`); gr.addColorStop(1, 'rgba(118,128,92,0)'); g.fillStyle = gr; g.fillRect(xs[0] - R, xs[1] - R, R * 2, R * 2); }
+    polyPath(g, poly, 0, r); g.lineJoin = 'round'; g.strokeStyle = 'rgba(96,84,52,.16)'; g.lineWidth = 30; g.stroke(); g.strokeStyle = 'rgba(70,64,40,.16)'; g.lineWidth = 10; g.stroke(); g.restore(); }
   g.save(); g.beginPath(); for (const poly of Object.values(C.LAND)) { poly.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); } g.clip(); paperTexture(g, W, H, r, 3000); g.restore();
+  // 산: 먹으로 그린 봉우리 — 위는 짙고 아래로 갈수록 엷다
   const peaks = { main: 260, kyushu: 22, honshu: 34, shikoku: 12, jeju: 5, taiwan: 6, okinawa: 3 };
   for (const [name, n] of Object.entries(peaks)) { const poly = C.LAND[name]; const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]); const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const m = n < 8 ? 7 : 18, gap = n < 8 ? 14 : 34, pts = [];
     for (let i = 0; i < n * 60 && pts.length < n; i++) { const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0); if (!inPoly(x, y, poly) || !inPoly(x - m, y, poly) || !inPoly(x + m, y, poly) || !inPoly(x, y - m, poly) || !inPoly(x, y + m, poly)) continue; if (pts.some(p => Math.hypot(p[0] - x, p[1] - y) < gap)) continue; pts.push([x, y]); }
     pts.sort((a, b) => a[1] - b[1]); for (const [x, y] of pts) mountain(g, x, y, n < 8 ? .8 : .9 + r() * .8, r); }
-  for (const poly of Object.values(C.LAND)) { polyPath(g, poly, 1.3, r); g.strokeStyle = 'rgba(30,40,41,.82)'; g.lineWidth = 1.5; g.lineJoin = 'round'; g.stroke(); polyPath(g, poly, 2.6, r); g.strokeStyle = 'rgba(30,40,41,.2)'; g.lineWidth = .8; g.stroke(); }
-  for (const [txt, lon, lat, size, kind] of C.LABELS) { const [x, y] = C.P(lon, lat); g.fillStyle = kind === 'land' ? 'rgba(30,40,41,.4)' : 'rgba(43,84,112,.42)'; g.font = `${size}px ${css('--display')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; [...txt].forEach((ch, i) => g.fillText(ch, x, y + i * size * 1.05)); }
-  g.strokeStyle = 'rgba(30,40,41,.6)'; g.lineWidth = 2.5; g.strokeRect(6, 6, W - 12, H - 12); g.lineWidth = .8; g.strokeRect(14, 14, W - 28, H - 28);
+  // 해안선: 굵기가 흔들리는 먹선 세 겹
+  for (const poly of Object.values(C.LAND)) { polyPath(g, poly, 1.3, r); g.strokeStyle = 'rgba(27,35,36,.85)'; g.lineWidth = 1.7; g.lineJoin = 'round'; g.stroke(); polyPath(g, poly, 2.8, r); g.strokeStyle = 'rgba(27,35,36,.22)'; g.lineWidth = .9; g.stroke(); polyPath(g, poly, 5, r); g.strokeStyle = 'rgba(27,35,36,.07)'; g.lineWidth = 3; g.stroke(); }
+  for (const [txt, lon, lat, size, kind] of C.LABELS) { const [x, y] = C.P(lon, lat); g.fillStyle = kind === 'land' ? 'rgba(27,35,36,.36)' : 'rgba(35,80,110,.42)'; g.font = `${size}px ${kind === 'land' ? D : BR}`; g.textAlign = 'center'; g.textBaseline = 'middle'; [...txt].forEach((ch, i) => g.fillText(ch, x, y + i * size * 1.05)); }
+  // 테두리: 먹선 두 겹 사이 주사선 + 모서리 꺾쇠
+  g.strokeStyle = 'rgba(27,35,36,.62)'; g.lineWidth = 3; g.strokeRect(6, 6, W - 12, H - 12); g.lineWidth = .8; g.strokeRect(15, 15, W - 30, H - 30);
+  g.strokeStyle = 'rgba(176,58,38,.5)'; g.lineWidth = 1.2; g.strokeRect(11, 11, W - 22, H - 22);
+  for (const [cx, cy, sx, sy] of [[15, 15, 1, 1], [W - 15, 15, -1, 1], [15, H - 15, 1, -1], [W - 15, H - 15, -1, -1]]) { g.strokeStyle = COL.ink; g.lineWidth = 2; g.beginPath(); g.moveTo(cx + sx * 34, cy); g.lineTo(cx, cy); g.lineTo(cx, cy + sy * 34); g.moveTo(cx + sx * 8, cy + sy * 20); g.lineTo(cx + sx * 8, cy + sy * 8); g.lineTo(cx + sx * 20, cy + sy * 8); g.stroke(); }
   const sx = 60, sy = H - 60; g.strokeStyle = COL.ink; g.lineWidth = 1.4; g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + 200, sy); for (let i = 0; i <= 4; i++) { g.moveTo(sx + i * 50, sy - (i % 2 ? 4 : 7)); g.lineTo(sx + i * 50, sy); } g.stroke();
-  g.fillStyle = COL.ink; g.font = `16px ${css('--display')}`; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText('五百里', sx, sy - 12);
-  const nx = W - 70, ny = 70; g.fillStyle = COL.ju; g.fillRect(nx - 20, ny - 20, 40, 40); g.fillStyle = COL.hanji2; g.font = `28px ${css('--display')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('北', nx, ny + 1);
-  g.strokeStyle = COL.ink; g.lineWidth = 1.2; g.beginPath(); g.moveTo(nx, ny + 28); g.lineTo(nx, ny + 70); g.stroke();
+  g.fillStyle = COL.ink; for (let i = 0; i < 4; i += 2) g.fillRect(sx + i * 50, sy - 3, 50, 3);
+  g.font = `16px ${D}`; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText('五百里', sx, sy - 12);
+  compassRose(g); mapCartouche(g);
   baseReady = true;
 }
+/* 윤도(나침반) — 바다 빈 곳을 찾아 하나 그린다 */
+function compassRose(g) { const R = 92; let at = null;
+  for (const [lon, lat] of [[136.5, 29.6], [135.5, 28.6], [137.4, 31], [134, 27.5], [128.5, 25.6], [124, 27]]) { const [x, y] = C.P(lon, lat); let ok = x > R + 30 && x < C.WORLD.w - R - 30 && y < C.WORLD.h - R - 30; for (let a = 0; a < 6.3 && ok; a += .4) ok = C.seaAt(x + Math.cos(a) * R, y + Math.sin(a) * R) && C.seaAt(x + Math.cos(a) * R * .5, y + Math.sin(a) * R * .5); if (ok) { at = [x, y]; break; } }
+  if (!at) return; const [x, y] = at, SEAL = css('--seal'); g.save(); g.translate(x, y);
+  const bg = g.createRadialGradient(0, 0, 10, 0, 0, R); bg.addColorStop(0, 'rgba(245,240,227,.92)'); bg.addColorStop(1, 'rgba(236,229,211,.78)'); g.fillStyle = bg; g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(27,35,36,.75)'; for (const [rr, lw] of [[R, 2], [R - 5, .8], [R - 30, 1], [R - 46, .8], [14, 1]]) { g.lineWidth = lw; g.beginPath(); g.arc(0, 0, rr, 0, 7); g.stroke(); }
+  for (let i = 0; i < 72; i++) { const a = i / 72 * Math.PI * 2, l = i % 3 === 0 ? 7 : 3.5; g.lineWidth = i % 3 === 0 ? 1.1 : .6; g.beginPath(); g.moveTo(Math.cos(a) * (R - 5), Math.sin(a) * (R - 5)); g.lineTo(Math.cos(a) * (R - 5 - l), Math.sin(a) * (R - 5 - l)); g.stroke(); }
+  const ZODIAC = '子丑寅卯辰巳午未申酉戌亥'; g.font = `13px ${SEAL}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 - Math.PI / 2; g.fillStyle = i % 3 === 0 ? COL.ju : 'rgba(27,35,36,.8)'; g.fillText(ZODIAC[i], Math.cos(a) * (R - 20), Math.sin(a) * (R - 20) + .5); }
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 - Math.PI / 2, L = i % 2 ? R - 52 : R - 34, w = i % 2 ? 5 : 8; g.fillStyle = i === 0 ? COL.ju : i % 2 ? 'rgba(35,80,110,.55)' : 'rgba(27,35,36,.8)';
+    g.beginPath(); g.moveTo(Math.cos(a) * L, Math.sin(a) * L); g.lineTo(Math.cos(a + Math.PI / 2) * w, Math.sin(a + Math.PI / 2) * w); g.lineTo(0, 0); g.lineTo(Math.cos(a - Math.PI / 2) * w, Math.sin(a - Math.PI / 2) * w); g.closePath(); g.fill(); }
+  g.fillStyle = COL.hanji2; g.beginPath(); g.arc(0, 0, 5, 0, 7); g.fill(); g.strokeStyle = COL.ink; g.lineWidth = 1; g.stroke();
+  g.fillStyle = COL.ju; g.fillRect(-15, -R - 32, 30, 30); g.fillStyle = COL.hanji2; g.font = `22px ${SEAL}`; g.fillText('北', 0, -R - 16); g.restore(); }
+/* 해도 이름 패 — 북서쪽 뭍 위 */
+function mapCartouche(g) { const x = 44, y = 44, w = 150, h = 250, BR = css('--brush'), D = css('--display');
+  g.save(); g.fillStyle = 'rgba(245,240,227,.96)'; g.shadowColor = 'rgba(27,35,36,.25)'; g.shadowBlur = 12; g.shadowOffsetY = 4; g.fillRect(x, y, w, h); g.restore();
+  g.strokeStyle = COL.ink; g.lineWidth = 2.2; g.strokeRect(x + 5, y + 12, w - 10, h - 17); g.lineWidth = .8; g.strokeRect(x + 10, y + 17, w - 20, h - 27);
+  let yy = y; for (const [c, t] of [['#f3efe4', 1], ['#2f7a68', 3], ['#2a4f86', 2], ['#f3efe4', 1], ['#b8442e', 3]]) { g.fillStyle = c; g.fillRect(x, yy, w, t); yy += t; }
+  g.fillStyle = COL.ink; g.font = `58px ${BR}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('淸', x + w / 2 + 14, y + 70); g.fillText('海', x + w / 2 + 14, y + 132);
+  g.font = `16px ${D}`; [...'바다의길'].forEach((ch, i) => g.fillText(ch, x + 32, y + 52 + i * 21));
+  g.fillStyle = COL.ju; g.fillRect(x + w / 2 - 6, y + 176, 40, 40); g.fillStyle = COL.hanji2; g.font = `15px ${css('--seal')}`; g.fillText('航路', x + w / 2 + 14, y + 189); g.fillText('之圖', x + w / 2 + 14, y + 205);
+  g.fillStyle = 'rgba(27,35,36,.62)'; g.font = `13px ${D}`; g.fillText('太和 二年', x + w / 2, y + h - 22); }
 function mountain(g, x, y, s, r) { g.save(); g.translate(x, y); g.scale(s, s);
-  const peaks = [[-11, 3, 8], [-2, 0, 13], [8, 3, 9]];
-  g.beginPath(); g.moveTo(-17, 6); for (const [px, , h] of peaks) { g.quadraticCurveTo(px - 4, 6 - h * .3, px, 6 - h); g.quadraticCurveTo(px + 4, 6 - h * .3, px + 6, 6); } g.closePath();
-  g.fillStyle = `rgba(${86 + r() * 20},${128 + r() * 18},${96 + r() * 10},.88)`; g.fill(); g.strokeStyle = 'rgba(30,40,41,.55)'; g.lineWidth = .8; g.stroke(); g.restore(); }
+  const n = 2 + Math.floor(r() * 2), pk = []; for (let i = 0; i < n; i++) pk.push([-13 + i * (26 / (n - 1)) + (r() - .5) * 4, 7 + r() * 8]);
+  const top = -Math.max(...pk.map(p => p[1])), ridge = () => { g.beginPath(); g.moveTo(-19, 6); for (const [px, h] of pk) { g.quadraticCurveTo(px - 5, 6 - h * .45, px, 6 - h); g.quadraticCurveTo(px + 5, 6 - h * .45, px + 7, 6); } };
+  ridge(); g.closePath(); const gr = g.createLinearGradient(0, top + 6, 0, 7), t = r(); gr.addColorStop(0, `rgba(${34 + t * 14},${58 + t * 10},52,.82)`); gr.addColorStop(.55, `rgba(${80 + t * 20},${116 + t * 14},92,.5)`); gr.addColorStop(1, 'rgba(120,140,100,.06)'); g.fillStyle = gr; g.fill();
+  ridge(); g.strokeStyle = 'rgba(27,35,36,.62)'; g.lineWidth = .9; g.stroke();
+  g.strokeStyle = 'rgba(27,35,36,.32)'; g.lineWidth = .6; for (const [px, h] of pk) for (let k = 0; k < 3; k++) { const ox = px + (r() - .5) * 6, oy = 6 - h * (.55 + r() * .3); g.beginPath(); g.moveTo(ox, oy); g.lineTo(ox + (r() - .3) * 3, oy + 3 + r() * 3); g.stroke(); }
+  g.fillStyle = 'rgba(27,35,36,.4)'; for (let k = 0; k < 4; k++) { g.beginPath(); g.arc(-16 + r() * 32, 5 + r() * 2, .9 + r() * .8, 0, 7); g.fill(); }
+  g.restore(); }
 
 /* ─────────── 해도: 안개(빈 종이) ─────────── */
 function fogReset() { const g = fog.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.fillStyle = '#efebdf'; g.fillRect(0, 0, fog.width, fog.height); paperTexture(g, fog.width, fog.height, rng(7), 2600); }
@@ -117,7 +157,7 @@ function fogPump() { const s = S(); if (!s || !s.reveals.length) return; for (co
 const cv = $('map'), ctx = cv.getContext('2d'); let W = 0, H = 0, DPR = 1, AREA = { x: 0, y: 0, w: 1, h: 1 };
 const cam = { x: 1000, y: 1000, z: 1, fit: 1, touched: 0, wide: false };
 function relayout(recenter) {
-  W = innerWidth; H = innerHeight; DPR = Math.min(2, devicePixelRatio || 1); cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  W = innerWidth; H = innerHeight; const dpr = Math.min(2, devicePixelRatio || 1); if (dpr !== DPR) sealCache.clear(); DPR = dpr; cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const top = NARROW() ? 110 : 76, pan = $('panel'); let a = { x: 12, y: top, w: W - 24, h: H - top - 12 };
   if (!pan.hidden) { if (NARROW()) a.h = H - top - pan.getBoundingClientRect().height - 8; else a.w = W - 24 - 396; }
   AREA = a; cam.fit = Math.min(a.w / C.WORLD.w, a.h / C.WORLD.h);
@@ -143,81 +183,111 @@ function draw() {
   ctx.drawImage(base, 0, 0, C.WORLD.w, C.WORLD.h);
   if (s) {
     ctx.lineCap = 'round'; const [vx0, vy0] = toW(AREA.x, AREA.y), [vx1, vy1] = toW(AREA.x + AREA.w, AREA.y + AREA.h);
-    for (const p of winds) { if (p.life <= 0 || p.x < vx0 - 40 || p.x > vx1 + 40 || p.y < vy0 - 40 || p.y > vy1 + 40) { p.x = vx0 + Math.random() * (vx1 - vx0); p.y = vy0 + Math.random() * (vy1 - vy0); p.max = p.life = 1.4 + Math.random() * 1.8; continue; }
+    if (!RM) for (const p of winds) { if (p.life <= 0 || p.x < vx0 - 40 || p.x > vx1 + 40 || p.y < vy0 - 40 || p.y > vy1 + 40) { p.x = vx0 + Math.random() * (vx1 - vx0); p.y = vy0 + Math.random() * (vy1 - vy0); p.max = p.life = 1.4 + Math.random() * 1.8; continue; }
       const w = C.wind(s.t, p.x, p.y), k = Math.sin(Math.PI * (1 - p.life / p.max)); if (C.onLand(p.x, p.y)) continue; const L = (10 + w.str * 14) / Math.max(.6, cam.z) * .9;
-      ctx.strokeStyle = `rgba(43,84,112,${.5 * k})`; ctx.lineWidth = 1.6 / cam.z; ctx.beginPath(); ctx.moveTo(p.x, p.y);
+      ctx.strokeStyle = `rgba(35,80,110,${.5 * k})`; ctx.lineWidth = 1.6 / cam.z; ctx.beginPath(); ctx.moveTo(p.x, p.y);
       ctx.quadraticCurveTo(p.x - Math.cos(w.dir) * L * .5 + Math.sin(w.dir) * 2, p.y - Math.sin(w.dir) * L * .5 - Math.cos(w.dir) * 2, p.x - Math.cos(w.dir) * L, p.y - Math.sin(w.dir) * L); ctx.stroke(); }
-    if (trail.length > 1) { ctx.strokeStyle = 'rgba(30,40,41,.55)'; ctx.lineWidth = 1.5 / cam.z; ctx.setLineDash([2 / cam.z, 5 / cam.z]); ctx.beginPath(); trail.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.lineTo(s.x, s.y); ctx.stroke(); ctx.setLineDash([]); }
-    if (s.mode === 'sail' && s.path) { ctx.strokeStyle = 'rgba(30,40,41,.4)'; ctx.lineWidth = 1.4 / cam.z; ctx.setLineDash([6 / cam.z, 6 / cam.z]); ctx.beginPath(); ctx.moveTo(s.x, s.y); for (let i = s.seg + 1; i < s.path.length; i++) ctx.lineTo(...s.path[i]); ctx.stroke(); ctx.setLineDash([]); }
-    if (destPlan) { const routes = [['main', destPlan.main], ['alt', destPlan.alt]].filter(r => r[1]);
-      for (const [id, r] of routes) { const on = routePick === id; ctx.strokeStyle = id === 'main' ? COL.ju : COL.cheong; ctx.globalAlpha = on ? 1 : .35; ctx.lineWidth = (on ? 2.6 : 1.6) / cam.z; ctx.setLineDash([8 / cam.z, 6 / cam.z]); ctx.lineDashOffset = on ? -clock * 18 / cam.z : 0;
-        ctx.beginPath(); r.path.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.globalAlpha = 1; }
-      const [ex, ey] = destPlan.main.path[destPlan.main.path.length - 1]; ctx.strokeStyle = COL.ju; ctx.lineWidth = 1.8 / cam.z; ctx.beginPath(); ctx.arc(ex, ey, (10 + Math.sin(clock * 4) * 2) / cam.z, 0, 7); ctx.stroke(); }
-    for (const z of C.ZONES) { const r = C.zoneR(z); if (r <= z.r + 1) continue; ctx.save(); ctx.beginPath(); ctx.arc(z.x, z.y, r, 0, 7); ctx.arc(z.x, z.y, z.r, 0, 7, true); ctx.fillStyle = 'rgba(176,63,40,.13)'; ctx.fill();
-      ctx.setLineDash([6 / cam.z, 5 / cam.z]); ctx.lineDashOffset = -clock * 10 / cam.z; ctx.strokeStyle = 'rgba(176,63,40,.75)'; ctx.lineWidth = 1.8 / cam.z; ctx.beginPath(); ctx.arc(z.x, z.y, r, 0, 7); ctx.stroke(); ctx.restore(); }
+    if (trail.length > 1) { ctx.strokeStyle = 'rgba(27,35,36,.5)'; ctx.lineWidth = 1.6 / cam.z; ctx.setLineDash([1 / cam.z, 6 / cam.z]); ctx.beginPath(); trail.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.lineTo(s.x, s.y); ctx.stroke(); ctx.setLineDash([]); }
+    if (s.mode === 'sail' && s.path) { const rest = [[s.x, s.y], ...s.path.slice(s.seg + 1)]; routeLine(rest, COL.ink, true, .55); }
+    if (destPlan) { const routes = [['alt', destPlan.alt], ['main', destPlan.main]].filter(r => r[1]).sort((a, b) => (a[0] === routePick) - (b[0] === routePick));
+      for (const [id, r] of routes) routeLine(r.path, id === 'main' ? COL.ju : COL.cheong, routePick === id, routePick === id ? 1 : .38);
+      const [ex, ey] = destPlan.main.path[destPlan.main.path.length - 1], pr = RM ? 0 : Math.sin(clock * 4); ctx.strokeStyle = COL.ju; ctx.lineWidth = 2 / cam.z; ctx.beginPath(); ctx.arc(ex, ey, (12 + pr * 2) / cam.z, 0, 7); ctx.stroke();
+      ctx.globalAlpha = .35; ctx.beginPath(); ctx.arc(ex, ey, (20 + pr * 3) / cam.z, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
+    for (const z of C.ZONES) { const r = C.zoneR(z); if (r <= z.r + 1) continue; ctx.save(); ctx.beginPath(); ctx.arc(z.x, z.y, r, 0, 7); ctx.arc(z.x, z.y, z.r, 0, 7, true); ctx.fillStyle = 'rgba(176,58,38,.13)'; ctx.fill();
+      ctx.setLineDash([6 / cam.z, 5 / cam.z]); ctx.lineDashOffset = RM ? 0 : -clock * 10 / cam.z; ctx.strokeStyle = 'rgba(176,58,38,.75)'; ctx.lineWidth = 1.8 / cam.z; ctx.beginPath(); ctx.arc(z.x, z.y, r, 0, 7); ctx.stroke(); ctx.restore(); }
   }
   fogPump(); ctx.drawImage(fog, 0, 0, C.WORLD.w, C.WORLD.h);
   ctx.restore();
+  vignette();
   if (!s) return;
   drawTargets(s); drawMissed(s); drawMarks(s); drawQuestMarks(s); drawRivals(s); drawShip(s);
 }
-function seal(x, y, ch, size, rot, alpha) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = alpha; ctx.fillStyle = COL.ju; ctx.fillRect(-size / 2, -size / 2, size, size);
-  ctx.strokeStyle = COL.hanji2; ctx.lineWidth = 1.2; ctx.strokeRect(-size / 2 + 2.5, -size / 2 + 2.5, size - 5, size - 5);
-  ctx.fillStyle = COL.hanji2; ctx.font = `${Math.round(size * .62)}px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(ch, 0, 1); ctx.restore(); }
-function label(txt, x, y, size, col, font) { ctx.font = `${size}px ${font || css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(242,238,226,.9)'; ctx.lineWidth = 3.5; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y); }
+/* 뱃길: 옅은 붓 자국 위에 점선, 고른 길에는 흘러가는 꺾쇠 */
+function routeLine(path, col, on, alpha) { if (!path || path.length < 2) return; const z = cam.z;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.strokeStyle = col; ctx.globalAlpha = alpha * .16; ctx.lineWidth = (on ? 9 : 5) / z; ctx.beginPath(); path.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  ctx.globalAlpha = alpha; ctx.lineWidth = (on ? 2.6 : 1.6) / z; ctx.setLineDash([9 / z, 6 / z]); ctx.lineDashOffset = on && !RM ? -clock * 18 / z : 0; ctx.stroke(); ctx.setLineDash([]);
+  if (on) { const seg = []; let tot = 0; for (let i = 1; i < path.length; i++) { const l = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]); seg.push(l); tot += l; }
+    const gap = 70 / Math.max(.5, z), off = RM ? 0 : (clock * 26) % gap; ctx.fillStyle = col;
+    for (let d = gap * .5 + off; d < tot - 20 / z; d += gap) { let k = 0, acc = 0; while (k < seg.length && acc + seg[k] < d) acc += seg[k++]; if (k >= seg.length) break; const q = (d - acc) / seg[k], a = path[k], b = path[k + 1];
+      const x = a[0] + (b[0] - a[0]) * q, y = a[1] + (b[1] - a[1]) * q, ang = Math.atan2(b[1] - a[1], b[0] - a[0]), u = 5 / z;
+      ctx.beginPath(); ctx.moveTo(x + Math.cos(ang) * u * 1.4, y + Math.sin(ang) * u * 1.4); ctx.lineTo(x + Math.cos(ang + 2.4) * u, y + Math.sin(ang + 2.4) * u); ctx.lineTo(x + Math.cos(ang - 2.4) * u, y + Math.sin(ang - 2.4) * u); ctx.closePath(); ctx.fill(); }
+    const [sx, sy] = path[0]; ctx.beginPath(); ctx.arc(sx, sy, 3.5 / z, 0, 7); ctx.fill(); }
+  ctx.restore(); }
+/* 화면 가장자리를 종이 그늘로 */
+let vig = null;
+function vignette() { if (!vig || vig.w !== W || vig.h !== H) { const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .42, W / 2, H / 2, Math.hypot(W, H) * .62); g.addColorStop(0, 'rgba(60,48,26,0)'); g.addColorStop(1, 'rgba(60,48,26,.2)'); vig = { w: W, h: H, g }; }
+  ctx.fillStyle = vig.g; ctx.fillRect(0, 0, W, H); }
+/* 도장: 글자마다 한 번 그려 두고 찍는다. 가장자리가 고르지 않고 인주가 군데군데 빠진 낙관 */
+const sealCache = new Map();
+function sealSprite(ch, size, col) { const key = ch + '|' + Math.round(size) + '|' + col; let c = sealCache.get(key); if (c) return c;
+  const px = Math.ceil(size * DPR) + 4; c = document.createElement('canvas'); c.width = c.height = px; const g = c.getContext('2d'), r = rng(ch.charCodeAt(0) * 31 + Math.round(size)); const m = 2, S2 = px - m * 2;
+  g.fillStyle = col; g.beginPath(); const j = () => (r() - .5) * S2 * .035; g.moveTo(m + j(), m + j()); g.lineTo(m + S2 + j(), m + j()); g.lineTo(m + S2 + j(), m + S2 + j()); g.lineTo(m + j(), m + S2 + j()); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(245,240,227,.8)'; g.lineWidth = Math.max(1, S2 * .045); const b = S2 * .1; g.strokeRect(m + b, m + b, S2 - b * 2, S2 - b * 2);
+  g.fillStyle = COL.hanji2; g.font = `${Math.round(S2 * .64)}px ${css('--seal')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, px / 2, px / 2 + S2 * .03);
+  g.globalCompositeOperation = 'destination-out'; for (let i = 0; i < S2 * 1.4; i++) { g.globalAlpha = .25 + r() * .5; g.beginPath(); g.arc(m + r() * S2, m + r() * S2, r() * S2 * .028 + .3, 0, 7); g.fill(); }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; sealCache.set(key, c); return c; }
+function seal(x, y, ch, size, rot, alpha, col) { const sp = sealSprite(ch, size, col || COL.ju); ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(27,35,36,.16)'; ctx.fillRect(-size / 2 + 1.5, -size / 2 + 2.5, size, size); const d = size * (sp.width / ((sp.width - 4) || 1)); ctx.drawImage(sp, -d / 2, -d / 2, d, d); ctx.restore(); }
+function label(txt, x, y, size, col, font) { ctx.font = `${size}px ${font || css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(245,240,227,.92)'; ctx.lineWidth = 3.5; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y); }
 function glyphDot(x, y, r, g, alpha) { ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = g.col; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.strokeStyle = COL.hanji2; ctx.lineWidth = 1.2; ctx.stroke();
-  ctx.fillStyle = COL.hanji2; ctx.font = `${Math.round(r * 1.25)}px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(g.ch, x, y + .5); ctx.restore(); }
+  ctx.fillStyle = COL.hanji2; ctx.font = `${Math.round(r * 1.25)}px ${css('--seal')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(g.ch, x, y + .5); ctx.restore(); }
 let hoverPort = null;
 const onScreen = (x, y, m = 60) => x > -m && y > -m && x < W + m && y < H + m;
 const news = { fest: {}, key: '' };
 function drawMarks(s) {
   const nk = s.news.map(n => n.id + n.e).join() + Math.floor(s.t); if (news.key !== nk) { news.key = nk; news.fest = {}; for (const n of C.liveNews()) if (n.festival) news.fest[n.festival] = 1; }
-  const sz = NARROW() ? 20 : 24, small = cam.z < cam.fit * 1.6;
-  for (const f of C.FINDS) { if (!s.found[f.id]) continue; const [x, y] = toS(f.x, f.y); if (!onScreen(x, y)) continue; const a = Math.min(1, (performance.now() - (findAppear[f.id] || 0)) / 600);
-    ctx.globalAlpha = a; ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; if (!small) label(f.name, x, y + 7, 12, COL.ink2, css('--display')); }
+  const sz = NARROW() ? 22 : 26, small = cam.z < cam.fit * 1.6, SEALF = css('--seal'), now = performance.now(), pulse = RM ? 0 : Math.sin(clock * 3);
+  for (const f of C.FINDS) { if (!s.found[f.id]) continue; const [x, y] = toS(f.x, f.y); if (!onScreen(x, y)) continue; const a = Math.min(1, (now - (findAppear[f.id] || 0)) / 600);
+    ctx.globalAlpha = a; ctx.fillStyle = 'rgba(245,240,227,.85)'; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 7); ctx.fill(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.3; ctx.stroke(); ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(x, y, 1.6, 0, 7); ctx.fill(); ctx.globalAlpha = 1; if (!small) label(f.name, x, y + 7, 12, COL.ink2, css('--display')); }
   for (const k of C.PORT_IDS) { if (s.known[k] || !C.revealed(C.PORTS[k].x, C.PORTS[k].y)) continue; const [x, y] = toS(C.PORTS[k].x, C.PORTS[k].y); if (!onScreen(x, y)) continue;
-    ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = COL.ju; ctx.lineWidth = 1.2; ctx.strokeRect(x - sz / 2, y - sz / 2, sz, sz); ctx.restore(); ctx.fillStyle = COL.ju; ctx.font = `${sz * .6}px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + 1); }
+    ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = COL.ju; ctx.lineWidth = 1.3; ctx.fillStyle = 'rgba(245,240,227,.7)'; ctx.fillRect(x - sz / 2, y - sz / 2, sz, sz); ctx.strokeRect(x - sz / 2, y - sz / 2, sz, sz); ctx.restore(); ctx.fillStyle = COL.ju; ctx.font = `600 ${sz * .6}px ${css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + 1); }
   for (const k of C.PORT_IDS) { if (!s.known[k]) continue; const P = C.PORTS[k]; const [x, y] = toS(P.x, P.y); if (!onScreen(x, y, 120)) continue;
-    const t = Math.min(1, (performance.now() - (portAppear[k] || 0)) / 700), e = t < 1 ? 1 + (1 - t) * 1.6 : 1;
-    if (s.at === k && s.mode === 'port') { ctx.strokeStyle = COL.ju; ctx.globalAlpha = .45 + Math.sin(clock * 3) * .2; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, sz * .95 + Math.sin(clock * 3) * 2, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
-    if (hoverPort === k) { ctx.fillStyle = 'rgba(30,40,41,.12)'; ctx.beginPath(); ctx.arc(x, y, sz, 0, 7); ctx.fill(); }
-    seal(x, y, P.ch, sz * e, ((P.x * 7 + P.y) % 9 - 4) * .012, Math.min(1, t * 1.6));
+    const t = Math.min(1, (now - (portAppear[k] || 0)) / 700), e = t < 1 ? 1 + (1 - t) * 1.6 : 1, here = s.at === k && s.mode === 'port';
+    if (here) { ctx.strokeStyle = COL.ju; ctx.globalAlpha = .5 + pulse * .2; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, sz * .98 + pulse * 2, 0, 7); ctx.stroke(); ctx.globalAlpha = .22; ctx.beginPath(); ctx.arc(x, y, sz * 1.3 + pulse * 3, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
+    if (hoverPort === k) { ctx.fillStyle = 'rgba(27,35,36,.12)'; ctx.beginPath(); ctx.arc(x, y, sz, 0, 7); ctx.fill(); }
+    seal(x, y, P.ch, sz * e, ((P.x * 7 + P.y) % 9 - 4) * .012, Math.min(1, t * 1.6), C.isClosed(k) ? COL.ink2 : COL.ju);
     if (s.orders.some(o => o.to === k)) { ctx.strokeStyle = COL.cheong; ctx.lineWidth = 2; ctx.strokeRect(x - sz / 2 - 4, y - sz / 2 - 4, sz + 8, sz + 8); }
-    label(P.name, x, y + sz / 2 + 4, NARROW() ? 12 : 13, COL.ink, css('--ui'));
-    if (cam.z > cam.fit * 1.25) { const n = P.prod.length, gy = y + sz / 2 + (NARROW() ? 24 : 26); P.prod.forEach((id, i) => glyphDot(x + (i - (n - 1) / 2) * 15, gy, 6.5, C.G[id], .95)); }
+    const ny = y + sz / 2 + 4; label(P.name, x, ny, NARROW() ? 12 : 13, here ? COL.ju : COL.ink, css('--ui'));
+    if (cam.z > cam.fit * 1.25) { const n = P.prod.length, gy = y + sz / 2 + (NARROW() ? 26 : 28); P.prod.forEach((id, i) => glyphDot(x + (i - (n - 1) / 2) * 15, gy, 6.5, C.G[id], .95)); }
     if (C.isClosed(k)) { ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - sz * .7, y - sz * .7); ctx.lineTo(x + sz * .7, y + sz * .7); ctx.moveTo(x + sz * .7, y - sz * .7); ctx.lineTo(x - sz * .7, y + sz * .7); ctx.stroke(); ctx.restore();
-      ctx.fillStyle = COL.ink; ctx.fillRect(x - sz / 2 - 22, y - 9, 18, 18); ctx.fillStyle = COL.hanji2; ctx.font = `12px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('閉', x - sz / 2 - 13, y + 1); }
-    else if (news.fest[k]) { const bx = x - sz / 2 - 13, by = y - sz / 2 + 2; ctx.fillStyle = COL.hwang; ctx.beginPath(); ctx.arc(bx, by, 9 + Math.sin(clock * 4), 0, 7); ctx.fill(); ctx.fillStyle = COL.hanji2; ctx.font = `11px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('祭', bx, by + .5); }
+      ctx.fillStyle = COL.ink; ctx.fillRect(x - sz / 2 - 22, y - 9, 18, 18); ctx.fillStyle = COL.hanji2; ctx.font = `12px ${SEALF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('閉', x - sz / 2 - 13, y + 1); }
+    else if (news.fest[k]) { const bx = x - sz / 2 - 13, by = y - sz / 2 + 2; ctx.fillStyle = COL.hwang; ctx.beginPath(); ctx.arc(bx, by, 9 + (RM ? 0 : Math.sin(clock * 4)), 0, 7); ctx.fill(); ctx.fillStyle = COL.hanji2; ctx.font = `11px ${SEALF}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('祭', bx, by + .5); }
     if (s.at !== k || s.mode !== 'port') { const cand = [];
       for (const g of C.GOODS) { const inf = C.infoFor(k, g.id); if (!inf) continue; const ratio = inf.price / (g.base * .93); if (ratio >= 1.25) cand.push({ g, ratio, age: Math.floor(s.t) - inf.day }); }
       cand.sort((a, b) => b.ratio - a.ratio).slice(0, 2).forEach((c, i) => { const al = c.age < 15 ? 1 : c.age < 40 ? .62 : .34; const bx = x + sz / 2 + 12 + i * 19, by = y - sz / 2 + 4;
         glyphDot(bx, by, 8.5, c.g, al); ctx.globalAlpha = al; ctx.fillStyle = COL.rok; ctx.font = `bold 9px ${css('--ui')}`; ctx.textAlign = 'center'; ctx.fillText('▲', bx + 7, by - 8); ctx.globalAlpha = 1; }); }
     const rm = rivalMark[k]; if (rm && s.t - rm.t < 12) { ctx.globalAlpha = Math.max(.2, .9 - (s.t - rm.t) / 14); ctx.fillStyle = rm.col; ctx.font = `bold 12px ${css('--display')}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(`${rm.ch}▼${C.G[rm.id].ch}`, x - sz / 2 - 5, y); ctx.globalAlpha = 1; }
-    if (rumorPulse[k] && performance.now() - rumorPulse[k] < 2200) { const q = (performance.now() - rumorPulse[k]) / 2200; ctx.strokeStyle = COL.cheong; ctx.globalAlpha = 1 - q; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, sz + q * 34, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
+    if (rumorPulse[k] && now - rumorPulse[k] < 2200) { const q = (now - rumorPulse[k]) / 2200; ctx.strokeStyle = COL.cheong; ctx.globalAlpha = 1 - q; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, sz + q * 34, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
   }
 }
-function boatOn(g, x, y, hd, sc, hull, sail, mast) { g.save(); g.translate(x, y); g.rotate(hd); g.scale(sc, sc);
-  g.fillStyle = 'rgba(30,40,41,.16)'; g.beginPath(); g.ellipse(1, 3, 15, 6, 0, 0, 7); g.fill();
-  g.beginPath(); g.moveTo(16, 0); g.quadraticCurveTo(6, -7, -11, -6); g.lineTo(-13, 0); g.lineTo(-11, 6); g.quadraticCurveTo(6, 7, 16, 0); g.closePath(); g.fillStyle = hull; g.fill();
-  g.save(); g.translate(1, 0); g.rotate(mast || 0); g.beginPath(); g.moveTo(-2, -13); g.quadraticCurveTo(4, -6, 3, 0); g.quadraticCurveTo(4, 6, -2, 13); g.lineTo(-4, 13); g.lineTo(-4, -13); g.closePath();
-  g.fillStyle = sail; g.fill(); g.strokeStyle = 'rgba(30,40,41,.7)'; g.lineWidth = .8; g.stroke(); g.beginPath(); for (let i = -9; i <= 9; i += 4.5) { g.moveTo(-4, i); g.lineTo(3, i * .92); } g.stroke(); g.restore(); g.restore(); }
+/* 위에서 본 배 — 판옥 없는 신라 상선: 이물이 들린 선체, 두 돛대에 대나무 살 돛, 고물에 깃발 */
+function boatOn(g, x, y, hd, sc, hull, sail, mast, flag) { g.save(); g.translate(x, y); g.rotate(hd); g.scale(sc, sc);
+  g.fillStyle = 'rgba(27,35,36,.18)'; g.beginPath(); g.ellipse(1.5, 3.5, 17, 7, 0, 0, 7); g.fill();
+  g.beginPath(); g.moveTo(18, 0); g.quadraticCurveTo(10, -7.5, -10, -7); g.quadraticCurveTo(-15, -6, -15, 0); g.quadraticCurveTo(-15, 6, -10, 7); g.quadraticCurveTo(10, 7.5, 18, 0); g.closePath(); g.fillStyle = hull; g.fill();
+  g.strokeStyle = 'rgba(245,240,227,.28)'; g.lineWidth = .7; g.beginPath(); g.moveTo(14, 0); g.lineTo(-13, 0); g.moveTo(12, -2.6); g.quadraticCurveTo(0, -4.6, -12, -3.6); g.moveTo(12, 2.6); g.quadraticCurveTo(0, 4.6, -12, 3.6); g.stroke();
+  g.fillStyle = 'rgba(245,240,227,.35)'; g.fillRect(-14, -3.5, 4, 7);
+  for (const [mx, len, rot] of [[5, 10, (mast || 0) * .8], [-3, 13, mast || 0]]) { g.save(); g.translate(mx, 0); g.rotate(rot); g.beginPath(); g.moveTo(-1.5, -len); g.quadraticCurveTo(3.5, -len * .5, 2.5, 0); g.quadraticCurveTo(3.5, len * .5, -1.5, len); g.lineTo(-3, len); g.lineTo(-3, -len); g.closePath();
+    g.fillStyle = sail; g.fill(); g.strokeStyle = 'rgba(27,35,36,.75)'; g.lineWidth = .8; g.stroke(); g.lineWidth = .6; g.beginPath(); for (let i = -len + 3.5; i < len; i += 3.5) { g.moveTo(-3, i); g.lineTo(2.6, i * .94); } g.stroke(); g.restore(); }
+  if (flag) { const w = RM ? 0 : Math.sin(clock * 7) * 1.2; g.fillStyle = flag; g.beginPath(); g.moveTo(-14, 0); g.lineTo(-21, -1.5 + w); g.lineTo(-20, 1.5 + w); g.closePath(); g.fill(); }
+  g.restore(); }
 const boat = (...a) => boatOn(ctx, ...a);
 function drawRivals(s) {
   for (const R of s.rivals) { if (!C.revealed(R.x, R.y)) continue; const def = C.RIVALS.find(r => r.id === R.id); let [x, y] = toS(R.x, R.y); if (!onScreen(x, y)) continue;
     if (R.at) { x += 18; y -= 14; }
-    const pirate = def.kind === 'pirate'; boat(x, y, R.heading || 0, (NARROW() ? .8 : .95), pirate ? '#1e2829' : '#4a3a2c', pirate ? '#3a3f40' : def.col, 0);
-    ctx.fillStyle = pirate ? COL.ju : def.col; ctx.beginPath(); ctx.arc(x, y - 20, 9, 0, 7); ctx.fill(); ctx.fillStyle = COL.hanji2; ctx.font = `bold 11px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(def.ch, x, y - 19.5);
+    const pirate = def.kind === 'pirate'; boat(x, y, R.heading || 0, (NARROW() ? .8 : .95), pirate ? '#1e2829' : '#4a3a2c', pirate ? '#4a4d48' : def.col, 0, pirate ? COL.ink : def.col);
+    ctx.fillStyle = pirate ? COL.ju : def.col; ctx.beginPath(); ctx.arc(x, y - 21, 9.5, 0, 7); ctx.fill(); ctx.strokeStyle = COL.hanji2; ctx.lineWidth = 1.3; ctx.stroke(); ctx.fillStyle = COL.hanji2; ctx.font = `11px ${css('--seal')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(def.ch, x, y - 20.5);
     if (cam.z > cam.fit * 1.4 && !R.at && R.dest) label(`→ ${C.PORTS[R.dest].name}${R.good ? ' · ' + C.G[R.good].name : ''}`, x, y + 12, 11, def.col);
-    if (pirate && s.mode === 'sail') { const d = Math.hypot(R.x - s.x, R.y - s.y); if (R.chasing) { ctx.strokeStyle = COL.ju; ctx.lineWidth = 2; ctx.globalAlpha = .5 + Math.sin(clock * 10) * .4; ctx.beginPath(); ctx.arc(x, y, 24 + Math.sin(clock * 10) * 3, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; label('추격', x, y + 14, 11, COL.ju); } else if (d < 140) { ctx.strokeStyle = COL.ju; ctx.globalAlpha = .4 + Math.sin(clock * 6) * .3; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 18, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } } } }
+    if (pirate && s.mode === 'sail') { const d = Math.hypot(R.x - s.x, R.y - s.y), ph = RM ? 0 : Math.sin(clock * 10); if (R.chasing) { ctx.strokeStyle = COL.ju; ctx.lineWidth = 2; ctx.globalAlpha = .5 + ph * .4; ctx.beginPath(); ctx.arc(x, y, 24 + ph * 3, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; label('추격', x, y + 14, 11, COL.ju); } else if (d < 140) { ctx.strokeStyle = COL.ju; ctx.globalAlpha = .4 + ph * .3; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 18, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } } } }
 function drawShip(s) {
   let [x, y] = toS(s.x, s.y); let hd = s.heading || -Math.PI / 2; if (s.mode === 'port') { x -= 30; y += 4; hd = -Math.PI / 2 - .5; }
-  const sc = (NARROW() ? .9 : 1.05) * (1 + s.tier * .12), bob = Math.sin(clock * 2.6) * .05;
-  if (s.mode === 'sail') { ctx.fillStyle = 'rgba(242,238,226,.7)'; for (let i = 1; i <= 5; i++) { const d = i * 7 * sc; ctx.globalAlpha = .5 - i * .08; ctx.beginPath(); ctx.ellipse(x - Math.cos(hd) * d, y - Math.sin(hd) * d, 3 + i, 1.6 + i * .4, hd, 0, 7); ctx.fill(); } ctx.globalAlpha = 1; }
+  const sc = (NARROW() ? .95 : 1.1) * (1 + s.tier * .12), bob = RM ? 0 : Math.sin(clock * 2.6) * .05;
+  if (s.mode === 'sail') { ctx.fillStyle = 'rgba(245,240,227,.75)'; for (let i = 1; i <= 6; i++) { const d = i * 7 * sc, sw = RM ? 0 : Math.sin(clock * 3 + i) * 1.2; ctx.globalAlpha = .55 - i * .08; ctx.beginPath(); ctx.ellipse(x - Math.cos(hd) * d - Math.sin(hd) * sw, y - Math.sin(hd) * d + Math.cos(hd) * sw, 3 + i * 1.1, 1.6 + i * .45, hd, 0, 7); ctx.fill(); } ctx.globalAlpha = 1; }
   const w = C.wind(s.t, s.x, s.y), sa = s.mode === 'port' ? 0 : Math.max(-.6, Math.min(.6, C.angDiff(w.dir, hd) * .35));
-  if (s.rowing && s.mode === 'sail') { ctx.save(); ctx.translate(x, y); ctx.rotate(hd); ctx.scale(sc, sc); ctx.strokeStyle = '#3b2e22'; ctx.lineWidth = 1.6; const ph = Math.sin(clock * 9) * .45;
-    for (const side of [-1, 1]) for (const ox of [-6, 2, 10]) { ctx.beginPath(); ctx.moveTo(ox, side * 5); ctx.lineTo(ox - 6 + ph * 6, side * 15); ctx.stroke(); } ctx.restore(); }
-  boat(x, y, hd + bob * .3, sc, '#3b2e22', s.mode === 'port' ? '#a98c58' : '#d3ae62', sa);
-  if (s.mode !== 'port') { ctx.strokeStyle = COL.ju; ctx.lineWidth = 1.2; ctx.globalAlpha = .5; ctx.beginPath(); ctx.arc(x, y, 22 * sc, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
+  if (s.rowing && s.mode === 'sail') { ctx.save(); ctx.translate(x, y); ctx.rotate(hd); ctx.scale(sc, sc); ctx.strokeStyle = '#3b2e22'; ctx.lineWidth = 1.6; const ph = RM ? 0 : Math.sin(clock * 9) * .45;
+    for (const side of [-1, 1]) for (const ox of [-6, 2, 10]) { ctx.beginPath(); ctx.moveTo(ox, side * 5.5); ctx.lineTo(ox - 6 + ph * 6, side * 16); ctx.stroke(); } ctx.restore(); }
+  if (s.mode !== 'port') { ctx.strokeStyle = COL.ju; ctx.lineWidth = 1.2; ctx.globalAlpha = .45; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.arc(x, y, 24 * sc, 0, 7); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; }
+  boat(x, y, hd + bob * .3, sc, '#3b2a1c', s.mode === 'port' ? '#b49563' : '#dcbc78', sa, COL.ju);
 }
 
 /* ─────────── 지도 조작 ─────────── */
@@ -254,7 +324,8 @@ const last = {};
 const setText = (id, v) => { if (last[id] !== v) { last[id] = v; $(id).textContent = v; } };
 function paintHud() {
   const s = S(); if (!s) return; paintTracker();
-  setText('hDate', C.dateStr(s.t)); setText('hSeason', `${C.SEASONS[C.seasonOf(s.t)]} · ${C.monsoon(s.t).name}`); setText('hDiff', C.dif().name); setText('hGold', fmt(s.gold));
+  setText('hDate', C.dateStr(s.t)); setText('hSeason', `${C.SEASONS[C.seasonOf(s.t)]} · ${C.monsoon(s.t).name}`); setText('hDiff', C.dif().name); paintGold(s.gold);
+  const md = Math.round(C.monsoon(s.t).dir * 180 / Math.PI + 90); if (last.vane !== md) { last.vane = md; $('hVane').style.transform = `rotate(${md}deg)`; }
   const q = C.quotaNow(), dd = Math.ceil(C.daysToDue()); setText('hQuota', fmt(q)); setText('hDue', `${dd}일 뒤`);
   const qk = (s.gold >= q) + ':' + (dd <= 15); if (last.qr !== qk) { last.qr = qk; $('hQuotaBox').classList.toggle('ok', s.gold >= q); $('hQuotaBox').classList.toggle('urgent', s.gold < q && dd <= 15); }
   const slotKey = C.capacity() + ':' + s.slots.map(x => x.id).join(',');
@@ -274,6 +345,15 @@ function paintHud() {
     const ch = s.rivals.some(R => R.chasing); if (last.ch !== ch) { last.ch = ch; $('sailbar').classList.toggle('chased', ch); }
     const days = s.spd > 1 ? rem / s.spd : 0; const el = $('sbRem'); if (el) el.textContent = `${days > .1 ? `남은 약 ${Math.max(1, Math.round(days))}일` : '곧 닿는다'} · ${C.windWord(s.windDeg || 0)}${C.inZone(s.x, s.y) ? ' · 해적 해역' : ''}`; }
 }
+
+/* 돈: 바뀌면 숫자가 굴러가고 밑에 차액이 잠깐 뜬다 */
+const GT = { v: null, from: 0, to: 0, t0: 0 };
+function paintGold(g) { const el = $('hGold');
+  if (GT.v === null || RM) { if (GT.v !== null && g !== GT.to) goldDelta(g - GT.to); GT.v = GT.to = GT.from = g; el.textContent = fmt(g); return; }
+  if (g !== GT.to) { goldDelta(g - GT.to); GT.from = GT.v; GT.to = g; GT.t0 = performance.now(); }
+  if (GT.v !== GT.to) { const q = Math.min(1, (performance.now() - GT.t0) / 700), e = 1 - Math.pow(1 - q, 3); GT.v = q >= 1 ? GT.to : GT.from + (GT.to - GT.from) * e; el.textContent = fmt(GT.v); } }
+function goldDelta(d) { d = Math.round(d); if (!d) return; const box = $('hGoldBox'); box.classList.remove('gain', 'loss'); void box.offsetWidth; box.classList.add(d > 0 ? 'gain' : 'loss'); clearTimeout(goldDelta.t); goldDelta.t = setTimeout(() => box.classList.remove('gain', 'loss'), 900);
+  box.querySelectorAll('.delta').forEach(x => x.remove()); const sp = document.createElement('span'); sp.className = 'delta ' + (d > 0 ? 'up' : 'dn'); sp.textContent = (d > 0 ? '+' : '') + fmt(d); box.appendChild(sp); setTimeout(() => sp.remove(), 1700); }
 
 /* ─────────── 알림 · 팝 · 띠 ─────────── */
 function toast(msg, kind) { journal(msg, kind); const el = document.createElement('div'); el.className = 'toast ' + (kind || ''); el.innerHTML = msg; $('toasts').appendChild(el); setTimeout(() => el.remove(), 3600); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); }
@@ -306,12 +386,30 @@ function closePanel() { $('panel').hidden = true; relayout(false); }
 $('pHead').onclick = () => { if (!NARROW()) return; panelMin = !panelMin; $('panel').classList.toggle('min', panelMin); $('pGrab').textContent = panelMin ? '펼치기' : '접기'; relayout(false); };
 function tagFor(pct) { return pct <= 80 ? ['cheap', '싸다'] : pct >= 130 ? ['dear', '비싸다'] : ['mid', '보통']; }
 function gl(g, cls) { return `<span class="glyph ${cls || ''}" style="background:${g.col}">${g.ch}</span>`; }
+/* 물건 그림 — 32칸, 1.7 굵기 둥근 선 하나로 통일. 모서리에 한자 도장 */
+const GI = {
+  ginseng: '<path d="M16 14V8M16 8c-3.6-.4-5.8-2.4-6-5.4 3.2.2 5.4 2.2 6 5.4zM16 8c3.6-.4 5.8-2.4 6-5.4-3.2.2-5.4 2.2-6 5.4z"/><circle class="f" cx="16" cy="6.2" r="1.3"/><path d="M16 14c-2.6 2.4-3.4 6.4-2.4 10.2L11 29M16 14c2.4 2.6 3 6.6 1.8 10.4L20.6 29M14 19.5l-4 1.6M17.8 21l4 .6M13.6 24.6l-3.4 2.6"/>',
+  silk: '<path d="M6 9.5h16.5a3.5 3.5 0 0 1 0 7H6a3.5 3.5 0 0 1 0-7z"/><ellipse cx="6" cy="13" rx="1.4" ry="3.5"/><path d="M9 16.5v10l3.5-2.2 3.5 2.2v-10M9 20h7M9 23h7"/>',
+  porcelain: '<path d="M13.6 4h4.8M14.2 4v2.4c-4.6 1.6-7 4.6-7 9.2 0 5.2 2.6 9.2 5 12.4h7.6c2.4-3.2 5-7.2 5-12.4 0-4.6-2.4-7.6-7-9.2V4"/><path d="M11 15.4c1.6-1.4 3.2.6 5 0s3.4-1.6 5 0M12.6 21c1.2-.8 2.4.4 3.4 0s2.2-1 3.4 0"/>',
+  spice: '<path d="M10.5 12.5c-3.6 4.4-3.6 11 0 14.5h11c3.6-3.5 3.6-10.1 0-14.5z"/><path d="M10.5 12.5l2.4-3h6.2l2.4 3M12.4 9.5l-1.4-4M19.6 9.5l1.4-4"/><circle class="f" cx="14" cy="19" r="1.3"/><circle class="f" cx="18.4" cy="17.6" r="1.3"/><circle class="f" cx="16.8" cy="22.6" r="1.3"/>',
+  gold: '<path d="M5.5 25l3-6.5h15l3 6.5zM10.5 18.5l2.4-5.5h6.2l2.4 5.5"/><path d="M8 22h16" opacity=".5"/><path d="M25 4.5v5M22.5 7h5M7 8v3M5.5 9.5h3"/>',
+  shell: '<path d="M7 25.5c3.4-1.2 14.6-1.2 18 0"/><path d="M7 25.5C7 17.6 10.6 9.6 16 5.5c5.4 4.1 9 12.1 9 20"/><path d="M10.6 19.4h10.8M12.6 14h6.8M14.6 9.4h2.8"/><path d="M25 7l1.5-1.5M27 11h2" opacity=".7"/>',
+  fur: '<path d="M16 5.5c-2.6 0-3.8 1.6-3.8 3.4-2.8.2-4.8 2-4.8 4.2l2.2 2.8-2.2 2.8c0 2.8 2 4.8 4.8 4.8l1.2 3.8h5.2l1.2-3.8c2.8 0 4.8-2 4.8-4.8l-2.2-2.8 2.2-2.8c0-2.2-2-4-4.8-4.2 0-1.8-1.2-3.4-3.8-3.4z"/><path d="M16 11v12" opacity=".55"/>',
+  sulfur: '<path d="M6 26.5h20M8 26.5l3.4-11 4 4.2 3-10.2 5.4 17"/><path d="M11.4 15.5l1.6 4.4M18.4 9.5l-.6 7" opacity=".6"/>',
+  tea: '<path d="M6.5 17.5h19c0 5.2-4.2 8.6-9.5 8.6s-9.5-3.4-9.5-8.6zM12 26l-.8 2.4h9.6L20 26"/><path d="M16 14.6c-4-1.8-5.2-5.6-3.2-9.4 4 1.4 5 5.4 3.2 9.4zM16 14.6c-.2-3-1-6-3.2-9.4"/>',
+  books: '<path d="M8.5 5.5h15v21h-15z"/><path d="M11.5 5.5v21"/><circle class="f" cx="10" cy="8.6" r=".9"/><circle class="f" cx="10" cy="12.6" r=".9"/><circle class="f" cx="10" cy="16.6" r=".9"/><circle class="f" cx="10" cy="20.6" r=".9"/><circle class="f" cx="10" cy="24" r=".9"/><path d="M15 8.5h5.6v9H15z"/>',
+  iron: '<path d="M4.5 10.5l5 3h13l5-3v7l-5-3h-13l-5 3z"/><path d="M4.5 18.5l5 3h13l5-3v4.5l-5-3h-13l-5 3z" opacity=".7"/>'
+};
+function gi(g) { return `<span class="gi" style="background:${g.col}"><svg viewBox="0 0 32 32" aria-hidden="true">${GI[g.id] || ''}</svg><i>${g.ch}</i></span>`; }
+/* 주사위 — 눈을 점으로 그린다(1과 4는 붉은 점) */
+const PIPS = { 1: [[16, 16]], 2: [[10, 10], [22, 22]], 3: [[9, 9], [16, 16], [23, 23]], 4: [[10, 10], [22, 10], [10, 22], [22, 22]], 5: [[9, 9], [23, 9], [16, 16], [9, 23], [23, 23]], 6: [[10, 8.5], [22, 8.5], [10, 16], [22, 16], [10, 23.5], [22, 23.5]] };
+const die = n => `<svg viewBox="0 0 32 32" aria-label="${n}"><rect x="2" y="2" width="28" height="28" rx="5"/>${PIPS[n].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${n === 1 ? 4.2 : 2.7}" class="${n === 1 || n === 4 ? 'r' : ''}"/>`).join('')}</svg>`;
 function paintPanel() {
   const s = S(); if (!s || s.mode !== 'port') return; const k = s.at, P = C.PORTS[k]; C.tickMarket(k); const m = s.markets[k], d = Math.floor(s.t);
   $('pSeal').textContent = P.ch; $('pName').textContent = P.name; $('pSub').textContent = `${P.nation} · 정박 중`;
   const free = C.freeSlots();
   const tiles = m.stock.map(id => { const g = C.G[id], pr = C.cratePrice(k, id), pct = C.pctOf(k, id), [tc, tl] = tagFor(pct), b = C.activeBoom(k, id, d);
-    return `<button class="good" data-buy="${id}" ${!free || s.gold < pr ? 'disabled' : ''}>${gl(g)}<span class="tagl ${tc}">${tl}</span><span class="nm">${g.name}</span><span class="pr">${fmt(pr)}<small> 냥</small></span>${b ? `<span class="boom">${b.slump ? '남아돈다' : '유행'}</span>` : ''}</button>`; }).join('');
+    return `<button class="good" data-buy="${id}" ${!free || s.gold < pr ? 'disabled' : ''}>${gi(g)}<span class="tagl ${tc}">${tl}</span><span class="nm">${g.name}</span><span class="pr">${fmt(pr)}<small> 냥</small></span>${b ? `<span class="boom">${b.slump ? '남아돈다' : '유행'}</span>` : ''}</button>`; }).join('');
   const wants = C.topDemand(k, 3).map(id => `<span class="want">${gl(C.G[id])}${C.G[id].name} <b>${fmt(C.sellPrice(k, id) * C.LOT)}</b></span>`).join('');
   const hold = s.slots.length ? s.slots.map((it, i) => { const g = C.G[it.id], now = C.sellPrice(k, it.id) * C.LOT, pl = now - it.cost;
       const be = bestElsewhere(it.id);
@@ -378,10 +476,10 @@ let longT = null, longFired = false;
 $('pBody').addEventListener('pointerdown', e => { const b = e.target.closest('[data-buy]'); if (!b || b.disabled) return; longFired = false; clearTimeout(longT); longT = setTimeout(() => { longFired = true; buyMax(b.dataset.buy, b); }, 480); });
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('pBody').addEventListener(ev, () => clearTimeout(longT)));
 function buyMax(id, b) { let n = 0, sum = 0; while (C.freeSlots()) { const r = C.buy(id); if (!r.ok) break; n++; sum += r.cost; } if (!n) { toast('돈이나 자리가 모자란다'); return; } AU.tok(); setTimeout(() => AU.tok(), 90); popAt(b, `${n}상자 -${fmt(sum)}`, 'bad'); after(); if (coachStep === 0) coach(1); }
-function diceFx(r) { const cup = $('dcup'); if (!cup) return; const F = '⚀⚁⚂⚃⚄⚅'; AU.noise(.5, { freq: 900, q: 3, gain: .2 }); cup.classList.add('shake'); let n = 0;
-  const iv = setInterval(() => { cup.innerHTML = `<span>${F[Math.floor(Math.random() * 6)]}</span><span>${F[Math.floor(Math.random() * 6)]}</span>`; if (++n > 8) { clearInterval(iv); cup.classList.remove('shake'); cup.innerHTML = `<span>${F[r.a - 1]}</span><span>${F[r.b - 1]}</span>`;
+function diceFx(r) { const cup = $('dcup'); if (!cup) return; const R6 = () => 1 + Math.floor(Math.random() * 6); AU.noise(.5, { freq: 900, q: 3, gain: .2 }); cup.classList.add('shake'); let n = 0; const done = RM ? 0 : 8;
+  const iv = setInterval(() => { cup.innerHTML = die(R6()) + die(R6()); if (++n > done) { clearInterval(iv); cup.classList.remove('shake'); cup.innerHTML = die(r.a) + die(r.b);
     if (r.win) AU.coin(1.6); else AU.bad(); journal(`홀짝 — ${r.a}+${r.b}=${r.a + r.b} ${r.even ? '짝' : '홀'}. ${r.win ? `+${fmt(r.pay)}냥` : `${fmt(r.pay)}냥`}`);
-    setTimeout(() => { paintHud(); paintPanel(); const d = $('dres'); if (d) { d.innerHTML = `${r.a} + ${r.b} = <b>${r.a + r.b}</b> · ${r.even ? '짝' : '홀'} — ${r.win ? `<b class="up">+${fmt(r.pay)}냥</b>` : `<b class="dn">${fmt(r.pay)}냥</b>`}`; } const c2 = $('dcup'); if (c2) c2.innerHTML = `<span>${F[r.a - 1]}</span><span>${F[r.b - 1]}</span>`; }, 350); } }, 70); }
+    setTimeout(() => { paintHud(); paintPanel(); const d = $('dres'); if (d) { d.innerHTML = `${r.a} + ${r.b} = <b>${r.a + r.b}</b> · ${r.even ? '짝' : '홀'} — ${r.win ? `<b class="up">+${fmt(r.pay)}냥</b>` : `<b class="dn">${fmt(r.pay)}냥</b>`}`; } const c2 = $('dcup'); if (c2) c2.innerHTML = die(r.a) + die(r.b); }, 350); } }, 70); }
 function saleFx(results, anchor) { results.forEach((r, i) => { setTimeout(() => { AU.coin(r.mult);
     const el = anchor || $('hGold'); const rc = el.getBoundingClientRect(); pop(`${r.profit >= 0 ? '+' : ''}${fmt(r.profit)}${r.mult >= 1.5 ? `  ×${r.mult.toFixed(1)}` : ''}`, rc.left + rc.width / 2 + (i % 3 - 1) * 40, rc.top - 10 - i * 6, r.profit < 0 ? 'bad' : r.mult >= 2 ? 'big' : ''); }, i * 160); });
   const r0 = results[results.length - 1]; if (r0) toast(`${C.PORTS[S().at].name} ${C.G[r0.id].name} 시세 ${r0.pct0}% → <b>${r0.pct1}%</b> — 내가 풀어서 눌렸다${results.some(r => r.threat >= 1) ? ` · 경계 +${Math.round(results.reduce((a, r) => a + r.threat, 0))}` : ''}`);
@@ -431,8 +529,9 @@ const hideSailbar = () => { $('sailbar').hidden = true; $('sailbar').classList.r
 function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.init(); const on = C.setRow(!s.rowing); if (on) { AU.noise(.25, { freq: 500, q: 2, gain: .25 }); AU.tone(160, { dur: .2, gain: .1 }); } else if (s.stamina <= 3) toast('선원들이 지쳤다. 기력은 쉬면서 천천히 찬다.'); paintHud(); }
 
 /* ─────────── 사건 ─────────── */
+const EV_CH = { storm: '風', calm: '靜', wreck: '破', sail: '帆', castaway: '漂', reef: '礁', fairwind: '順', monk: '僧', captives: '奴', ghost: '鬼', spout: '龍', whale: '鯨', fog: '霧', fever: '病', grumble: '怨', smuggler: '密', stars: '星', envoy: '使', drift: '流', pirate: '賊', rival: '商' };
 function openEvent(ev) { const s = S(); AU[['storm', 'pirate'].includes(ev.id) ? 'drum' : 'chime']();
-  $('evCard').innerHTML = `<div class="eyebrow">바다에서 · ${C.dateStr(s.t)}</div><h2>${ev.title}</h2><p>${ev.text}</p><div class="choices">${ev.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
+  $('evCard').innerHTML = `<span class="ev-ink" aria-hidden="true">${EV_CH[ev.id] || '海'}</span><div class="eyebrow">바다에서 · ${C.dateStr(s.t)}</div><h2 style="padding-right:56px">${ev.title}</h2><p>${ev.text}</p><div class="choices">${ev.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
   $('mEvent').hidden = false; $('evCard').querySelector('.choice').focus({ preventScroll: true });
   $('evCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = C.choose(+b.dataset.i); if (r.battle) { $('mEvent').hidden = true; openBattle(); return; } if (r.map) mapAppear[r.map.id] = performance.now(); if (r.good) AU.good(); else if (r.bad) AU.bad();
     $('evCard').querySelector('.choices').outerHTML = `<div class="result ${r.good ? 'good' : r.bad ? 'bad' : ''}">${r.text}</div><div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn main" id="evOk">계속</button></div>`;
@@ -450,7 +549,7 @@ function openReveal(info) { panelTab = 'market';
   const extraHtml = extra.length ? `<div class="fresh" style="border-color:var(--rok)">${extra.join('<br>')}</div>` : '';
   const rivals = info.rivalHere.length ? `<p class="letter" style="color:var(--ju)">${info.rivalHere.map(r => `${r.rival.name}${JO(r.rival.name,'이','가')} 며칠 전 ${C.G[r.id].name}${JO(C.G[r.id].name,'을','를')} 풀고 갔다`).join(' · ')} — 값이 눌려 있다.</p>` : '';
   const cards = info.items.map((it, n) => { const g = C.G[it.id];
-    return `<div class="flip" data-n="${n}"><div class="in"><div class="f">${gl(g)}<small>${it.inf ? `${it.inf.src} ${fmt(it.inf.price)}<br>${it.inf.ago}` : '이 항구 값을 모른다'}</small></div>
+    return `<div class="flip" data-n="${n}"><div class="in"><div class="f">${gi(g)}<small>${it.inf ? `${it.inf.src} ${fmt(it.inf.price)}<br>${it.inf.ago}` : '이 항구 값을 모른다'}</small></div>
       <div class="b"><span class="nm">${gl(g)}${g.name}</span><span class="was">산 값 ${fmt(it.cost)}</span><span class="was">${it.inf ? `${it.inf.src} ${fmt(it.inf.price)} →` : '여기 값'}</span><span class="now">${fmt(it.act)}</span><span class="plrow"><span class="pl ${it.profit >= 0 ? 'up' : 'dn'}">${it.profit >= 0 ? '+' : ''}${fmt(it.profit)}</span><span class="stamp ${it.verdict}">${VERDICT[it.verdict]}</span></span><button class="keep ${sell[n] ? 'sell' : ''}" data-k="${n}">${sell[n] ? '판다' : '남긴다'}</button></div></div></div>`; }).join('');
   $('rvCard').innerHTML = `<div class="eyebrow">입항 · ${C.dateStr(s.t)}</div><h2>${P.name}</h2><p class="sub" style="margin:0">${sub}</p>${fresh}${deliv}${extraHtml}${rivals}${info.letter ? `<p class="letter">${s.boons.letters ? '비둘기 편지' : '아사 동생의 편지'} — “${info.letter.line}”</p>` : ''}
     ${info.items.length ? `<div class="crates">${cards}</div><div class="total"><span>팔면</span><span class="big" id="rvTotal">…</span></div>` : '<p style="margin-top:14px">빈 배로 들어왔다.</p>'}
@@ -476,7 +575,7 @@ function openQuota(res) {
   if (yr) { if (s.quotaN >= 4) META.unlocked.ara = true; if (s.quotaN >= 8) META.unlocked.tomo = true; saveMeta(); }
   const cards = s.draft.map(id => { const b = C.BOONS.find(x => x.id === id), have = s.boons[id] || 0;
     return `<button class="boon" data-b="${id}"><span class="bch">${b.ch}</span><b>${b.name}${have ? ` <small>${have + 1}번째</small>` : ''}</b><span>${b.text}</span></button>`; }).join('');
-  $('qCard').innerHTML = `<div class="eyebrow">${season} 상납 · ${C.dateStr(s.t)}</div><h2>청해진 군자금 <span class="num">${fmt(res.amount)}</span>냥</h2>
+  $('qCard').innerHTML = `<span class="q-stamp" aria-hidden="true">納</span><div class="eyebrow">${season} 상납 · ${C.dateStr(s.t)}</div><h2>청해진 군자금 <span class="num">${fmt(res.amount)}</span>냥</h2>
     <p>${res.seized ? `돈이 모자라 짐을 7할 값(${fmt(res.seized)}냥)에 넘겨 겨우 맞췄다. ` : ''}${yr ? '<b>한 해를 버텼다.</b> 다음 해부터 상납이 크게 오른다. ' : ''}다음 상납은 <b class="num">${fmt(res.next)}냥</b>, ${Math.round(C.daysToDue())}일 뒤.${C.dif().share ? ` ${C.dif().name} — 상납은 가진 돈과 짐 값의 ${Math.round(C.dif().share * 10)}할보다 적지 않다.` : ''}${res.wages ? ` 선원 급료 ${fmt(res.wages)}냥을 치렀다.` : ''}${res.left && res.left.length ? ` <b class="dn">급료를 못 받은 ${res.left.join(', ')}이 배를 떠났다.</b>` : ''}</p>
     <div class="sub" style="margin-bottom:8px">특권 하나를 고른다</div><div class="boons">${cards}</div>`;
   $('mQuota').hidden = false;
@@ -497,59 +596,93 @@ function openStory(st) { if (st.who === 'main' && !st.title.includes('마지막'
 
 
 /* ═══════════ 해전 화면 ═══════════ */
-const BT = { w: 0, h: 0, me: { x: 0, tx: 0, lunge: 0, shake: 0 }, foe: { x: 0, tx: 0, lunge: 0, shake: 0 }, fx: [], sparks: [], open: false };
-const FOE_LOOK = { black: ['#1e2829', '#3a3f40'], slaver: ['#4a3a2c', '#7a5a3a'], boss: ['#2a1e1a', '#8a2f22'], pirate: ['#2e2a26', '#5a554c'] };
+const BT = { w: 0, h: 0, me: { x: 0, tx: 0, lunge: 0, shake: 0, sink: 0 }, foe: { x: 0, tx: 0, lunge: 0, shake: 0, sink: 0 }, fx: [], sparks: [], open: false };
+const FOE_LOOK = { black: ['#1e2829', '#4a4d48', '#1b2324'], slaver: ['#4a3a2c', '#8a6a44', '#6b4a32'], boss: ['#2a1e1a', '#9a3a28', '#b03a26'], pirate: ['#2e2a26', '#6a655a', '#1b2324'] };
+/* 적의 다음 수 그림 — 32칸 선 그림 */
+const INT_ICON = {
+  shoot: '<path d="M4 16h21M20 11l5 5-5 5M4 16l-2.5-3M4 16l-2.5 3M8 16l-2.5-3M8 16l-2.5 3"/>',
+  volley: '<path d="M4 8h19M19 4.5l4 3.5-4 3.5M4 16h22M22 12.5l4 3.5-4 3.5M4 24h19M19 20.5l4 3.5-4 3.5"/>',
+  aim: '<path d="M10 3c8 5 8 21 0 26M10 3l7 13-7 13M17 16h12M26 13l3 3-3 3"/>',
+  close: '<path d="M21 6l-9 10 9 10M29 6l-9 10 9 10M3 16h7"/>',
+  retreat: '<path d="M11 6l9 10-9 10M3 6l9 10-9 10M22 16h7"/>',
+  ram: '<path d="M3 21h15l7-7M18 21l8 4M3 21l3-5h8"/><path d="M26 6l2-3M29 11h3M27 16l3 1.5"/>',
+  board: '<path d="M16 3v17M12 5h8M16 20c0 5-7 6.5-9.5 2M16 20c0 5 7 6.5 9.5 2M6.5 22l-1.5-4M25.5 22l1.5-4"/>',
+  hesitate: '<circle cx="9" cy="16" r="1.8"/><circle cx="16" cy="16" r="1.8"/><circle cx="23" cy="16" r="1.8"/>'
+};
+/* 규칙(core.battleAct)을 그대로 읽어 '받아내는 수'를 알려 준다 — 규칙은 바꾸지 않는다 */
+function counters(B) { const k = B.intent.k, near = B.dist === 'near';
+  if (k === 'volley') return near ? [['guard', '방패로 받는다'], ['board', '붙어 있으면 반만 맞는다']] : [['guard', '방패로 받는다'], ['move', '파고들면 반만 맞는다']];
+  if (k === 'board') return near ? [['guard', '방패'], ['move', '떨어지면 허공을 친다'], ['board', '맞받아친다']] : [];
+  if (k === 'ram') return near ? [['guard', '방패'], ['move', '떨어지면 헛돈다']] : [];
+  if (k === 'aim') return [['guard', '다음 수에 방패'], ['move', near ? '' : '미리 붙어 두기']].filter(x => x[1]);
+  if (k === 'close') return [['shoot', '다가오는 놈 노리기 +30%']];
+  return []; }
 function btLayout() { const c = $('btCv'); const w = c.clientWidth || 400, h = c.clientHeight || 150; c.width = Math.round(w * DPR); c.height = Math.round(h * DPR); BT.w = w; BT.h = h; btTargets(true); }
-function btTargets(snap) { const B = S().battle; const near = B && B.dist === 'near'; BT.me.tx = BT.w * (near ? .36 : .19); BT.foe.tx = BT.w * (near ? .64 : .81); if (snap) { BT.me.x = BT.me.tx; BT.foe.x = BT.foe.tx; } }
-function btVolley(from, to, n, col) { const now = performance.now(); for (let i = 0; i < n; i++) BT.fx.push({ from, to, t0: now + i * 70, dur: 420, dy: (Math.random() - .5) * 26, col }); }
-function btHit(side, big) { const t = side === 'me' ? BT.me : BT.foe; t.shake = big ? 9 : 5; for (let i = 0; i < (big ? 14 : 7); i++) BT.sparks.push({ x: t.x + (Math.random() - .5) * 30, y: BT.h * .5 + (Math.random() - .5) * 20, vx: (Math.random() - .5) * 2.4, vy: -Math.random() * 2.2, life: 1, col: big ? COL.ju : '#efe6cf' }); }
-function drawBattle() { const c = $('btCv'); if (!c || !BT.w) return; const g = c.getContext('2d'), w = BT.w, h = BT.h, now = performance.now(), B = S().battle; g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  const sea = g.createLinearGradient(0, 0, w, h); sea.addColorStop(0, '#b7cfc2'); sea.addColorStop(1, '#8fb3ad'); g.fillStyle = sea; g.fillRect(0, 0, w, h);
-  g.lineCap = 'round'; for (let row = 0, y = 6; y < h + 10; y += 13, row++) for (let x = ((row % 2) * 10 + clock * 8) % 20 - 20; x < w + 20; x += 20) { g.strokeStyle = 'rgba(43,84,112,.2)'; g.lineWidth = .9; g.beginPath(); g.arc(x, y + 4, 7, Math.PI * 1.13, Math.PI * 1.87); g.stroke(); }
+function btTargets(snap) { const B = S().battle; const near = B && B.dist === 'near'; BT.me.tx = BT.w * (near ? .35 : .2); BT.foe.tx = BT.w * (near ? .65 : .8); if (snap) { BT.me.x = BT.me.tx; BT.foe.x = BT.foe.tx; } }
+function btVolley(from, to, n, col) { const now = performance.now(); for (let i = 0; i < n; i++) BT.fx.push({ from, to, t0: now + i * 70, dur: 480, dy: (Math.random() - .5) * 14, col }); }
+function btHit(side, big) { const t = side === 'me' ? BT.me : BT.foe, deck = BT.h * .72 - 14 * btScale(); t.shake = RM ? 0 : big ? 10 : 5;
+  for (let i = 0; i < (big ? 18 : 9); i++) BT.sparks.push({ x: t.x + (Math.random() - .5) * 40, y: deck + (Math.random() - .5) * 14, vx: (Math.random() - .5) * 3, vy: -Math.random() * 2.6 - .5, life: 1, col: i % 3 ? '#5a3e24' : big ? COL.ju : '#efe6cf', sz: 1.6 + Math.random() * 2.4 });
+  for (let i = 0; i < 6; i++) BT.sparks.push({ x: t.x + (Math.random() - .5) * 60, y: BT.h * .72 + 2, vx: (Math.random() - .5) * 1.4, vy: -Math.random() * 2.2 - 1, life: 1, col: 'rgba(245,240,227,.9)', sz: 2 }); }
+const btScale = () => Math.max(.5, Math.min(1.15, BT.w / 560));
+function drawBattle() { const c = $('btCv'); if (!c || !BT.w) return; const g = c.getContext('2d'), w = BT.w, h = BT.h, now = performance.now(), B = S().battle, t = RM ? 0 : clock; g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const hz = h * .38, wl = h * .72, sc = btScale();
+  const sky = g.createLinearGradient(0, 0, 0, hz); sky.addColorStop(0, '#ece4cf'); sky.addColorStop(1, '#dbd4bf'); g.fillStyle = sky; g.fillRect(0, 0, w, hz + 1);
+  g.fillStyle = 'rgba(70,90,92,.28)'; g.beginPath(); g.moveTo(0, hz); for (let x = 0; x <= w; x += 8) g.lineTo(x, hz - Math.max(0, Math.sin(x / 70 + 1) * 10 + Math.sin(x / 23) * 4 + (x < w * .3 ? 12 : 0))); g.lineTo(w, hz); g.fill();
+  const sea = g.createLinearGradient(0, hz, 0, h); sea.addColorStop(0, '#bccfc4'); sea.addColorStop(1, '#4a7b80'); g.fillStyle = sea; g.fillRect(0, hz, w, h - hz);
+  const rows = 9; for (let j = 0; j < rows; j++) { const q = (j + 1) / rows, y = hz + (h - hz) * Math.pow(q, 1.4); if (y > wl + 6) break; waveRow(g, y, w, .6 + q * 3, 14 + q * 30, t * (.8 + q) + j, .08 + q * .2, .5 + q, false); }
   if (!B) return; btTargets(false);
-  for (const s of [BT.me, BT.foe]) { s.x += (s.tx - s.x) * .08; s.lunge *= .88; s.shake *= .86; }
-  const y0 = h * .52, sc = Math.min(2.6, w / 170), bob = Math.sin(clock * 2.2) * 2;
+  for (const s of [BT.me, BT.foe]) { s.x += (s.tx - s.x) * (RM ? 1 : .08); s.lunge *= .88; s.shake *= .86; }
+  const bob = Math.sin(t * 2.2) * 2, look = FOE_LOOK[(B.spec && B.spec.kind) || 'pirate'] || FOE_LOOK.pirate, dead = B.e.hp <= 0;
+  if (dead) BT.foe.sink = Math.min(1, BT.foe.sink + .012); else BT.foe.sink = 0; if (S().hull <= 0) BT.me.sink = Math.min(1, BT.me.sink + .012); else BT.me.sink = 0;
   const mx = BT.me.x + BT.me.lunge + (Math.random() - .5) * BT.me.shake, fx = BT.foe.x - BT.foe.lunge + (Math.random() - .5) * BT.foe.shake;
-  if (B.dist === 'near') { g.strokeStyle = 'rgba(30,40,41,.55)'; g.lineWidth = 1.2; g.setLineDash([3, 3]); for (const dy of [-10, 6]) { g.beginPath(); g.moveTo(mx + 26, y0 + dy + bob); g.quadraticCurveTo((mx + fx) / 2, y0 + dy + 12, fx - 26, y0 + dy - bob); g.stroke(); } g.setLineDash([]); }
-  const look = FOE_LOOK[(B.spec && B.spec.kind) || 'pirate'] || FOE_LOOK.pirate;
-  boatOn(g, mx, y0 + bob, 0, sc * (1 + S().tier * .08), '#3b2e22', '#d3ae62', -.25);
-  if (B.e.hp <= 0) { g.globalAlpha = .4; } boatOn(g, fx, y0 - bob + (B.e.hp <= 0 ? 6 : 0), Math.PI + (B.e.hp <= 0 ? .25 : 0), sc * (B.e.boss ? 1.25 : B.spec && B.spec.kind === 'black' ? 1.12 : 1), look[0], look[1], .25);
-  g.globalAlpha = 1; g.fillStyle = B.e.boss ? COL.ju : COL.ink; g.beginPath(); g.arc(fx, y0 - 40 * Math.min(1.2, sc / 2), 13, 0, 7); g.fill(); g.fillStyle = COL.hanji2; g.font = `15px ${css('--display')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(B.e.ch, fx, y0 - 40 * Math.min(1.2, sc / 2) + 1);
-  for (const f of BT.fx) { const q = (now - f.t0) / f.dur; if (q < 0 || q > 1) continue; const a = f.from === 'me' ? mx + 20 : fx - 20, b = f.from === 'me' ? fx - 14 : mx + 14; const x = a + (b - a) * q, y = y0 + f.dy * (1 - q) - Math.sin(q * Math.PI) * 18; const dir = Math.sign(b - a);
-    g.strokeStyle = f.col || COL.ink; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x - dir * 9, y + Math.cos(q * Math.PI) * 3); g.lineTo(x, y); g.stroke(); if (f.col === COL.ju) { g.fillStyle = 'rgba(232,140,60,.85)'; g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); } }
+  if (B.dist === 'near' && !dead) { g.strokeStyle = 'rgba(27,35,36,.6)'; g.lineWidth = 1.2; for (const dy of [-22, -8]) { g.beginPath(); g.moveTo(mx + 50 * sc, wl + dy * sc + bob); g.quadraticCurveTo((mx + fx) / 2, wl + dy * sc + 14, fx - 50 * sc, wl + dy * sc - bob); g.stroke(); } }
+  shipSide(g, mx, wl + bob + BT.me.sink * 30 * sc, sc * (1 + S().tier * .06), { dir: 1, roll: Math.sin(t * 1.6) * .03 + BT.me.sink * .3, flag: COL.ju, t, alpha: 1 - BT.me.sink * .6 });
+  const big = B.e.boss ? 1.18 : B.spec && B.spec.kind === 'black' ? 1.1 : 1;
+  shipSide(g, fx, wl - bob + BT.foe.sink * 34 * sc, sc * big, { dir: -1, hull: look[0], sail: look[1], sail2: look[1], trim: look[2], roll: Math.sin(t * 1.4 + 1) * .03 + BT.foe.sink * .35, flag: B.e.boss ? COL.ju : COL.ink, t, tatter: !B.e.boss, ch: B.e.ch, chBg: B.e.boss ? COL.ju : COL.ink, alpha: 1 - BT.foe.sink * .7 });
+  g.fillStyle = 'rgba(74,123,128,.55)'; g.beginPath(); g.moveTo(0, wl + 4); for (let x = 0; x <= w; x += 6) g.lineTo(x, wl + 4 + Math.sin(x / 18 + t * 2) * 2.2); g.lineTo(w, h); g.lineTo(0, h); g.fill();
+  waveRow(g, wl + 6, w, 2.5, 26, t * 1.6, .32, 1.2, true);
+  if (!B.over) { const I = B.intent, danger = I.dmg >= B.e.atk * 1.4, warn = I.k === 'aim'; if (danger || warn) { const ex = fx, ey = wl - 118 * sc * big + Math.sin(t * 4) * 2; g.fillStyle = danger ? COL.ju : COL.hwang; g.beginPath(); g.moveTo(ex, ey + 15); g.lineTo(ex - 7, ey + 6); g.lineTo(ex + 7, ey + 6); g.fill(); g.fillRect(ex - 13, ey - 20, 26, 26); g.fillStyle = COL.hanji2; g.font = `600 18px ${css('--ui')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('!', ex, ey - 6.5); } }
+  for (const f of BT.fx) { const q = (now - f.t0) / f.dur; if (q < 0 || q > 1) continue; const a = f.from === 'me' ? mx + 30 * sc : fx - 30 * sc, b = f.from === 'me' ? fx - 10 * sc : mx + 10 * sc, y0 = wl - 34 * sc, arc = 26 + Math.abs(b - a) * .12;
+    const x = a + (b - a) * q, y = y0 + f.dy * q - Math.sin(q * Math.PI) * arc, dx = (b - a), dy = f.dy - Math.cos(q * Math.PI) * Math.PI * arc, ang = Math.atan2(dy, dx), L = 11;
+    g.strokeStyle = f.col || COL.ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x - Math.cos(ang) * L, y - Math.sin(ang) * L); g.lineTo(x, y); g.stroke();
+    if (f.col === COL.ju) { g.fillStyle = 'rgba(232,140,60,.9)'; g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.fill(); g.fillStyle = 'rgba(90,90,90,.25)'; g.beginPath(); g.arc(x - Math.cos(ang) * 16, y - Math.sin(ang) * 16, 3.5, 0, 7); g.fill(); } }
   BT.fx = BT.fx.filter(f => now - f.t0 < f.dur + 50);
-  for (const p of BT.sparks) { p.x += p.vx; p.y += p.vy; p.vy += .12; p.life -= .035; g.globalAlpha = Math.max(0, p.life); g.fillStyle = p.col; g.fillRect(p.x, p.y, 2.4, 2.4); } g.globalAlpha = 1; BT.sparks = BT.sparks.filter(p => p.life > 0);
-  g.fillStyle = 'rgba(30,40,41,.55)'; g.font = `11px ${css('--ui')}`; g.textAlign = 'center'; g.fillText(B.dist === 'near' ? '— 맞붙었다 —' : '— 활 거리 —', w / 2, h - 10); }
-function openBattle() { const s = S(), B = s.battle; if (!B) return; hideDest(); AU.drum(); BT.fx = []; BT.sparks = []; BT.me.lunge = BT.foe.lunge = 0;
+  for (const p of BT.sparks) { p.x += p.vx; p.y += p.vy; p.vy += .13; p.life -= .03; g.globalAlpha = Math.max(0, p.life); g.fillStyle = p.col; g.fillRect(p.x, p.y, p.sz || 2.4, p.sz || 2.4); } g.globalAlpha = 1; BT.sparks = BT.sparks.filter(p => p.life > 0);
+  g.fillStyle = 'rgba(27,35,36,.6)'; g.font = `12px ${css('--display')}`; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText(B.dist === 'near' ? '— 맞붙었다 —' : '— 활 거리 —', w / 2, h - 8); }
+function openBattle() { const s = S(), B = s.battle; if (!B) return; hideDest(); AU.drum(); BT.fx = []; BT.sparks = []; BT.me.lunge = BT.foe.lunge = 0; BT.me.sink = BT.foe.sink = 0;
   $('btCard').innerHTML = `<div class="eyebrow">해전 · ${C.dateStr(s.t)}</div><div class="bt-head"><span class="bseal ${B.e.boss ? 'boss' : ''}">${B.e.ch}</span><div><h2>${B.e.name}</h2><small>${B.e.boss ? '현상 수배 두목 · ' : ''}${B.e.line || '평범한 해적'}</small></div></div>
-    <canvas id="btCv"></canvas><div class="bt-bars"><div class="hb me"><span>내 배</span><s><i id="btMe"></i></s><b id="btMeN"></b></div><div class="hb foe"><span>${B.e.name}</span><s><i id="btFoe"></i></s><b id="btFoeN"></b></div></div>
-    <div class="bt-intent" id="btIntent"></div><div class="bt-log" id="btLog">${B.e.boss ? '두목의 배가 앞을 막아선다. 도망칠 생각은 없어 보인다.' : '적이 다가온다. 저쪽의 다음 수를 읽고 맞받아라.'}</div>
+    <canvas id="btCv" aria-hidden="true"></canvas><div class="bt-bars"><div class="hb me"><span>내 배</span><s><i class="ghost" id="btMeG"></i><i id="btMe"></i></s><b id="btMeN"></b></div><div class="hb foe"><span>${B.e.name}</span><s><i class="ghost" id="btFoeG"></i><i id="btFoe"></i></s><b id="btFoeN"></b></div></div>
+    <div class="bt-intent" id="btIntent" aria-live="polite"></div><div class="bt-log" id="btLog">${B.e.boss ? '두목의 배가 앞을 막아선다. 도망칠 생각은 없어 보인다.' : '적이 다가온다. 저쪽의 다음 수를 읽고 맞받아라.'}</div>
     <div class="bt-acts" id="btActs"></div><div class="bt-foot"><span class="stam">기력 <s><i id="btSt"></i></s></span><button class="linkbtn" id="btGive">${s.slots.length ? '상자 하나 내주고 빠진다' : '통행료 내고 빠진다'}</button></div>`;
   $('mBattle').hidden = false; BT.open = true; requestAnimationFrame(() => { btLayout(); paintBattle(); });
   $('btGive').onclick = () => battleDo('surrender'); }
 function paintBattle() { const s = S(), B = s.battle; if (!B) return; const pct = (v, m) => Math.max(0, Math.min(100, v / m * 100)) + '%';
-  $('btMe').style.width = pct(s.hull, s.hullMax); $('btMeN').textContent = `${Math.max(0, Math.round(s.hull))}/${s.hullMax}`; $('btFoe').style.width = pct(B.e.hp, B.e.max); $('btFoeN').textContent = `${B.e.hp}/${B.e.max}`; $('btSt').style.width = pct(s.stamina, 100);
+  for (const [id, v] of [['btMe', pct(s.hull, s.hullMax)], ['btFoe', pct(B.e.hp, B.e.max)]]) { $(id).style.width = v; $(id + 'G').style.width = v; }
+  $('btMeN').textContent = `${Math.max(0, Math.round(s.hull))}/${s.hullMax}`; $('btFoeN').textContent = `${B.e.hp}/${B.e.max}`; $('btSt').style.width = pct(s.stamina, 100);
   if (B.over) return;
-  const I = B.intent, danger = I.dmg >= B.e.atk * 1.4; $('btIntent').className = 'bt-intent' + (danger ? ' danger' : I.dmg ? '' : ' calm');
-  const pun = ['volley', 'board', 'ram'].includes(I.k) && C.dif().punish > 1 ? `<small class="pun"> · 받아내지 못하면 ×${C.dif().punish}</small>` : '';
-  $('btIntent').innerHTML = `<span class="lbl">적의 다음 수</span><b>${I.text}${pun}</b>${I.dmg ? `<em>${I.dmg}</em>` : ''}`;
-  $('btActs').innerHTML = C.battleOpts().map((o, i) => `<button class="bact" data-a="${o.id}" ${o.ok ? '' : 'disabled'}><span class="bch">${o.ch}</span><b>${o.label}</b><small>${o.sub}</small><kbd>${i + 1}</kbd></button>`).join('');
+  const I = B.intent, danger = I.dmg >= B.e.atk * 1.4, warn = I.k === 'aim'; $('btIntent').className = 'bt-intent' + (danger ? ' danger' : warn ? ' warn' : I.dmg ? '' : ' calm');
+  const big = ['volley', 'board', 'ram'].includes(I.k), pun = big && C.dif().punish > 1 ? `<small class="pun"> · 받아내지 못하면 ×${C.dif().punish}</small>` : '';
+  const cs = counters(B), csIds = big ? cs.map(c => c[0]) : [], opts = C.battleOpts();
+  const cnt = cs.length ? `<div class="cnt">받아내는 수 ${cs.map(([id, txt]) => { const o = opts.find(x => x.id === id); return o ? `<span><i>${o.ch}</i>${txt}</span>` : ''; }).join('')}</div>` : '';
+  $('btIntent').innerHTML = `<span class="ico"><svg viewBox="0 0 32 32" aria-hidden="true">${INT_ICON[I.k] || INT_ICON.shoot}</svg></span><span class="lbl">적의 다음 수</span>${I.dmg ? `<em>${I.dmg}<small>예상 피해</small></em>` : '<span></span>'}<b>${I.text}${pun}</b>${cnt}`;
+  $('btActs').innerHTML = opts.map((o, i) => `<button class="bact ${csIds.includes(o.id) && o.ok ? 'counter' : ''}" data-a="${o.id}" ${o.ok ? '' : 'disabled'}><span class="bch">${o.ch}</span><b>${o.label}</b><small>${o.sub}</small><kbd>${i + 1}</kbd></button>`).join('');
   $('btActs').querySelectorAll('[data-a]').forEach(b => b.onclick = () => battleDo(b.dataset.a)); }
-function battleDo(a) { const s = S(), B = s.battle; if (!B || B.over) return; AU.init(); const I = B.intent, hull0 = s.hull, hp0 = B.e.hp, dist0 = B.dist; const r = C.battleAct(a); if (!r) return;
-  const dealt = hp0 - B.e.hp, took = Math.round(hull0 - s.hull);
-  if (a === 'shoot') { btVolley('me', 'foe', 5); AU.noise(.25, { freq: 2400, q: 1, gain: .12, type: 'highpass' }); }
-  if (a === 'board') { BT.me.lunge = BT.w * .12; AU.drum(); }
+function battleDo(a) { const s = S(), B = s.battle; if (!B || B.over) return; AU.init(); const I = B.intent, hull0 = s.hull, hp0 = B.e.hp; const r = C.battleAct(a); if (!r) return;
+  const dealt = hp0 - B.e.hp, took = Math.round(hull0 - s.hull), cv = () => { const c = $('btCv'); return c ? c.getBoundingClientRect() : null; };
+  if (a === 'shoot') { btVolley('me', 'foe', 6); AU.noise(.25, { freq: 2400, q: 1, gain: .12, type: 'highpass' }); }
+  if (a === 'board') { BT.me.lunge = BT.w * .1; AU.drum(); }
   if (a === 'guard') AU.tok();
   if (a === 'move' || a === 'flee') AU.noise(.4, { freq: 500, q: 2, gain: .2 });
-  setTimeout(() => { if (dealt > 0) { btHit('foe', a === 'board'); const c = $('btCv'); if (c) { const r0 = c.getBoundingClientRect(); pop(`-${dealt}`, r0.left + BT.foe.x, r0.top + BT.h * .3, 'big'); } AU.coin(1); } }, a === 'shoot' ? 420 : 180);
+  setTimeout(() => { if (dealt > 0) { btHit('foe', a === 'board'); const r0 = cv(); if (r0) pop(`-${dealt}`, r0.left + BT.foe.x, r0.top + BT.h * .32, 'hit' + (dealt >= 25 ? ' crit' : '')); AU.coin(1); } }, a === 'shoot' ? 460 : 180);
   if (!r.over || r.over === 'lose') setTimeout(() => { const ek = I.k;
-    if ((ek === 'shoot' || ek === 'volley') && took > 0) btVolley('foe', 'me', ek === 'volley' ? 10 : 4, B.e.g === 'fire' ? COL.ju : null);
-    if ((ek === 'ram' || ek === 'board') && took > 0) BT.foe.lunge = BT.w * .12;
-    setTimeout(() => { if (took > 0) { btHit('me', took >= 15); AU.bad(); const c = $('btCv'); if (c) { const r0 = c.getBoundingClientRect(); pop(`-${took}`, r0.left + BT.me.x, r0.top + BT.h * .3, 'bad'); } } }, ek === 'shoot' || ek === 'volley' ? 420 : 160); }, 520);
+    if ((ek === 'shoot' || ek === 'volley') && took > 0) btVolley('foe', 'me', ek === 'volley' ? 12 : 4, B.e.g === 'fire' ? COL.ju : null);
+    if ((ek === 'ram' || ek === 'board') && took > 0) BT.foe.lunge = BT.w * .1;
+    setTimeout(() => { if (took > 0) { btHit('me', took >= 15); AU.bad(); const r0 = cv(); if (r0) pop(`-${took}`, r0.left + BT.me.x, r0.top + BT.h * .32, 'hit me' + (took >= 20 ? ' crit' : ''));
+      if (took >= 15 && !RM) { const cd = $('btCard'); cd.classList.remove('shake'); void cd.offsetWidth; cd.classList.add('shake'); } } }, ek === 'shoot' || ek === 'volley' ? 460 : 160); }, 560);
   $('btLog').innerHTML = r.log.map(l => `<span>${l}</span>`).join(''); paintBattle(); paintHud();
   if (r.over) { $('btActs').innerHTML = ''; $('btGive').hidden = true; $('btIntent').hidden = true; setTimeout(() => battleEnd(), 900); } }
 function battleEnd() { const s = S(), B = s.battle, R = B.result || {}; const T = { win: ['격파!', 'good'], lose: ['배가 부서졌다', 'bad'], fled: ['빠져나왔다', ''], surrender: ['내주고 빠졌다', ''] }[B.over];
-  if (B.over === 'win') AU.good(); else if (B.over === 'lose') AU.bad();
+  if (B.over === 'win') { AU.good(); banner('勝', `${B.e.name}${JO(B.e.name, '을', '를')} 꺾었다`); } else if (B.over === 'lose') AU.bad();
   const lines = [R.gold ? `전리품 <b class="num">${fmt(R.gold - (R.bounty || 0))}냥</b>` : '', R.bounty ? `<b style="color:var(--rok)">현상금 ${fmt(R.bounty)}냥</b>` : '', R.fame ? `명성 +${R.fame}` : '', R.map ? `<b style="color:var(--hwang)">寶</b> 적의 선실에서 해도를 찾았다 — <b>${R.map.name}</b>` : '', ...(R.notes || []), R.wreck ? `상자 ${R.wreck.lost}개를 잃고 ${C.PORTS[R.wreck.port].name}으로 실려 왔다.` : ''].filter(Boolean);
   $('btLog').insertAdjacentHTML('afterend', `<div class="result ${T[1]}" id="btRes"><b style="font-size:22px">${T[0]}</b>${lines.length ? '<br>' + lines.join('<br>') : ''}</div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn main" id="btOk">계속</button></div>`);
   $('btOk').focus({ preventScroll: true }); $('btOk').onclick = () => { const res = C.battleClose(); $('mBattle').hidden = true; BT.open = false; paintHud();
@@ -557,23 +690,46 @@ function battleEnd() { const s = S(), B = s.battle, R = B.result || {}; const T 
     if (res && res.wreck) { hideSailbar(); trail = []; openPanel(); lookAt(S().x, S().y); saveGame(); }
     if (S().mode === 'port') after(); setTimeout(runStories, 200); }; }
 
-/* ═══════════ 잠수 화면 ═══════════ */
+/* ═══════════ 잠수 화면 — 빛살 드는 물기둥, 바닥의 난파선, 줄에 매달린 잠수부 ═══════════ */
+const DV = { open: false, y: 0, bubbles: [], motes: [], flash: 0, flashCol: '' };
 function openDive() { const s = S(), D = s.dive; if (!D) return; hideDest(); AU.chime();
   const stars = '★'.repeat(D.site.lv) + '☆'.repeat(3 - D.site.lv);
   $('dvCard').innerHTML = `<div class="eyebrow">잠수 · ${C.dateStr(s.t)}</div><h2>${D.site.name} <span class="stars">${stars}</span></h2><p class="sub" style="margin:0 0 10px">${D.site.pearl ? '해녀들이 앞서 내려간다. 얕지만 진주가 많다.' : D.site.lv >= 3 ? `두목이 숨긴 보물. <b>맨 밑(${D.max}길)</b>에는 반드시 유물이 있다.` : '깊이 갈수록 값진 것이 있다.'} 숨이 끊기면 이번에 건진 것을 <b>모두</b> 놓치고 며칠을 앓는다.</p>
-    <div class="dv"><div class="dv-col" id="dvCol">${Array.from({ length: D.max }, (_, i) => `<div class="band" style="top:${(i + 1) / (D.max + 1) * 100}%"><span>${i + 1}길</span></div>`).join('')}<div class="diver" id="dvDiver">潛<i></i><i></i><i></i></div></div>
+    <div class="dv"><div class="dv-col" id="dvCol"><canvas id="dvCv" aria-label="물속 깊이"></canvas></div>
       <div class="dv-side"><div class="breath"><span>숨</span><s><i id="dvBr"></i></s><b id="dvBrN"></b></div><div class="dv-find" id="dvFind"><span class="fch">水</span><span>뱃전에서 숨을 크게 들이쉰다.</span></div><div class="haul" id="dvHaul"></div></div></div>
     <div class="dv-row" id="dvRow"></div>`;
-  $('mDive').hidden = false; paintDive(); }
+  $('mDive').hidden = false; DV.open = true; DV.y = 0; DV.bubbles = []; DV.flash = 0; DV.motes = Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), s: .3 + Math.random() * 1.2, v: .004 + Math.random() * .01 })); paintDive(); }
+function drawDive(now) { const c = $('dvCv'), s = S(), D = s && s.dive; if (!c || !D) return; const w = c.clientWidth, h = c.clientHeight; if (!w) return;
+  if (c.width !== Math.round(w * DPR)) { c.width = Math.round(w * DPR); c.height = Math.round(h * DPR); } const g = c.getContext('2d'), t = RM ? 0 : clock; g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const surf = 18, deep = h - 26, depthY = d => surf + (deep - surf) * d / D.max;
+  const wg = g.createLinearGradient(0, 0, 0, h); wg.addColorStop(0, '#a8cdc2'); wg.addColorStop(.3, '#5c9496'); wg.addColorStop(.7, '#24555f'); wg.addColorStop(1, '#0c2229'); g.fillStyle = wg; g.fillRect(0, 0, w, h);
+  g.save(); g.globalCompositeOperation = 'lighter'; for (let i = 0; i < 5; i++) { const x0 = w * (.1 + i * .22) + Math.sin(t * .4 + i) * 10, a = .05 + .03 * Math.sin(t * .7 + i * 2); const lg = g.createLinearGradient(0, 0, 0, h * .8); lg.addColorStop(0, `rgba(230,240,220,${a})`); lg.addColorStop(1, 'rgba(230,240,220,0)'); g.fillStyle = lg; g.beginPath(); g.moveTo(x0, 0); g.lineTo(x0 + 14, 0); g.lineTo(x0 + 40, h * .8); g.lineTo(x0 + 10, h * .8); g.fill(); } g.restore();
+  g.fillStyle = 'rgba(232,240,228,.6)'; g.beginPath(); g.moveTo(0, surf); for (let x = 0; x <= w; x += 4) g.lineTo(x, surf + Math.sin(x / 9 + t * 2) * 1.6); g.lineTo(w, 0); g.lineTo(0, 0); g.fill();
+  g.fillStyle = '#2a1e14'; g.beginPath(); g.moveTo(w * .08, surf - 1); g.quadraticCurveTo(w * .1, surf + 8, w * .3, surf + 9); g.lineTo(w * .62, surf + 9); g.quadraticCurveTo(w * .78, surf + 6, w * .82, surf - 4); g.closePath(); g.fill();
+  for (let i = 1; i <= D.max; i++) { const y = depthY(i); g.strokeStyle = 'rgba(239,235,223,.22)'; g.setLineDash([3, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); g.setLineDash([]); g.fillStyle = 'rgba(239,235,223,.8)'; g.font = `11px ${css('--ui')}`; g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillText(`${i}길`, 4, y - 2); }
+  g.fillStyle = '#081a1f'; g.beginPath(); g.moveTo(0, h); for (let x = 0; x <= w; x += 8) g.lineTo(x, deep + 8 + Math.sin(x * .13) * 4 + Math.sin(x * .41) * 2); g.lineTo(w, h); g.fill();
+  if (D.site.lv >= 2) { g.save(); g.translate(w * .62, deep + 6); g.rotate(-.18); g.fillStyle = 'rgba(8,24,30,.95)'; g.beginPath(); g.moveTo(-34, 0); g.quadraticCurveTo(-30, -14, -10, -14); g.lineTo(24, -12); g.lineTo(30, 0); g.fill(); g.strokeStyle = 'rgba(8,24,30,.95)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -14); g.lineTo(6, -46); g.stroke(); g.restore(); }
+  g.strokeStyle = 'rgba(30,80,60,.85)'; g.lineWidth = 2; for (let i = 0; i < 7; i++) { const x = (i * 37 % w) + 6, L = 22 + (i * 13 % 30); g.beginPath(); g.moveTo(x, h); g.quadraticCurveTo(x + Math.sin(t * 1.2 + i) * 6, h - L * .6, x + Math.sin(t * 1.2 + i + 1) * 8, h - L); g.stroke(); }
+  g.fillStyle = 'rgba(230,240,230,.5)'; for (const m of DV.motes) { m.y -= m.v * (RM ? 0 : .3); m.x += Math.sin(t + m.y * 9) * .0006; if (m.y < 0) { m.y = 1; m.x = Math.random(); } g.fillRect(m.x * w, m.y * h, m.s, m.s); }
+  const ty = D.depth ? depthY(D.depth) - 6 : surf + 10; DV.y += (ty - DV.y) * (RM ? 1 : .08); const dx = w * .45, dy = DV.y + Math.sin(t * 2) * 1.5;
+  g.strokeStyle = 'rgba(239,235,223,.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(w * .45, surf + 8); g.quadraticCurveTo(w * .45 + Math.sin(t) * 4, (surf + dy) / 2, dx, dy - 8); g.stroke();
+  g.save(); g.translate(dx, dy); g.rotate(Math.sin(t * 1.5) * .08); g.fillStyle = '#10161a'; g.strokeStyle = '#10161a'; g.lineCap = 'round';
+  g.beginPath(); g.arc(0, -9, 4.2, 0, 7); g.fill(); g.fillStyle = '#e8efe6'; g.fillRect(-3, -10.5, 6, 2.4); g.fillStyle = '#10161a';
+  g.lineWidth = 5; g.beginPath(); g.moveTo(0, -5); g.lineTo(0, 8); g.stroke(); g.lineWidth = 2.2; const k = Math.sin(t * 6) * 3;
+  g.beginPath(); g.moveTo(0, 7); g.lineTo(-3 + k * .4, 17); g.moveTo(0, 7); g.lineTo(3 - k * .4, 17); g.moveTo(0, -3); g.lineTo(-7, 3 + k * .5); g.moveTo(0, -3); g.lineTo(7, 3 - k * .5); g.stroke(); g.restore();
+  if (!RM && Math.random() < .08) DV.bubbles.push({ x: dx + 3, y: dy - 12, r: 1 + Math.random() * 2 });
+  g.strokeStyle = 'rgba(239,245,240,.75)'; g.lineWidth = .8; for (const b of DV.bubbles) { b.y -= .6 + b.r * .2; b.x += Math.sin(b.y * .2) * .3; g.beginPath(); g.arc(b.x, b.y, b.r, 0, 7); g.stroke(); } DV.bubbles = DV.bubbles.filter(b => b.y > surf);
+  const pct = D.breath / D.full; if (pct < .3) { const v = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .2, w / 2, h / 2, Math.max(w, h) * .7); v.addColorStop(0, 'rgba(120,10,0,0)'); v.addColorStop(1, `rgba(120,10,0,${.35 + (RM ? 0 : Math.sin(t * 6) * .12)})`); g.fillStyle = v; g.fillRect(0, 0, w, h); }
+  if (DV.flash > 0) { g.fillStyle = DV.flashCol; g.globalAlpha = DV.flash; g.fillRect(0, 0, w, h); g.globalAlpha = 1; DV.flash = Math.max(0, DV.flash - .04); } }
 function paintDive() { const s = S(), D = s.dive; if (!D) return; const pct = Math.max(0, D.breath / D.full * 100);
   $('dvBr').style.width = pct + '%'; $('dvBr').classList.toggle('low', pct < 30); $('dvBrN').textContent = Math.max(0, Math.round(D.breath));
-  $('dvDiver').style.top = `calc(${D.depth / (D.max + 1) * 100}% - 4px)`;
   $('dvHaul').innerHTML = D.haul.length ? D.haul.map(h => `<span class="hchip ${h.relic ? 'relic' : ''}" title="${h.text}">${h.ch}</span>`).join('') : '<small class="fine">아직 건진 것이 없다</small>';
   if (D.over) return; const cost = C.diveCost(D), deep = D.depth >= D.max, gasp = D.breath - cost - 5 < C.GASP;
   $('dvRow').innerHTML = `<button class="btn" data-d="up">${D.depth ? '올라온다' : '그만둔다'}</button><button class="btn main ${!deep && gasp ? 'risky' : ''}" data-d="down" ${deep ? 'disabled' : ''}>${deep ? '바닥이다' : D.breath < cost ? `숨이 모자라다 — 그래도 간다 (-${cost}~${cost + 5})` : `더 깊이 · 숨 약 -${cost}~${cost + 5}${gasp ? ' · 숨이 가빠 위험' : ''}`}</button>`;
   $('dvRow').querySelectorAll('[data-d]').forEach(b => b.onclick = () => diveDo(b.dataset.d)); }
 function diveDo(a) { const D = C.diveAct(a); if (!D) return; AU.init();
   if (a === 'down') { AU.noise(.5, { freq: 300, q: .8, gain: .14, type: 'lowpass' }); const r = D.last; if (r) { const el = $('dvFind'); el.className = 'dv-find ' + (r.relic ? 'relic' : r.good ? 'fgood' : r.bad ? 'fbad' : ''); el.innerHTML = `<span class="fch">${r.ch}</span><span>${D.depth}길 — ${r.text}</span>`; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+      if (!RM && (r.bad || r.relic)) { DV.flash = .5; DV.flashCol = r.bad ? 'rgba(176,58,38,1)' : 'rgba(230,200,120,1)'; }
       setTimeout(() => { if (r.relic) { AU.gong(); } else if (r.good) AU.coin(1.4); else if (r.bad) AU.bad(); }, 250); } }
   paintDive(); if (D.over) diveEnd(); }
 function diveEnd() { const D = S().dive, R = D.result || { gold: 0, crates: [], relics: [] };
@@ -581,7 +737,7 @@ function diveEnd() { const D = S().dive, R = D.result || { gold: 0, crates: [], 
   const head = D.over === 'blackout' ? `<b>숨이 끊겼다</b> — 선원들이 줄을 당겨 끌어올렸다. ${D.lostHaul && D.lostHaul.length ? `건진 것 ${D.lostHaul.length}개를 모두 놓쳤다. ` : ''}잠수부가 ${D.faint}일을 앓아누웠고 선원들은 지쳤다.` : '<b>물 위로 올라왔다.</b>';
   $('dvRow').innerHTML = `<div class="result ${D.over === 'blackout' ? 'bad' : lines.length ? 'good' : ''}" style="flex:1">${head}${lines.length ? '<br>' + lines.join('<br>') : '<br>빈손이다.'}</div><button class="btn main" id="dvOk">계속</button>`;
   if (R.relics.length) setTimeout(() => banner('寶', `유물 — ${C.RELICS.find(x => x.id === R.relics[0]).name}`), 300); else if (D.over !== 'blackout' && R.gold) AU.pay();
-  $('dvOk').focus({ preventScroll: true }); $('dvOk').onclick = () => { C.diveClose(); $('mDive').hidden = true; paintHud(); if (S().mode === 'port') after(); }; }
+  $('dvOk').focus({ preventScroll: true }); $('dvOk').onclick = () => { C.diveClose(); $('mDive').hidden = true; DV.open = false; paintHud(); if (S().mode === 'port') after(); }; }
 
 /* ═══════════ 표적 (현상 수배 · 보물 지도) ═══════════ */
 function targetsHtml(k) { const s = S(), o = s.bOffers[k], b = s.bounty; let h = '';
@@ -674,7 +830,7 @@ function tavernHtml(k) { const s = S(), t = C.tavern(k), cap = C.mateCap();
   const dl = 3 - t.dice;
   return `<div class="sec"><h3>소문</h3><div class="acts"><button class="act" data-act="rumor" ${s.gold < C.rumorCost() ? 'disabled' : ''}><b>소문 듣기</b><small>${fmt(C.rumorCost())}냥 · 다른 항구 값${s.boons.clerk || C.hasMate('seer') || s.cap === 'ara' ? ' · 정확' : ''}</small></button></div>${lastQuote ? `<div class="quote">${lastQuote}</div>` : ''}</div>
     <div class="sec"><h3>뱃사람 구함<span>내 선원 ${s.mates.length}/${cap}</span></h3><div class="hold">${offer}</div>${mine ? `<div class="hold" style="margin-top:8px">${mine}</div>` : ''}</div>
-    <div class="sec"><h3>홀짝<span>오늘 ${dl}판 남음</span></h3><div class="dice" id="dice"><div class="dcup" id="dcup"><span>⚀</span><span>⚀</span></div><div class="dbtns">${[500, 2000].map(b => `<div class="drow"><small>${fmt(b)}냥</small><button class="btn" data-dice="${b}:odd" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>홀</button><button class="btn" data-dice="${b}:even" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>짝</button></div>`).join('')}</div><p class="fine dres" id="dres">두 주사위의 합이 홀일까 짝일까. 맞히면 건 돈의 0.9배를 번다.</p></div></div>`; }
+    <div class="sec"><h3>홀짝<span>오늘 ${dl}판 남음</span></h3><div class="dice" id="dice"><div class="dcup" id="dcup">${die(1)}${die(1)}</div><div class="dbtns">${[500, 2000].map(b => `<div class="drow"><small>${fmt(b)}냥</small><button class="btn" data-dice="${b}:odd" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>홀</button><button class="btn" data-dice="${b}:even" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>짝</button></div>`).join('')}</div><p class="fine dres" id="dres">두 주사위의 합이 홀일까 짝일까. 맞히면 건 돈의 0.9배를 번다.</p></div></div>`; }
 function journal(text, kind) { const s = S(); if (!s || !s.log || s.ended) return; const t = String(text).replace(/<br\s*\/?>/g, ' — ').replace(/<[^>]+>/g, ''); s.log.push({ t: Math.floor(s.t), x: t, k: kind || '' }); if (s.log.length > 160) s.log.splice(0, s.log.length - 160); }
 function bookLog(s) { if (!s.log || !s.log.length) return '<p class="fine bk-note">아직 적은 것이 없다.</p>'; let day = null, h = '';
   for (const e of s.log.slice().reverse()) { if (e.t !== day) { day = e.t; h += `<h4 class="bk-nat">${C.dateStr(e.t)}</h4>`; } h += `<div class="logl ${e.k}">${e.x}</div>`; } return h; }
@@ -727,9 +883,10 @@ function finish(retire) {
   const hit = s.stats.hits + s.stats.misses ? Math.round(s.stats.hits / (s.stats.hits + s.stats.misses) * 100) : 0;
   $('endScroll').innerHTML = `<div class="rank">${rank.replace('(大商)', '<br>大商')}</div>
     ${endTag}<h2>${T[0]}</h2><p class="lead">${T[1]}</p>
-    <dl class="ledger"><dt>버틴 상납</dt><dd>${s.quotaN}번 · ${Math.floor(s.quotaN / 4)}년 ${s.quotaN % 4}계절</dd><dt>바친 군자금</dt><dd>${fmt(s.paid)}냥</dd><dt>남긴 재산</dt><dd>${fmt(C.assets())}냥</dd><dt>점수</dt><dd>${fmt(sc)}</dd><dt>난이도</dt><dd>${C.dif().name} (${C.dif().sub})</dd>
-      <dt>항해</dt><dd>${s.stats.voyages}번</dd><dt>소문 적중</dt><dd>${hit}%</dd><dt>닻 내린 항구</dt><dd>${Object.keys(s.docked).length} / ${C.PORT_IDS.length}</dd><dt>발견</dt><dd>${Object.keys(s.found).length} / ${C.FINDS.length}</dd>
-      <dt>완수한 의뢰</dt><dd>${s.stats.orders}건</dd><dt>해전 승리</dt><dd>${s.stats.wins || 0}번 · 잡은 두목 ${s.stats.bounties || 0}</dd><dt>유물</dt><dd>${Object.keys(s.relics || {}).length} / ${C.RELICS.length}</dd><dt>끝낸 이야기</dt><dd>${s.stats.quests || 0} / ${C.QUESTS.length}</dd><dt>가장 큰 거래</dt><dd>${s.stats.bestTrade || '없음'}</dd><dt>최고 기록</dt><dd>${fmt(META.best)}</dd></dl>
+    <dl class="ledger">${[['점수', fmt(sc), 'score'], ['버틴 상납', `${s.quotaN}번 · ${Math.floor(s.quotaN / 4)}년 ${s.quotaN % 4}계절`], ['바친 군자금', fmt(s.paid) + '냥'], ['남긴 재산', fmt(C.assets()) + '냥'], ['난이도', `${C.dif().name} (${C.dif().sub})`],
+      ['항해', s.stats.voyages + '번'], ['소문 적중', hit + '%'], ['닻 내린 항구', `${Object.keys(s.docked).length} / ${C.PORT_IDS.length}`], ['발견', `${Object.keys(s.found).length} / ${C.FINDS.length}`],
+      ['완수한 의뢰', s.stats.orders + '건'], ['해전 승리', `${s.stats.wins || 0}번 · 두목 ${s.stats.bounties || 0}`], ['유물', `${Object.keys(s.relics || {}).length} / ${C.RELICS.length}`], ['끝낸 이야기', `${s.stats.quests || 0} / ${C.QUESTS.length}`], ['가장 큰 거래', s.stats.bestTrade || '없음'], ['최고 기록', fmt(META.best)]]
+      .map(([k, v, c]) => `<div class="${c || ''}"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
     <ul class="fates">${s.crew.map(c => `<li><b>${C.CREW.find(x => x.k === c.k).name}</b><span>${fate(c)}</span></li>`).join('')}</ul>
     ${unl.length ? `<div class="unlock">${unl.join('<br>')}</div>` : ''}
     <div class="start-row" style="margin-top:20px;justify-content:flex-start"><button class="btn main" id="eAgain">다시 바다로</button><button class="btn" id="eTitle">선장 고르기</button></div>`;
@@ -741,6 +898,7 @@ function finish(retire) {
 /* ─────────── 메뉴 ─────────── */
 function hideMenu() { $('menu').hidden = true; }
 $('tracker').onclick = () => { if (!anyModal()) openBook('quest'); };
+$('tracker').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('tracker').click(); } };
 $('bBook').onclick = e => { e.stopPropagation(); hideMenu(); if (anyModal() && $('mBook').hidden) return; if (!$('mBook').hidden) { $('mBook').hidden = true; return; } openBook(); };
 $('bkClose').onclick = () => { $('mBook').hidden = true; };
 $('bMenu').onclick = e => { e.stopPropagation(); AU.init(); $('mSound').textContent = AU.on ? '소리 끄기' : '소리 켜기'; $('menu').hidden = !$('menu').hidden; };
@@ -752,26 +910,99 @@ $('mRetireYes').onclick = () => { $('mRetire2').hidden = true; finish(true); };
 $('mRetireNo').onclick = () => { $('mRetire2').hidden = true; };
 
 /* ─────────── 첫 화면 ─────────── */
+const CAP_CH = { gungbok: '弓', ara: '商', tomo: '影' };
 let capSel = 'gungbok', diffSel = C.DIFFS[META.diff] ? META.diff : C.DIFF_NEW;
-function showTitle() { $('sTitle').hidden = false; $('bCont').hidden = !hasSave();
+function showTitle() { const t = $('sTitle'); t.classList.remove('out'); t.hidden = false; $('bCont').hidden = !hasSave(); taLayout();
   $('diffs').innerHTML = Object.entries(C.DIFFS).map(([id, d]) => `<button class="dif-b ${diffSel === id ? 'on' : ''}" data-diff="${id}" role="radio" aria-checked="${diffSel === id}"><span class="dch">${d.ch}</span><b>${d.name}</b><small>${d.sub}</small></button>`).join('');
-  $('diffs').querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diffSel = b.dataset.diff; META.diff = diffSel; saveMeta(); showTitle(); });
-  $('diffLine').textContent = `난이도 ${C.DIFFS[diffSel].name} — ${C.DIFFS[diffSel].text}`;
+  $('diffs').querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diffSel = b.dataset.diff; META.diff = diffSel; saveMeta(); showTitle(); $('diffs').querySelector(`[data-diff="${diffSel}"]`).focus({ preventScroll: true }); });
+  $('diffLine').textContent = `${C.DIFFS[diffSel].name} — ${C.DIFFS[diffSel].text}`;
   $('caps').innerHTML = Object.entries(C.CAPTAINS).map(([id, c]) => { const open = !c.unlock || META.unlocked[id];
-    return `<button class="cap ${capSel === id ? 'on' : ''}" data-cap="${id}" ${open ? '' : 'disabled'}><span class="nm">${c.name}</span><small>${c.title}</small><p>${open ? c.perk : ''}</p>${open ? '' : `<span class="lock">${c.unlock}</span>`}</button>`; }).join('');
-  $('caps').querySelectorAll('.cap').forEach(b => b.onclick = () => { capSel = b.dataset.cap; showTitle(); });
+    return `<button class="cap ${capSel === id ? 'on' : ''}" data-cap="${id}" aria-pressed="${capSel === id}" ${open ? '' : 'disabled'}><span class="cs">${open ? CAP_CH[id] || '船' : '?'}</span><span class="nm">${c.name}</span><small>${c.title}</small>${open ? `<p>${c.perk}</p>` : `<span class="lock">${c.unlock}</span>`}</button>`; }).join('');
+  $('caps').querySelectorAll('.cap').forEach(b => b.onclick = () => { capSel = b.dataset.cap; showTitle(); $('caps').querySelector(`[data-cap="${capSel}"]`).focus({ preventScroll: true }); });
   $('bestLine').textContent = META.best ? `최고 기록 ${fmt(META.best)} · ${META.runs}번 항해 · 엔딩 ${Object.keys(META.endings || {}).length}/${Object.keys(C.ENDINGS).length}` : ''; }
-function resetView() { spNote = null; mapAppear = {}; BT.open = false; trail = []; portAppear = {}; findAppear = {}; rumorPulse = {}; rivalMark = {}; lastQuote = null; speedIdx = 0; for (const k of Object.keys(last)) delete last[k]; camGoal = null; }
+/* 첫 화면에서 바다로: 종이가 걷히듯 사라진다 */
+function leaveTitle() { const t = $('sTitle'); if (RM) { t.hidden = true; return; } t.classList.add('out'); setTimeout(() => { t.hidden = true; t.classList.remove('out'); }, 480); }
+function resetView() { GT.v = null; spNote = null; mapAppear = {}; BT.open = false; DV.open = false; trail = []; portAppear = {}; findAppear = {}; rumorPulse = {}; rivalMark = {}; lastQuote = null; speedIdx = 0; for (const k of Object.keys(last)) delete last[k]; camGoal = null; }
 function startGame(cap, diff) {
   AU.init(); C.newGame(cap, diff || diffSel); fogReset(); resetView();
-  $('sTitle').hidden = true; cam.touched = 0; cam.wide = false; openPanel(); relayout(true); paintHud(); saveGame();
+  leaveTitle(); cam.touched = 0; cam.wide = false; openPanel(); relayout(true); paintHud(); saveGame();
   const c = C.CAPTAINS[cap]; toast(`${c.name} — ${c.title}. 난이도 ${C.dif().name}. ${C.PORTS[c.start].name}에서 시작한다. 첫 상납은 ${fmt(C.quotaNow())}냥, ${Math.round(C.daysToDue())}일 뒤.`);
-  setTimeout(() => banner('春', '봄 · 계절이 끝날 때마다 청해진 군자금을 바친다'), 300);
-  coachStep = META.tut ? -2 : -1; if (!META.tut && cap === 'gungbok') setTimeout(() => coach(0), 1600);
-  setTimeout(runStories, 1300);
+  setTimeout(() => banner('春', '봄 · 계절이 끝날 때마다 청해진 군자금을 바친다'), 600);
+  coachStep = META.tut ? -2 : -1; if (!META.tut && cap === 'gungbok') setTimeout(() => coach(0), 1900);
+  setTimeout(runStories, 1500);
 }
 $('bStart').onclick = () => startGame(capSel);
-$('bCont').onclick = () => { AU.init(); if (!loadGame()) { toast('이어할 항해가 없다.'); return; } fogRebuild(); resetView(); $('sTitle').hidden = true; coachStep = -2; cam.touched = 0; openPanel(); relayout(true); paintHud(); toast('항해를 이어간다.'); runStories(); };
+$('bCont').onclick = () => { AU.init(); if (!loadGame()) { toast('이어할 항해가 없다.'); return; } fogRebuild(); resetView(); leaveTitle(); coachStep = -2; cam.touched = 0; openPanel(); relayout(true); paintHud(); toast('항해를 이어간다.'); setTimeout(runStories, 500); };
+
+/* ─────────── 첫 화면 그림: 먹으로 그린 바다와 신라 상선 ─────────── */
+/* 옆에서 본 배. y는 물금(흘수선), dir 1이면 오른쪽을 본다 */
+function shipSide(g, x, y, s, o = {}) { const dir = o.dir || 1, hull = o.hull || '#3b2a1c', sail = o.sail || '#dcc28a', ink = '#1b2324';
+  g.save(); g.translate(x, y); g.rotate((o.roll || 0) * dir); g.scale(s * dir, s); g.globalAlpha = o.alpha == null ? 1 : o.alpha;
+  g.fillStyle = 'rgba(27,35,36,.16)'; g.beginPath(); g.ellipse(0, 5, 66, 6, 0, 0, 7); g.fill();
+  g.strokeStyle = ink; g.lineWidth = 2.4; g.lineCap = 'round'; g.beginPath(); g.moveTo(-52, -16); g.lineTo(-66, 9); g.stroke();
+  g.fillStyle = hull; g.beginPath(); g.moveTo(-63, 2); g.lineTo(-71, 13); g.lineTo(-64, 16); g.lineTo(-59, 5); g.closePath(); g.fill();
+  const hullPath = () => { g.beginPath(); g.moveTo(-60, -22); g.quadraticCurveTo(-59, -4, -46, 6); g.lineTo(40, 6); g.quadraticCurveTo(57, 2, 66, -24); g.lineTo(59, -22); g.quadraticCurveTo(50, -13, 40, -13); g.lineTo(-44, -13); g.quadraticCurveTo(-53, -15, -60, -22); g.closePath(); };
+  hullPath(); const hg = g.createLinearGradient(0, -22, 0, 6); hg.addColorStop(0, hull); hg.addColorStop(1, '#1b1410'); g.fillStyle = hg; g.fill(); g.strokeStyle = ink; g.lineWidth = 1.3; g.stroke();
+  g.strokeStyle = 'rgba(245,240,227,.16)'; g.lineWidth = .9; for (const yy of [-7, -1]) { g.beginPath(); g.moveTo(-52, yy); g.lineTo(52, yy); g.stroke(); }
+  g.strokeStyle = o.trim || '#b03a26'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(-56, -16.5); g.quadraticCurveTo(-49, -12, -40, -12); g.lineTo(42, -12); g.quadraticCurveTo(55, -13, 62, -21); g.stroke();
+  g.fillStyle = 'rgba(245,240,227,.55)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(-30 + i * 13, -5, 1.6, 0, 7); g.fill(); }
+  g.fillStyle = hull; g.fillRect(-52, -26, 17, 13); g.strokeStyle = ink; g.lineWidth = 1; g.strokeRect(-52, -26, 17, 13);
+  g.fillStyle = ink; g.beginPath(); g.moveTo(-56, -26); g.quadraticCurveTo(-44, -29, -43.5, -33); g.quadraticCurveTo(-43, -29, -31, -26); g.closePath(); g.fill();
+  const masts = [[-8, 84, 1], [30, 60, .74]], sw = o.sway || 0;
+  g.strokeStyle = 'rgba(27,35,36,.55)'; g.lineWidth = .7; g.beginPath(); g.moveTo(-8, -96); g.lineTo(64, -22); g.moveTo(-8, -96); g.lineTo(-58, -22); g.moveTo(30, -72); g.lineTo(65, -23); g.stroke();
+  for (const [mx, h, k] of masts) { const top = -12 - h, bot = -20, wv = h * .5;
+    g.strokeStyle = ink; g.lineWidth = 2.2; g.beginPath(); g.moveTo(mx, -12); g.lineTo(mx, top - 6); g.stroke();
+    const lt = mx - wv * .78, lb = mx - wv, bulge = 6 * k + sw * 3;
+    const sailPath = () => { g.beginPath(); g.moveTo(mx + 1, top + 2); g.lineTo(mx + 1, bot); g.lineTo(lb, bot + 1); g.quadraticCurveTo(lb - bulge, (top + bot) / 2, lt, top + 4); g.closePath(); };
+    sailPath(); const sg = g.createLinearGradient(lb, top, mx, bot); sg.addColorStop(0, o.sail2 || '#e9d7aa'); sg.addColorStop(1, sail); g.fillStyle = sg; g.fill(); g.strokeStyle = ink; g.lineWidth = 1.1; g.stroke();
+    g.save(); sailPath(); g.clip(); g.strokeStyle = 'rgba(27,35,36,.6)'; g.lineWidth = 1; const n = 6;
+    for (let i = 1; i < n; i++) { const yy = top + (bot - top) * i / n; g.beginPath(); g.moveTo(mx + 1, yy); g.quadraticCurveTo((mx + lb) / 2, yy + 2.5, lb - bulge, yy + 1); g.stroke(); }
+    if (o.tatter) { g.fillStyle = 'rgba(27,35,36,.35)'; g.beginPath(); g.moveTo(lb, bot); g.lineTo(lb + 8, bot - 10); g.lineTo(lb + 3, bot - 2); g.fill(); }
+    g.restore(); }
+  if (o.flag) { const t = o.t || 0; g.fillStyle = o.flag; g.beginPath(); g.moveTo(-8, -102); for (let i = 0; i <= 6; i++) g.lineTo(-8 - i * 4, -102 + Math.sin(t * 6 + i * .9) * 1.6 + i * .5); for (let i = 6; i >= 0; i--) g.lineTo(-8 - i * 4, -96 + Math.sin(t * 6 + i * .9) * 1.6 + i * .2); g.closePath(); g.fill(); }
+  g.restore();
+  if (o.ch) { const ex = x + dir * s * (-8 - 84 * .5 * .45), ey = y + s * (-12 - 84 * .55); g.save(); g.globalAlpha = o.alpha == null ? 1 : o.alpha; g.fillStyle = o.chBg || COL.ju; g.beginPath(); g.arc(ex, ey, 11 * s, 0, 7); g.fill(); g.fillStyle = COL.hanji2; g.font = `${Math.round(13 * s)}px ${css('--seal')}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(o.ch, ex, ey + .5); g.restore(); } }
+/* 물결 한 줄: 사인 위에 먹선, 앞쪽 줄은 말린 물마루와 거품 */
+function waveRow(g, y, w, amp, len, ph, alpha, lw, curls) { const Y = x => y + Math.sin(x / len + ph) * amp + Math.sin(x / (len * .43) + ph * 1.7) * amp * .35;
+  g.beginPath(); for (let x = -20; x <= w + 20; x += 6) x === -20 ? g.moveTo(x, Y(x)) : g.lineTo(x, Y(x));
+  g.strokeStyle = `rgba(27,46,52,${alpha})`; g.lineWidth = lw; g.stroke();
+  if (curls) { const step = len * Math.PI * 2; for (let x0 = ((-ph * len) % step + step) % step - step; x0 < w + step; x0 += step) { const cx = x0 + len * Math.PI * .5, cy = Y(cx), r = amp * 1.1;
+    g.strokeStyle = 'rgba(245,240,227,.85)'; g.lineWidth = lw * 1.3; g.beginPath(); g.moveTo(cx - r * 2.2, cy + r * .5); g.quadraticCurveTo(cx - r, cy - r * .2, cx, cy - r * .1); g.stroke();
+    g.strokeStyle = `rgba(27,46,52,${Math.min(.8, alpha + .15)})`; g.lineWidth = lw; g.beginPath(); g.moveTo(cx - r * 1.6, cy + r * .2); g.quadraticCurveTo(cx - r * .2, cy - r * 1.3, cx + r * .7, cy - r * .3); g.quadraticCurveTo(cx + r * .9, cy + r * .3, cx + r * .3, cy + r * .2); g.stroke(); } } }
+const TA = { w: 0, h: 0, bg: null, horizon: 0, artH: 0, last: 0, mobile: false };
+function taLayout() { const c = $('tArt'); TA.w = innerWidth; TA.h = innerHeight; c.width = Math.round(TA.w * DPR); c.height = Math.round(TA.h * DPR); TA.mobile = TA.w <= 680;
+  TA.artH = TA.mobile ? Math.max(220, Math.min(400, TA.h * .46)) + 40 : TA.h; TA.horizon = TA.artH * (TA.mobile ? .56 : .55); TA.bg = null; TA.last = 0; }
+function taStatic() { const w = TA.w, h = TA.h, hz = TA.horizon, A = TA.artH, b = document.createElement('canvas'); b.width = Math.round(w * DPR); b.height = Math.round(h * DPR); const g = b.getContext('2d'), r = rng(9); g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const sky = g.createLinearGradient(0, 0, 0, hz); sky.addColorStop(0, '#f1ead8'); sky.addColorStop(1, '#e1d6bb'); g.fillStyle = sky; g.fillRect(0, 0, w, hz + 2);
+  const sx = TA.mobile ? w * .26 : w * .2, sy = A * (TA.mobile ? .27 : .25), sr = Math.min(w, A) * (TA.mobile ? .13 : .1);
+  const sun = g.createRadialGradient(sx - sr * .2, sy - sr * .2, sr * .1, sx, sy, sr); sun.addColorStop(0, 'rgba(204,78,50,.95)'); sun.addColorStop(1, 'rgba(176,58,38,.82)'); g.fillStyle = sun; g.beginPath(); g.arc(sx, sy, sr, 0, 7); g.fill();
+  for (let i = 0; i < 5; i++) { const yy = sy - sr * .6 + i * sr * .35 + r() * 10, xx = sx - sr * 2 + r() * sr * 2, ww = sr * (2 + r() * 3); const cg = g.createLinearGradient(xx, 0, xx + ww, 0); cg.addColorStop(0, 'rgba(241,234,216,0)'); cg.addColorStop(.5, 'rgba(241,234,216,.75)'); cg.addColorStop(1, 'rgba(241,234,216,0)'); g.fillStyle = cg; g.fillRect(xx, yy, ww, 2 + r() * 4); }
+  const layers = [{ base: hz + 2, amp: A * .16, col: [96, 116, 116], a: .32, seed: 1, edge: .35 }, { base: hz + 2, amp: A * .24, col: [58, 76, 76], a: .5, seed: 2, edge: .7 }, { base: hz + 4, amp: A * .34, col: [27, 35, 36], a: .82, seed: 3, edge: 1 }];
+  for (const L of layers) { const ph = [r() * 9, r() * 9, r() * 9], hf = x => { const u = x / w, edge = TA.mobile ? Math.pow(Math.abs(u - .55) * 1.6, 1.6) : Math.max(Math.pow(1 - u * 2.4, 2), Math.pow(Math.max(0, u - .62) * 2.6, 2.2)) * L.edge + (L.seed === 1 ? .35 : 0);
+      return Math.max(0, (Math.sin(x / 90 + ph[0]) * .45 + Math.sin(x / 37 + ph[1]) * .25 + Math.sin(x / 15 + ph[2]) * .08 + .55) * Math.min(1, edge)) * L.amp; };
+    g.beginPath(); g.moveTo(-5, L.base); const pts = []; for (let x = -5; x <= w + 5; x += 4) { const y = L.base - hf(x); pts.push([x, y]); g.lineTo(x, y); } g.lineTo(w + 5, L.base + 2); g.lineTo(-5, L.base + 2); g.closePath();
+    const top = L.base - L.amp, mg = g.createLinearGradient(0, top, 0, L.base); mg.addColorStop(0, `rgba(${L.col},${L.a})`); mg.addColorStop(.7, `rgba(${L.col},${L.a * .45})`); mg.addColorStop(1, `rgba(${L.col},0)`); g.fillStyle = mg; g.fill();
+    g.strokeStyle = `rgba(27,35,36,${L.a * .5})`; g.lineWidth = .8; for (let i = 0; i < pts.length; i += 3) { const [x, y] = pts[i]; if (L.base - y < 6) continue; g.beginPath(); g.moveTo(x, y + 2); g.lineTo(x + (r() - .5) * 4, y + 6 + r() * (L.base - y) * .35); g.stroke(); }
+    if (L.seed === 3) { for (const [x, y] of pts) if (L.base - y > L.amp * .55 && x > 40 && x < w - 40 && r() < .035) pine(g, x, y, A / 600, r); } }
+  const sea = g.createLinearGradient(0, hz, 0, A); sea.addColorStop(0, '#c9d6c9'); sea.addColorStop(.35, '#93b3aa'); sea.addColorStop(1, '#3f6c71'); g.fillStyle = sea; g.fillRect(0, hz, w, h - hz);
+  g.fillStyle = 'rgba(245,240,227,.55)'; g.fillRect(0, hz, w, 1.5);
+  for (let i = 0; i < 9; i++) { const ww = sr * (1.4 - i * .12), yy = hz + 5 + i * 6; g.fillStyle = `rgba(176,58,38,${.35 - i * .035})`; g.fillRect(sx - ww / 2 + (r() - .5) * 10, yy, ww, 1.6); }
+  for (const [fx, fs] of [[.62, .8], [.74, .55]]) { const x = w * fx, y = hz - 1, k = A / 900 * fs; g.fillStyle = 'rgba(27,35,36,.45)'; g.beginPath(); g.moveTo(x - 10 * k, y); g.lineTo(x + 10 * k, y); g.lineTo(x + 7 * k, y + 3 * k); g.lineTo(x - 8 * k, y + 3 * k); g.fill(); g.fillRect(x - 2 * k, y - 20 * k, 7 * k, 18 * k); }
+  paperTexture(g, w, h, r, Math.round(w * h / 260)); TA.bg = b; }
+function pine(g, x, y, k, r) { g.save(); g.translate(x, y); g.scale(k * 1.6, k * 1.6); g.strokeStyle = 'rgba(27,35,36,.9)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-4, -14, 3, -26); g.stroke();
+  g.fillStyle = 'rgba(27,35,36,.85)'; for (let i = 0; i < 4; i++) { const yy = -10 - i * 6, ww = 14 - i * 2.6 + r() * 3; g.beginPath(); g.ellipse(2 + (r() - .5) * 4, yy, ww, 2.6, (r() - .5) * .3, 0, 7); g.fill(); } g.restore(); }
+function titleFrame(now) { if (TA.last && now - TA.last < 33) return; TA.last = now; const c = $('tArt'), g = c.getContext('2d'); if (!TA.bg) taStatic(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(TA.bg, 0, 0);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); const w = TA.w, hz = TA.horizon, A = TA.artH, t = RM ? 0 : clock;
+  const sx = TA.mobile ? w * .44 : w * .3, sY = hz + (A - hz) * (TA.mobile ? .5 : .44), ss = TA.mobile ? A / 330 : Math.min(2.3, A / 400), bob = Math.sin(t * 1.3) * 3, roll = Math.sin(t * .9) * .025;
+  const rows = 16, rowsY = []; for (let j = 0; j < rows; j++) { const q = (j + 1) / rows; rowsY.push(hz + (A - hz) * Math.pow(q, 1.55) + 4); }
+  const row = j => { const q = (j + 1) / rows, y = rowsY[j]; waveRow(g, y, w, 1 + q * 7, 22 + q * 70, t * (.6 + q * .9) + j * 1.3, .1 + q * .28, .5 + q * 1.4, q > .72); };
+  for (let j = 0; j < rows; j++) if (rowsY[j] <= sY + 4) row(j);
+  for (const [bx, by, bs] of [[.52, .17, 1], [.56, .2, .8], [.49, .22, .7]]) { const x = w * bx + Math.sin(t * .3 + bx * 9) * 6, y = A * by + Math.cos(t * .4 + by * 9) * 3, k = bs * (TA.mobile ? .8 : 1.2), fl = Math.sin(t * 5 + bx * 20) * 2; g.strokeStyle = 'rgba(27,35,36,.7)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x - 8 * k, y - 2 * k + fl); g.quadraticCurveTo(x - 3 * k, y - 4 * k, x, y); g.quadraticCurveTo(x + 3 * k, y - 4 * k, x + 8 * k, y - 2 * k + fl); g.stroke(); }
+  g.strokeStyle = 'rgba(245,240,227,.7)'; g.lineWidth = 1.4; for (let i = 0; i < 4; i++) { const k = (t * .5 + i * .25) % 1; g.globalAlpha = 1 - k; g.beginPath(); g.ellipse(sx - (70 + k * 120) * ss * .9, sY + bob + 6, (10 + k * 30) * ss * .5, 2.4, 0, 0, 7); g.stroke(); } g.globalAlpha = 1;
+  shipSide(g, sx, sY + bob, ss, { dir: 1, roll, flag: COL.ju, t, sway: Math.sin(t * .8), ch: '淸' });
+  const hb = g.createLinearGradient(sx - 90 * ss, 0, sx + 90 * ss, 0); hb.addColorStop(0, 'rgba(110,150,148,0)'); hb.addColorStop(.25, 'rgba(110,150,148,.85)'); hb.addColorStop(.75, 'rgba(110,150,148,.85)'); hb.addColorStop(1, 'rgba(110,150,148,0)'); g.fillStyle = hb; g.beginPath(); g.moveTo(sx - 90 * ss, sY + 4 + bob); for (let x = -90; x <= 90; x += 6) g.lineTo(sx + x * ss, sY + bob + 2 + Math.sin(x / 9 + t * 2) * 1.5 * ss); g.lineTo(sx + 90 * ss, sY + bob + 9 * ss); g.lineTo(sx - 90 * ss, sY + bob + 9 * ss); g.fill();
+  for (let j = 0; j < rows; j++) if (rowsY[j] > sY + 4) row(j); }
+
 $('bSound').onclick = () => { AU.init(); AU.set(!AU.on); };
 addEventListener('keydown', e => { const s = S(); if (s && !$('mBattle').hidden && s.battle && !s.battle.over && /^[1-5]$/.test(e.key)) { const o = C.battleOpts()[+e.key - 1]; if (o && o.ok) battleDo(o.id); return; }
   if (s && !$('mDive').hidden && s.dive && !s.dive.over) { if (e.key === 'ArrowDown') { e.preventDefault(); diveDo('down'); } if (e.key === 'ArrowUp') { e.preventDefault(); diveDo('up'); } return; }
@@ -780,22 +1011,24 @@ addEventListener('keydown', e => { const s = S(); if (s && !$('mBattle').hidden 
   if (!s || anyModal() || !$('sTitle').hidden) return; if (e.key === 'Escape') { hideDest(); hideMenu(); }
   if (s.mode === 'sail' && ['1', '2', '3'].includes(e.key)) { speedIdx = +e.key - 1; showSailbar(); }
   if (s.mode === 'sail' && (e.code === 'Space' || e.key === ' ')) { e.preventDefault(); toggleRow(); } });
-addEventListener('resize', () => { relayout(false); if (BT.open) btLayout(); placeToasts(); });
+addEventListener('resize', () => { relayout(false); if (BT.open) btLayout(); if (!$('sTitle').hidden) taLayout(); placeToasts(); });
 document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu') && !e.target.closest('#bMenu')) hideMenu(); });
 
 /* ─────────── 루프 ─────────── */
 let prev = performance.now();
-function frame(now) { const dt = Math.min(.1, (now - prev) / 1000); prev = now; clock += dt; const s = S();
-  for (const p of winds) { if (p.life > 0 && s) { const w = C.wind(s.t, p.x, p.y); p.x += Math.cos(w.dir) * w.str * 30 * dt; p.y += Math.sin(w.dir) * w.str * 30 * dt; p.life -= dt; } }
-  if (s && !s.ended && s.mode === 'sail' && !anyModal() && $('sTitle').hidden) { handle(C.update(dt / SEC_PER_DAY * SPEEDS[speedIdx]));
+function frame(now) { const dt = Math.min(.1, (now - prev) / 1000); prev = now; clock += dt; const s = S(), title = !$('sTitle').hidden, titleOnly = title && !$('sTitle').classList.contains('out');
+  if (!titleOnly) for (const p of winds) { if (p.life > 0 && s) { const w = C.wind(s.t, p.x, p.y); p.x += Math.cos(w.dir) * w.str * 30 * dt; p.y += Math.sin(w.dir) * w.str * 30 * dt; p.life -= dt; } }
+  if (s && !s.ended && s.mode === 'sail' && !anyModal() && !title) { handle(C.update(dt / SEC_PER_DAY * SPEEDS[speedIdx]));
     if (!cam.wide && performance.now() - cam.touched > 2500 && !camGoal) { cam.x += (s.x - cam.x) * .06; cam.y += (s.y - cam.y) * .06; clampCam(); } }
-  if (camGoal) { cam.x += (camGoal.x - cam.x) * .12; cam.y += (camGoal.y - cam.y) * .12; cam.z += (camGoal.z - cam.z) * .12; clampCam(); if (Math.abs(camGoal.x - cam.x) < 1 && Math.abs(camGoal.y - cam.y) < 1 && Math.abs(camGoal.z - cam.z) < .002) camGoal = null; }
-  draw(); if (s) paintHud(); if (BT.open) drawBattle(); requestAnimationFrame(frame); }
+  if (camGoal) { const k = RM ? 1 : .12; cam.x += (camGoal.x - cam.x) * k; cam.y += (camGoal.y - cam.y) * k; cam.z += (camGoal.z - cam.z) * k; clampCam(); if (Math.abs(camGoal.x - cam.x) < 1 && Math.abs(camGoal.y - cam.y) < 1 && Math.abs(camGoal.z - cam.z) < .002) camGoal = null; }
+  if (title) titleFrame(now); if (!titleOnly) draw(); if (s && !titleOnly) paintHud(); if (BT.open) drawBattle(); if (DV.open) drawDive(now); requestAnimationFrame(frame); }
 
 /* ─────────── 시작 ─────────── */
 paintSoundIcon();
-const fontsReady = (document.fonts && document.fonts.load) ? Promise.race([Promise.all([document.fonts.load(`40px "Song Myung"`), document.fonts.load(`15px "IBM Plex Sans KR"`)]), new Promise(r => setTimeout(r, 1800))]) : Promise.resolve();
-fontsReady.then(() => { paintBase(); });
+const FONTS = [['40px "Chunghae Myeong"', '청해'], ['600 15px "Chunghae Sans"', '냥'], ['15px "Chunghae Sans"', '냥'], ['40px "Chunghae Seal"', '淸海'], ['40px "Chunghae Brush"', '淸海']];
+const fontsReady = (document.fonts && document.fonts.load) ? Promise.race([Promise.all(FONTS.map(([f, t]) => document.fonts.load(f, t))), new Promise(r => setTimeout(r, 2500))]) : Promise.resolve();
+fontsReady.then(() => { sealCache.clear(); TA.bg = null; paintBase(); });
 C.newGame('gungbok'); fogReset(); relayout(true); cam.z = cam.fit; cam.x = C.WORLD.w / 2; cam.y = C.WORLD.h / 2; showTitle(); requestAnimationFrame(frame);
 window.__CHUNGHAE = { C, startGame, paintTracker, setTab: t => { panelTab = t; paintPanel(); }, openBook, drainQuests, runStories, openBattle, openDive, battleDo, diveDo, toggleRow, paintPanel, openPanel, finish, openReveal, openEvent, openQuota, showDest, cam, relayout, lookAt };
 })();
+
