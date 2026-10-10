@@ -242,7 +242,7 @@ function wind(t, x, y) { const m = monsoon(t), h = t; const n1 = Math.sin(h * .9
 function windFactor(deg) { const a = Math.abs(deg); let f; if (a <= 45) f = 1; else if (a <= 90) f = 1 - (a - 45) / 45 * .2; else if (a <= 135) f = .8 - (a - 90) / 45 * .3; else f = .5 - (a - 135) / 45 * .15;
   if (S && S.boons) { const c = S.boons.charm || 0; f = f + (1 - f) * .3 * c; } return f; }
 const windWord = deg => { const a = Math.abs(deg); return a <= 55 ? '순풍' : a <= 115 ? '옆바람' : '역풍'; };
-const shipSpeed = () => ship().spd * (1 + .12 * ((S && S.boons.sails) || 0)) * (S && S.relics && S.relics.needle ? 1.08 : 1) * (S && S.flags.kuroshio ? 1.04 : 1);
+const shipSpeed = () => ship().spd * (1 + .12 * ((S && S.boons.sails) || 0)) * (S && S.relics && S.relics.needle ? 1.08 : 1) * (S && S.flags.kuroshio ? 1.04 : 1) * (S && S.mates && S.mates.includes('hassan') ? 1.06 : 1);
 function estimateDays(path, t, spd) { let d = 0; for (let i = 0; i < path.length - 1; i++) { const [x1, y1] = path[i], [x2, y2] = path[i + 1]; const L = Math.hypot(x2 - x1, y2 - y1); if (!L) continue;
   const dir = Math.atan2(y2 - y1, x2 - x1), w = wind(t + d, (x1 + x2) / 2, (y1 + y2) / 2); d += L / (BASE_KMD * Math.min(1.05, w.str) * windFactor(angDiff(dir, w.dir) * 180 / Math.PI) * spd); } return d; }
 function pathWind(path, t) { const [x1, y1] = path[0], [x2, y2] = path[path.length - 1]; const w = wind(t, (x1 + x2) / 2, (y1 + y2) / 2); return windWord(angDiff(Math.atan2(y2 - y1, x2 - x1), w.dir) * 180 / Math.PI); }
@@ -258,7 +258,7 @@ function revealPath(a, b, r) { const p = findPath(PORTS[a].x, PORTS[a].y, PORTS[
 
 function newGame(capId) {
   const cap = CAPTAINS[capId] || CAPTAINS.gungbok, home = PORTS[cap.start];
-  S = { v: 5, cap: capId, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
+  S = { v: 6, cap: capId, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
     gold: cap.gold, slots: [], tier: 0, hull: 100, hullMax: 100, threat: 0, fame: 0, stage: 0,
     markets: {}, booms: [], nextBoom: 4, ledger: {}, rumors: [], found: {}, docked: { [cap.start]: 1 },
     known: Object.fromEntries(PORT_IDS.map(k => [k, !PORTS[k].hidden || (cap.knows || []).includes(k)])),
@@ -267,14 +267,15 @@ function newGame(capId) {
     quotaN: 0, nextDue: 90, paid: 0, boons: {}, draft: null, relief: 0, orders: [], offers: {}, rivals: [], spotted: {},
     stats: { trades: 0, bestMult: 0, bestTrade: null, profit: 0, voyages: 0, hits: 0, misses: 0, orders: 0, years: 0 }, ended: null,
     stamina: 100, rowing: false, news: [], nextNews: ri(12, 20), passenger: null, store: [], spCD: {}, slow: 0, escort: 0, blessed: 0, freed: 0, special: {},
-    maps: [], relics: {}, bounty: null, bOffers: {}, beaten: {}, battle: null, dive: null, quests: {}, qDecl: {}, qNotes: [], regions: {} };
+    maps: [], relics: {}, bounty: null, bOffers: {}, beaten: {}, battle: null, dive: null, quests: {}, qDecl: {}, qNotes: [], regions: {},
+    main: { act: 0, started: false, offered: false, flags: {}, visits: {}, paid: {}, vn: 0, base: null }, mates: [], taverns: {}, log: [], ending: null };
   initMarkets(); initRivals();
   for (const k of PORT_IDS) if (S.known[k]) revealCircle(PORTS[k].x, PORTS[k].y, 140);
   for (const [a, b] of [['cheonghae', 'jeoksan'], ['cheonghae', 'hakata'], ['cheonghae', 'ulsan'], ['cheonghae', 'dangeun'], ['jeoksan', 'deungju'], ['jeoksan', 'yangzhou'], ['yangzhou', 'mingzhou'], ['cheonghae', 'tamna'], ['tamna', 'mingzhou'], ['cheonghae', 'hoejin'], ['dangeun', 'hyeolgu'], ['jeoksan', 'laizhou'], ['jeoksan', 'mizhou'], ['mizhou', 'chuzhou'], ['yangzhou', 'hangzhou'], ['ulsan', 'gimhae'], ['mingzhou', 'wenzhou'], ['hakata', 'izumo'], ['ulsan', 'samcheok']]) revealPath(a, b, 75);
   if (S.known.naniwa) { revealPath('hakata', 'naniwa', 60); revealCircle(PORTS.naniwa.x, PORTS.naniwa.y, 100); }
   for (const [k, id] of cap.rumors) { tickMarket(k); S.rumors.push({ k, id, price: sellPrice(k, id), day: -ri(4, 9), src: '소문' }); }
   observe(S.at, false); makeOffer(S.at); makeBounty(S.at, true);
-  addMap(1, { near: [home.x, home.y], rmin: 130, rmax: 260, name: '폭풍에 진 신라 배' }); offerQuests(S.at);
+  addMap(1, { near: [home.x, home.y], rmin: 130, rmax: 260, name: '폭풍에 진 신라 배' }); offerQuests(S.at); mainTick();
   return S;
 }
 
@@ -301,7 +302,7 @@ function tickMarket(k) { const m = S.markets[k], today = Math.floor(S.t); if (to
   m.upd = today; return m; }
 const natOf = k => PORTS[k].nation;
 function sellBonus(k) { const b = S.boons; let m = 1 + .08 * (b.haggle || 0); if (b.tang && natOf(k) === '당') m += .15; if (b.wa && (natOf(k) === '왜' || natOf(k) === '남도')) m += .15;
-  for (const n of liveNews()) { if (n.festival === k) m *= n.fmult; if (n.tax && natOf(k) === n.tax) m *= .9; } return m * (S._bonus || 1); }
+  for (const n of liveNews()) { if (n.festival === k) m *= n.fmult; if (n.tax && natOf(k) === n.tax) m *= .9; } return m * (S._bonus || 1) * (hasMate('trader') ? 1.06 : 1); }
 const rawPrice = (k, id) => Math.max(1, Math.round(G[id].base * S.markets[k].idx[id]));
 const buyPrice = (k, id) => Math.max(1, Math.round(rawPrice(k, id) * (1 - .08 * (S.boons.bargain || 0))));
 const sellPrice = (k, id) => Math.max(1, Math.round(rawPrice(k, id) * .93 * sellBonus(k)));
@@ -386,7 +387,7 @@ function expireOrders() { const gone = []; for (const o of S.orders.slice()) if 
 const rumorCost = () => (S.cap === 'ara' || S.boons.clerk) ? 200 : 400;
 function buyRumor() { const c = rumorCost(); if (S.gold < c) return { ok: false, msg: '돈이 모자란다' }; S.gold -= c;
   if (Math.random() < .14) { const m = addMap(Math.random() < .3 ? 2 : 1); if (m) return { ok: true, map: m, text: { line: `술 취한 늙은 뱃사람이 낡은 해도를 내민다. "${m.name}… 내가 다시 갈 일은 없지."` } }; }
-  return { ok: true, text: makeRumor((S.cap === 'ara' || S.boons.clerk) ? 'true' : 'talk') }; }
+  return { ok: true, text: makeRumor((S.cap === 'ara' || S.boons.clerk || hasMate('seer')) ? 'true' : 'talk') }; }
 function makeRumor(kind) {
   const today = Math.floor(S.t); spawnBooms(today); const known = PORT_IDS.filter(k => S.known[k] && k !== S.at); const roll = Math.random();
   const push = r => { S.rumors.push(r); if (S.rumors.length > 40) S.rumors.shift(); };
@@ -439,7 +440,7 @@ function updateRivals(dt) {
 }
 
 /* ─────────── 경계 · 이야기 ─────────── */
-function addThreat(v) { S.threat = Math.min(100, S.threat + v * (S.cap === 'tomo' ? .5 : 1) * (S.boons.court ? .6 : 1) * (S.relics && S.relics.kwanum ? .75 : 1)); checkThreat(); }
+function addThreat(v) { S.threat = Math.min(100, S.threat + v * (S.cap === 'tomo' ? .5 : 1) * (S.boons.court ? .6 : 1) * (S.relics && S.relics.kwanum ? .75 : 1) * (hasMate('shadow') ? .8 : 1)); checkThreat(); }
 const crewOf = k => S.crew.find(c => c.k === k);
 const perk = k => { const c = crewOf(k); return c && c.alive && c.done; };
 function checkThreat() {
@@ -454,7 +455,7 @@ const canTribute = () => S.mode === 'port' && PORTS[S.at].court && S.cap !== 'to
 const tributeCost = () => Math.max(800, Math.round(S.gold * .12));
 function tribute() { if (!canTribute()) return null; const c = tributeCost(); if (S.gold < c) return null; S.gold -= c; S.threat = Math.max(0, S.threat - 30); S.fame += 10;
   S.stage = S.threat >= 85 ? 3 : S.threat >= 60 ? 2 : S.threat >= 30 ? 1 : 0; return c; }
-const repairCost = () => Math.round((S.hullMax - S.hull) * 25 * (S.boons.hull ? .5 : 1) * (S.at === 'mingzhou' && S.mode === 'port' ? .5 : 1));
+const repairCost = () => Math.round((S.hullMax - S.hull) * 25 * (S.boons.hull ? .5 : 1) * (S.at === 'mingzhou' && S.mode === 'port' ? .5 : 1) * (hasMate('carpenter') ? .6 : 1));
 function repair() { const c = repairCost(); if (!c || S.gold < c) return null; S.gold -= c; S.t += Math.ceil((S.hullMax - S.hull) / 40) * .5; S.hull = S.hullMax; return c; }
 const nextShip = () => SHIPS[S.tier + 1] || null;
 function upgrade() { const n = nextShip(); const pr = shipPrice(n); if (!n || S.gold < pr) return null; S.gold -= pr; S.tier++; S.hullMax = n.hull + 40 * (S.boons.hull || 0) + (S.relics.anchor ? 30 : 0); S.hull = S.hullMax; S.fame += 30; S.t += 3; return n; }
@@ -533,6 +534,8 @@ function setRow(on) { if (S.mode !== 'sail') return false; S.rowing = !!on && S.
 function nextStory() {
   if (S.ended || S.mode !== 'port') return null;
   while (S.pending.length) { const id = S.pending.shift();
+    if (id === 'main:start' || id === 'main:final') { const st = mainStory(id.slice(5)); if (st) return st; continue; }
+    if (id === 'port:ev') { const st = portEvent(); if (st) return st; continue; }
     if (id.startsWith('quest:')) { const q = QBY[id.slice(6)]; if (!q || S.quests[q.id]) continue;
       return { who: q.who || 'quest', qch: q.ch, title: q.name, text: q.intro, sub: `${q.steps.length}단계 · 첫 목표 — ${q.steps[0].text}`, opts: [{ label: '맡는다', apply: () => { startQuest(q.id); return `이야기 「${q.name}」를 맡았다. 장부의 '이야기'에서 언제든 볼 수 있다.`; } }, { label: '나중에', apply: () => { S.qDecl[q.id] = S.t + 15; return null; } }] }; }
     const st = STORIES[id] && STORIES[id](); if (st) return st; }
@@ -560,7 +563,7 @@ function collectQuota() { // 계절 끝. 반환: {ok, amount, short, seized}
     while (S.gold < due && S.slots.length) { const s = S.slots.pop(); const v = Math.round(s.cost * .7); S.gold += v; seized += v; } }
   if (S.gold < due) { S.ended = 'quota'; return { ok: false, amount: due, short: due - S.gold, seized }; }
   S.gold -= due; S.paid += due; S.quotaN++; S.relief = 0; S.nextDue += 90; if (S.quotaN % 4 === 0) S.stats.years++;
-  S.draft = drawBoons(); return { ok: true, amount: due, seized, next: quotaNow(), year: S.quotaN % 4 === 0 }; }
+  const w = wages(), left = payWages(); S.draft = drawBoons(); return { ok: true, amount: due, seized, next: quotaNow(), year: S.quotaN % 4 === 0, wages: w, left: left.map(m => m.name) }; }
 function drawBoons() { const pool = BOONS.filter(b => (S.boons[b.id] || 0) < b.max && !(b.id === 'chart' && !PORT_IDS.some(k => !S.known[k] && !S.spotted[k]))); const out = []; while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]); return out.map(b => b.id); }
 function takeBoon(id) { if (!S.draft || !S.draft.includes(id)) return null; S.draft = null; S.boons[id] = (S.boons[id] || 0) + 1; let note = '';
   if (id === 'hull') { S.hullMax += 40; S.hull += 40; }
@@ -632,7 +635,7 @@ const EVENTS = [
   { id: 'fog', w: () => 2, when: () => true, title: '짙은 안개', text: () => '한 길 앞도 보이지 않는다. 곽이 뱃머리에 서서 물소리를 듣는다.',
     opts: () => [{ label: '닻을 내리고 기다린다', sub: '하루 반', apply: () => { S.t += 1.5; return { text: '안개가 걷힐 때까지 기다렸다.' }; } },
       { label: '감으로 간다', sub: perk('helm') ? '곽을 믿는다' : '반반', apply: () => { if (!perk('helm') && Math.random() < .45) { S.hull -= 20; return { text: '바위를 긁었다. 선체 -20', bad: true }; } return { text: '곽이 물소리만으로 길을 찾았다.', good: true }; } }] },
-  { id: 'fever', w: () => 1, when: () => S.voyage && S.t - S.voyage.t0 > 4, title: '열병', text: () => '선원 여럿이 열에 들떠 누웠다. 노를 저을 사람이 없다.',
+  { id: 'fever', w: () => 1, when: () => S.voyage && S.t - S.voyage.t0 > 4 && !hasMate('doctor'), title: '열병', text: () => '선원 여럿이 열에 들떠 누웠다. 노를 저을 사람이 없다.',
     opts: () => [S.slots.some(s => s.id === 'ginseng') ? { label: '실은 인삼을 달여 먹인다', sub: '인삼 한 상자를 쓴다', apply: () => { const i = S.slots.findIndex(s => s.id === 'ginseng'); S.slots.splice(i, 1); S.stamina = 100; S.fame += 15; return { text: '인삼을 달였다. 이틀 만에 모두 일어났다. 선원들이 당신을 다시 본다.', good: true }; } }
         : { label: '쉬게 한다', sub: '이틀', apply: () => { S.t += 2; return { text: '이틀을 쉬었다.' }; } },
       { label: '버틴다', sub: '나흘 동안 느려진다', apply: () => { S.stamina = 0; S.slow = 4; return { text: '반쯤 비틀거리며 간다.', bad: true }; } }] },
@@ -684,8 +687,8 @@ const INTENT_W = {
   near: { plain: { board: 4, ram: 3, shoot: 1, retreat: 1 }, archer: { retreat: 5, shoot: 3, board: 1 }, boarder: { board: 6, ram: 3 }, fire: { board: 3, retreat: 3, ram: 2 }, tough: { ram: 5, board: 3, shoot: 1 } }
 };
 const yearOf = () => Math.floor(S.quotaN / 4);
-const arrowDmg = () => Math.round((11 + 4 * S.tier) * (S.relics.bow ? 1.4 : 1) * (S.boons.hunter ? 1.3 : 1));
-const boardDmg = () => Math.round((24 + 6 * S.tier) * (S.cap === 'gungbok' ? 1.25 : 1) * (perk('deck') ? 1.3 : 1) * (S.boons.hunter ? 1.3 : 1));
+const arrowDmg = () => Math.round((11 + 4 * S.tier) * (S.relics.bow ? 1.4 : 1) * (S.boons.hunter ? 1.3 : 1) * (hasMate('archer') ? 1.25 : 1));
+const boardDmg = () => Math.round((24 + 6 * S.tier) * (S.cap === 'gungbok' ? 1.25 : 1) * (perk('deck') ? 1.3 : 1) * (S.boons.hunter ? 1.3 : 1) * (hasMate('ken') ? 1.25 : 1));
 const fleeOdds = () => clamp(.35 + S.stamina / 250 + (S.boons.sails || 0) * .05, .1, .9);
 function makeBattle(spec) {
   const tk = 1 + .35 * S.tier, yk = 1 + .25 * yearOf();
@@ -702,14 +705,14 @@ function battleOpts() { const B = S.battle; if (!B || B.over) return []; const n
   return [
     { id: 'shoot', ch: '弓', label: '활을 쏜다', sub: `피해 ${ar}${I.k === 'close' ? ' · 다가오는 놈 노리기 +30%' : ''}${B.mom > 1 ? ' · 기세' : ''}`, ok: true },
     { id: 'guard', ch: '盾', label: '방패를 세운다', sub: '받는 피해 -70% · 다음 공격 1.5배', ok: true },
-    { id: 'move', ch: '帆', label: near ? '떨어진다' : '붙는다', sub: S.stamina < 15 ? '기력이 없다' : `${near ? '갈고리·들이받기를 피한다' : '일제 사격을 반으로 줄인다 · 백병 가능'} · 기력 -15`, ok: S.stamina >= 15 },
+    { id: 'move', ch: '帆', label: near ? '떨어진다' : '붙는다', sub: S.stamina < (hasMate('rower') ? 9 : 15) ? '기력이 없다' : `${near ? '갈고리·들이받기를 피한다' : '일제 사격을 반으로 줄인다 · 백병 가능'} · 기력 -${hasMate('rower') ? 9 : 15}`, ok: S.stamina >= (hasMate('rower') ? 9 : 15) },
     { id: 'board', ch: '劍', label: '뛰어든다', sub: near ? `백병 피해 ${Math.round(boardDmg() * B.mom * (I.k === 'board' ? 1.2 : 1))}${I.k === 'board' ? ' · 맞받아치기' : ''} · 반격을 조금 받는다` : '붙어 있어야 한다', ok: near },
     { id: 'flee', ch: '走', label: '달아난다', sub: near ? '떨어져 있어야 한다' : `가망 ${Math.round(fleeOdds() * 10)}할 · 기력 -35`, ok: !near && !B.e.boss_nf }
   ]; }
 function battleAct(a) { const B = S.battle; if (!B || B.over) return null; const I = B.intent, e = B.e, L = []; let inc = 1, dealt = 0, self = 0;
   if (a === 'shoot') { dealt = Math.round(arrowDmg() * (B.dist === 'near' ? .7 : 1) * B.mom * (I.k === 'close' ? 1.3 : 1)); B.mom = 1; L.push(`화살을 퍼부었다. 적 -${dealt}`); }
   else if (a === 'guard') { inc = .3; B.mom = 1.5; L.push('방패를 세우고 숨을 고른다.'); }
-  else if (a === 'move') { if (S.stamina < 15) return null; S.stamina -= 15; B.dist = B.dist === 'near' ? 'far' : 'near'; L.push(B.dist === 'near' ? '뱃머리를 돌려 바짝 붙었다.' : '노를 저어 거리를 벌렸다.'); }
+  else if (a === 'move') { const mc = hasMate('rower') ? 9 : 15; if (S.stamina < mc) return null; S.stamina -= mc; B.dist = B.dist === 'near' ? 'far' : 'near'; L.push(B.dist === 'near' ? '뱃머리를 돌려 바짝 붙었다.' : '노를 저어 거리를 벌렸다.'); }
   else if (a === 'board') { if (B.dist !== 'near') return null; dealt = Math.round(boardDmg() * B.mom * (I.k === 'board' ? 1.2 : 1)); B.mom = 1; self = Math.round(e.atk * .35); L.push(`${I.k === 'board' ? '갈고리를 맞잡고 ' : ''}적선으로 뛰어들었다! 적 -${dealt}`); }
   else if (a === 'flee') { if (B.dist !== 'far') return null; S.stamina = Math.max(0, S.stamina - 35); if (Math.random() < fleeOdds() + (S.stamina === 0 ? -.1 : 0)) { L.push('있는 힘껏 노를 저어 빠져나왔다.'); B.over = 'fled'; return endTurn(B, L); } L.push('달아나려 했지만 바람이 등을 돌렸다.'); }
   else if (a === 'surrender') { if (S.slots.length) { const s = S.slots.splice(ri(0, S.slots.length - 1), 1)[0]; L.push(`${G[s.id].name} 상자를 던져주고 빠져나왔다.`); } else { const c = Math.min(S.gold, 1200 + 400 * S.tier); S.gold -= c; L.push(`통행료 ${c.toLocaleString('ko-KR')}냥을 내고 빠져나왔다.`); } B.over = 'surrender'; return endTurn(B, L); }
@@ -739,7 +742,8 @@ function battleFinish(B) { const e = B.e, spec = B.spec || {}, R = { over: B.ove
     if (spec.kind === 'black') { const R0 = S.rivals.find(r => r.id === 'black'); if (R0) { R0.cool = 40; R0.chasing = false; } } }
   if (B.over === 'win' && spec.quest && S.quests[spec.quest]) { S.quests[spec.quest].fought = true; }
   if (B.over !== 'win' && spec.quest && S.quests[spec.quest]) S.quests[spec.quest].cool = S.t + 4;
-  if (B.over === 'win') questEval();
+  if (B.over === 'win') { questEval(); mainTick(); }
+  if (B.over !== 'win' && spec.mainSpot) S.main.cool = S.t + 4;
   if (B.over === 'lose') R.wreck = wreck();
   if (B.over === 'fled' && e.boss && S.bounty) S.bounty.cool = S.t + 4;
   if (B.over === 'surrender' && e.boss && S.bounty) S.bounty.cool = S.t + 4;
@@ -780,7 +784,7 @@ function addMap(lv, opt) { opt = opt || {}; if (S.maps.length >= 3) return null;
     if (!findPath(PORTS.cheonghae.x, PORTS.cheonghae.y, x, y)) continue;
     const m = { id: 'm' + Math.floor(S.t * 100) + i, x: Math.round(x), y: Math.round(y), r: 55, lv, name: opt.name || pick(SITE_NAMES) }; S.maps.push(m); revealCircle(x, y, 40); return m; }
   return null; }
-function makeDive(site) { S.dive = { site, depth: 0, max: site.max || 5, breath: 100 + (S.relics.breath ? 40 : 0), haul: [], last: null, over: null }; S.dive.full = S.dive.breath; S.stats.dives = (S.stats.dives || 0) + 1; return S.dive; }
+function makeDive(site) { S.dive = { site, depth: 0, max: site.max || 5, breath: 100 + (S.relics.breath ? 40 : 0) + (hasMate('diver') ? 30 : 0), haul: [], last: null, over: null }; S.dive.full = S.dive.breath; S.stats.dives = (S.stats.dives || 0) + 1; return S.dive; }
 const diveCost = D => 8 + (D.depth + 1) * 4;
 function rollDive(D) { const d = D.depth, lv = D.site.lv, pearl = D.site.pearl;
   const W = { silver: Math.max(8, 36 - d * 3), crate: pearl ? 6 : 16, relic: pearl ? 0 : lv >= 3 ? (d >= 5 ? 9999 : d >= 3 ? 30 : 0) : d >= 4 ? (lv === 2 ? 16 : 7) : 0, pearl: pearl ? 30 : 0, shark: 5 + d * 3, weed: 9, empty: 11, collapse: d >= 3 && !pearl ? 6 : 0 };
@@ -869,6 +873,145 @@ function questSpots() { const out = []; for (const id of Object.keys(S.quests)) 
 /* 도감: 해역을 다 찾으면 보상 */
 function regionCheck() { const out = []; for (const r of REGIONS) { if (S.regions[r]) continue; const fs = FINDS.filter(f => f.region === r); if (fs.length && fs.every(f => S.found[f.id])) { S.regions[r] = 1; const g = 2500 + 500 * fs.length; S.gold += g; S.fame += 100; const m = addMap(2, { name: `${r}의 숨은 보물` }); out.push({ type: 'region', region: r, gold: g, map: m }); } } return out; }
 
+
+/* ═══════════ 본 이야기 (선장마다 막 구성) ═══════════ */
+const NUM = ['一', '二', '三', '四', '五'];
+const B0 = () => S.main.base;
+const G_ = {
+  quota: n => ({ text: `상납을 ${n}번 바친다`, ok: () => S.quotaN - B0().quotaN >= n, prog: () => `${Math.min(n, S.quotaN - B0().quotaN)}/${n}` }),
+  wins: n => ({ text: `해전에서 ${n}번 이긴다`, ok: () => (S.stats.wins || 0) - B0().wins >= n, prog: () => `${Math.min(n, (S.stats.wins || 0) - B0().wins)}/${n}` }),
+  freed: n => ({ text: '노예선을 습격해 붙잡힌 사람들을 구한다', ok: () => (S.freed || 0) - B0().freed >= n, prog: () => `${Math.min(n, (S.freed || 0) - B0().freed)}/${n}`, spot: { ll: [123.75, 34.75], name: '노예선 무리', spec: { kind: 'slaver', name: '노예선 선단', ch: '奴', g: 'archer', hp: 60, atk: 11, win: 'captives' } } }),
+  fame: n => ({ text: `명성 ${n.toLocaleString('ko-KR')}에 이른다`, ok: () => S.fame >= n, prog: () => `${Math.min(n, Math.round(S.fame)).toLocaleString('ko-KR')}/${n.toLocaleString('ko-KR')}` }),
+  orders: n => ({ text: `의뢰를 ${n}건 해낸다`, ok: () => S.stats.orders - B0().orders >= n, prog: () => `${Math.min(n, S.stats.orders - B0().orders)}/${n}` }),
+  profit: n => ({ text: `장사로 이익 ${n.toLocaleString('ko-KR')}냥을 더 낸다`, ok: () => S.stats.profit - B0().profit >= n, prog: () => `${Math.max(0, Math.round((S.stats.profit - B0().profit) / 1000))}천/${Math.round(n / 1000)}천` }),
+  visit: (k, after) => ({ text: `${PORTS[k].name}에 닻을 내린다`, k, ok: () => !!S.main.visits[k] && (after == null || S.main.visits[k] > (S.main.visits[after] || 1e9)), prog: () => S.main.visits[k] ? '✓' : '' }),
+  visits: ks => ({ text: `${ks.map(k => PORTS[k].name).join('·')}에 들른다`, ok: () => ks.every(k => S.main.visits[k]), prog: () => `${ks.filter(k => S.main.visits[k]).length}/${ks.length}` }),
+  pay: (k, n, what) => ({ text: `${PORTS[k].name}에서 ${what} ${n.toLocaleString('ko-KR')}냥을 낸다`, pay: { k, n }, ok: () => !!S.main.paid[k + n], prog: () => S.main.paid[k + n] ? '✓' : '' }),
+  deliver: (k, good, n) => ({ text: `${G[good].name} ${n}상자를 ${PORTS[k].name}로 가져간다`, deliver: { k, good, n }, ok: () => !!S.main.paid['d' + k + good] }),
+  calm: n => ({ text: `경계를 ${n} 아래로 두고 버틴다`, ok: () => S.threat < n, prog: () => `${Math.round(S.threat)}` })
+};
+const ARCS = {
+  gungbok: { name: '해상왕의 길', acts: [
+    { title: '청해진', at: () => true, intro: '828년 봄. 당의 무령군에서 소장까지 지낸 궁복이 고향 완도로 돌아왔다. 신라 사람들이 해적에게 붙잡혀 당에 노비로 팔려 가는 꼴을 더는 볼 수 없었다. 흥덕왕은 군사 1만과 「청해진대사」라는 직함을 내렸다. 다만 — 군자금은 스스로 마련하라 했다.',
+      goals: () => [G_.quota(2), G_.wins(1)], outro: '청해진 목책이 올라갔다. 바닷가 사람들이 궁복을 「대사」라 부르기 시작한다.', reward: { gold: 3000, fame: 100 } },
+    { title: '노예 상인', at: () => S.quotaN >= 2, intro: '당의 해적들이 여전히 신라 사람을 사고판다. 등주와 초주의 노비 시장에서 신라 말이 들린다. 서해 섬 그늘에 노예선 선단이 숨어 있다는 소식이다. 바다 위에서 끊어야 한다.',
+      goals: () => [G_.freed(1), G_.fame(900)], outro: '그해 이후 신라 사람이 노비로 팔려 가는 일이 끊겼다 — 훗날 사서는 그렇게 적는다. 서해의 뱃사람들이 청해진 깃발을 보면 노를 멈추고 절을 한다.', reward: { gold: 5000, fame: 150 } },
+    { title: '적산 법화원', at: () => S.quotaN >= 4, intro: '당 산동의 적산촌. 신라 사람들이 모여 사는 그곳에 절을 세우면, 당 땅 어디서든 신라 상인이 기댈 곳이 생긴다. 해마다 쌀 오백 석이 드는 큰 절이다.',
+      goals: () => [G_.pay('jeoksan', 12000, '법화원 시주'), G_.visits(['mizhou', 'chuzhou', 'deungju'])], outro: '법화원 종소리가 적산 앞바다에 퍼진다. 훗날 왜의 승려 엔닌이 이곳에 묵으며 일기에 대사의 이름을 적을 것이다. 신라방마다 대사의 사람들이 생겼다.', reward: { gold: 3000, fame: 200, boon: 'tang' } },
+    { title: '왕자의 망명', at: () => S.quotaN >= 5, intro: '서라벌에서 왕위 다툼이 터졌다. 싸움에 진 왕족 김우징이 가족을 데리고 청해진으로 도망쳐 왔다. "대사, 나를 도와 원수를 갚게 해주시오. 그리하면 대사의 딸을 내 아들의 비로 삼겠소."',
+      choice: [{ id: 'accept', label: '김우징을 받아들인다', sub: '군사를 일으킨다 · 조정의 눈이 따가워진다', flag: 'woojing' }, { id: 'refuse', label: '정중히 돌려보낸다', sub: '청해진은 바다의 일만 한다', flag: 'refused' }],
+      goals: () => S.main.flags.woojing ? [G_.pay('cheonghae', 30000, '군자금'), G_.wins(3)] : [G_.quota(2), G_.calm(50)],
+      outro: () => S.main.flags.woojing ? '청해진 군사 5천이 서라벌로 진격했다. 김우징이 왕위에 올랐다 — 신무왕. 대사는 감의군사가 되었다. 서라벌 귀족들이 이를 간다.' : '김우징은 다른 배를 타고 떠났다. 청해진은 조용하다. 바다 건너 사람들은 대사를 두고 "왕 따위엔 관심 없는 사람"이라 수군거린다.',
+      reward: () => S.main.flags.woojing ? { gold: 8000, fame: 400, threat: 25 } : { gold: 4000, fame: 150, threat: -20 } },
+    { title: '염장', at: () => S.quotaN >= 7, intro: () => S.main.flags.woojing ? '신무왕은 즉위 반년 만에 세상을 떠났다. 새 왕은 약속한 혼인을 미룬다. 귀족들은 "섬사람의 딸을 왕비로 들일 수 없다"고 한다. 그러던 어느 날, 무주의 장수 염장이 청해진에 투항하겠다며 찾아왔다.' : '서라벌의 새 왕은 바다 건너 청해진이 두렵다. 그러던 어느 날, 무주의 장수 염장이 청해진에 투항하겠다며 찾아왔다.',
+      goals: () => [G_.fame(2200), G_.visit('cheonghae')], final: true,
+      ending: [{ label: '술상을 차려 맞이한다', sub: '옛 동무를 믿는다', end: () => perk('deck') ? 'sea_king' : 'yeomjang' },
+        { label: '의심하고 돌려보낸다', sub: '청해진의 문을 닫는다', end: () => S.main.flags.woojing ? 'throne' : 'sea_king' },
+        { label: '청해진을 떠난다', sub: '배 한 척만 남기고 바다로', end: () => 'wander' }] }
+  ] },
+  ara: { name: '신라방의 딸', acts: [
+    { title: '신라방', at: () => true, intro: '적산 신라방 객주의 딸 아라. 아버지가 남긴 것은 빚 문서 한 묶음과 낡은 배 한 척. 그 사이 왕씨 상단이 신라방 장사를 하나씩 집어삼키고 있다.', goals: () => [G_.quota(2), G_.orders(3)], outro: '신라방 사람들이 다시 아라의 객주에 짐을 맡긴다. "그 집 딸이 아비보다 낫다."', reward: { gold: 3000, fame: 100 } },
+    { title: '왕씨와의 승부', at: () => S.quotaN >= 3, intro: '왕씨 상단 큰아들이 찾아왔다. "한 철 동안 누가 더 버는지 겨뤄 봅시다. 지는 쪽이 등주 뱃길에서 손을 떼는 거요." 사람들이 내기를 건다.', goals: () => [G_.profit(30000), G_.visit('yangzhou')], outro: '왕씨 상단이 등주 뱃길에서 물러났다. 왕씨 큰아들이 술잔을 내민다. "다음엔 안 지오."', reward: { gold: 6000, fame: 150 } },
+    { title: '청해진의 몰락', at: () => S.quotaN >= 5, intro: '청해진에서 비보가 왔다. 장보고 대사가 자객의 칼에 쓰러졌다. 청해진 사람들이 배를 타고 흩어지고 있다. 신라방은 그들을 받아줄 것인가 — 당 관리들은 이미 눈치를 본다.',
+      choice: [{ id: 'take', label: '유민을 받아들인다', sub: '청해진에서 사람들을 태워 온다', flag: 'refuge' }, { id: 'shut', label: '문을 닫는다', sub: '신라방부터 지킨다', flag: 'shut' }],
+      goals: () => S.main.flags.refuge ? [G_.visit('cheonghae'), G_.visit('jeoksan', 'cheonghae')] : [G_.quota(2), G_.calm(45)],
+      outro: () => S.main.flags.refuge ? '청해진 사람 삼백이 적산에 내렸다. 뱃사람, 목수, 활잡이. 아라의 배에 손이 넘친다.' : '신라방은 조용히 문을 닫았다. 바다 건너에서 원망 섞인 소문이 들려온다.', reward: () => S.main.flags.refuge ? { gold: 2000, fame: 300 } : { gold: 6000, fame: 0, threat: -20 } },
+    { title: '회창의 바람', at: () => S.quotaN >= 7, intro: '당 황제가 불교를 금했다. 법화원이 헐리고 승려들이 쫓겨난다. 관리들이 신라방에도 들이닥쳐 장부를 뒤진다. 바다로 갈 것인가, 버틸 것인가.',
+      goals: () => [G_.fame(1800), G_.visit('jeoksan')], final: true,
+      ending: [{ label: '신라방 사람들을 이끌고 바다로', sub: '배가 집이 된다', end: () => S.main.flags.refuge ? 'ara_true' : 'ara_alone' },
+        { label: '관리에게 2만 냥을 쥐여주고 버틴다', sub: '당의 상인으로 남는다', end: () => { S.gold = Math.max(0, S.gold - 20000); return 'ara_merchant'; } }] }
+  ] },
+  tomo: { name: '그림자 상인', acts: [
+    { title: '다자이후의 눈', at: () => true, intro: '하카타의 밀무역상 도모. 왜 조정은 외국과의 사사로운 거래를 금한다. 그러나 다자이후 관리들도 당의 비단은 좋아한다. 눈을 감게 만드는 것은 결국 돈이다.', goals: () => [G_.quota(2), G_.visit('naniwa')], outro: '나니와 귀족들 사이에서 "하카타의 도모"라는 이름이 오르내린다.', reward: { gold: 3000, fame: 100 } },
+    { title: '회역사', at: () => S.quotaN >= 3, intro: '왜 조정의 관리 후무로노 미야타마로가 은밀히 부른다. "청해진 장보고와 거래를 트고 싶소. 비단 값은 미리 치르겠소. 그대가 다리를 놓으시오."', goals: () => [G_.visit('cheonghae'), G_.deliver('hakata', 'silk', 3)], outro: '미야타마로가 흡족해한다. 청해진의 회역사가 하카타에 드나들기 시작했다. 도모의 이름이 조정 장부에 들어갔다.', reward: { gold: 7000, fame: 150 } },
+    { title: '몰수', at: () => S.quotaN >= 5, intro: '청해진 대사가 죽었다는 소식. 미야타마로는 청해진 사람이 싣고 온 물건을 "빚 대신"이라며 몰수했다. 청해진의 회역사 이충이 도모를 찾아와 무릎을 꿇는다. "물건을 되찾게 도와주시오."',
+      choice: [{ id: 'help', label: '이충을 돕는다', sub: '조정을 상대로 판을 벌인다', flag: 'help' }, { id: 'buy', label: '몰수품을 헐값에 사들인다', sub: '남의 불행도 장사다', flag: 'buy' }],
+      goals: () => S.main.flags.help ? [G_.pay('hakata', 15000, '관리들 입막음값'), G_.visit('cheonghae')] : [G_.pay('hakata', 8000, '몰수품 값'), G_.profit(25000)],
+      outro: () => S.main.flags.help ? '이충은 물건을 되찾아 신라로 돌아갔다. 청해진 유민들이 도모를 「바다 건너 다리」라 부른다.' : '몰수품은 비싸게 팔렸다. 하지만 하카타 부두에서 신라 뱃사람들이 도모를 보면 침을 뱉는다.',
+      reward: () => S.main.flags.help ? { gold: 3000, fame: 300 } : { gold: 12000, fame: 0, threat: 15 } },
+    { title: '바다의 그림자', at: () => S.quotaN >= 7, intro: '다자이후에 새 관리가 왔다. 밀무역을 뿌리 뽑겠다고 한다. 도모의 이름이 맨 위에 적혀 있다.',
+      goals: () => [G_.fame(1500), G_.visit('hakata')], final: true,
+      ending: [{ label: '신라·당·왜를 잇는 상단을 세운다', sub: '그림자에서 나온다', end: () => S.main.flags.help ? 'tomo_true' : 'tomo_shadow' },
+        { label: '이름을 버리고 남쪽 섬으로', sub: '유구에서 새로 시작한다', end: () => 'tomo_exile' }] }
+  ] }
+};
+const ENDINGS = {
+  sea_king: { title: '해상왕', ch: '海', kind: 'true', text: '염장의 칼은 끝내 대사에게 닿지 못했다. 청해진은 왕도 귀족도 아닌 바다의 나라가 되었다. 신라·당·왜의 배들이 청해진 깃발 아래 오간다. 사람들은 그를 해상왕이라 불렀다.' },
+  throne: { title: '왕좌의 바다', ch: '王', kind: 'fiction', text: '대사는 염장을 돌려보내고 군사를 이끌고 서라벌로 올라갔다. 약속은 지켜졌다. 섬사람의 딸이 왕비가 되던 날, 서라벌 귀족들은 바다를 처음으로 두려워했다. — 역사와 다른 길이다.' },
+  yeomjang: { title: '역사의 칼', ch: '刀', kind: 'history', text: '술자리가 무르익었을 때 염장이 칼을 뽑았다. 841년, 청해진대사 장보고는 그렇게 쓰러졌다. 십 년 뒤 청해진은 폐쇄되었다. 사서는 그를 반역자로 적었고, 바다는 그를 잊지 않았다.' },
+  wander: { title: '바람 따라', ch: '風', kind: 'neutral', text: '대사는 청해진을 동료들에게 맡기고 배 한 척으로 남쪽 바다로 사라졌다. 유구에서 보았다는 이도, 천주에서 보았다는 이도 있다. 염장의 칼은 빈 방을 찔렀다.' },
+  ara_true: { title: '바다의 신라방', ch: '坊', kind: 'true', text: '아라의 배들이 황해를 오가는 떠다니는 신라방이 되었다. 청해진 유민과 쫓겨난 승려들이 그 배에 탔다. 땅이 없어도 사람들은 그곳을 고향이라 불렀다.' },
+  ara_alone: { title: '홀로 남은 객주', ch: '孤', kind: 'neutral', text: '아라는 바다로 나갔지만 따르는 배는 많지 않았다. 문을 닫았던 날을 기억하는 사람들이 있었다. 그래도 아라의 배는 오늘도 황해를 건넌다.' },
+  ara_merchant: { title: '당의 거상', ch: '商', kind: 'neutral', text: '돈은 관리의 눈을 감겼다. 아라는 당의 거상으로 남았다. 양주 시장에서 그녀의 이름을 모르는 이는 없다. 다만 신라 말은 점점 덜 쓰게 되었다.' },
+  tomo_true: { title: '바다 건너 다리', ch: '橋', kind: 'true', text: '도모의 상단은 신라·당·왜를 잇는 다리가 되었다. 다자이후의 관리도 그의 배에 세금을 매기는 대신 인사를 한다. 그림자 상인은 이제 해가 뜬 곳을 걷는다.' },
+  tomo_shadow: { title: '그림자 거상', ch: '影', kind: 'neutral', text: '도모의 상단은 커졌지만 늘 그림자 속에 있었다. 돈은 넘치고 친구는 없다. 하카타 부두의 신라 뱃사람들은 여전히 그를 보면 고개를 돌린다.' },
+  tomo_exile: { title: '남쪽 섬의 이름 없는 상인', ch: '島', kind: 'neutral', text: '도모라는 이름은 사라졌다. 유구의 작은 포구에 말수 적은 왜인 상인이 산다. 그의 배는 작지만, 누구에게도 고개를 숙이지 않는다.' }
+};
+const arcOf = () => ARCS[S.cap] || ARCS.gungbok;
+const curAct = () => { const a = arcOf(); return S.main && S.main.act < a.acts.length ? a.acts[S.main.act] : null; };
+const val = v => typeof v === 'function' ? v() : v;
+function mainBase() { return { quotaN: S.quotaN, wins: S.stats.wins || 0, freed: S.freed || 0, orders: S.stats.orders, profit: S.stats.profit }; }
+function mainGoals() { const A = curAct(); if (!A || !S.main.started) return []; return A.goals().map(g => Object.assign({}, g, { done: g.ok() })); }
+function mainTick() { if (!S || !S.main || S.ended) return; const A = curAct(); if (!A) return;
+  if (!S.main.started) { if (A.at() && !S.main.offered) { S.main.offered = true; S.pending.unshift('main:start'); } return; }
+  if (S.mode === 'port' && S.at) for (const g of A.goals()) if (g.deliver && !g.ok() && g.deliver.k === S.at) { const r = mainDeliver(S.at); if (r) S.qNotes.push({ main: true, ch: NUM[S.main.act], name: `第${NUM[S.main.act]}幕 ${A.title}`, text: `${G[g.deliver.good].name} ${g.deliver.n}상자를 넘겼다.`, got: [], fin: false, next: null }); }
+  const gs = A.goals(); if (!gs.every(g => g.ok())) return;
+  if (A.final) { if (!S.main.finalOffered) { S.main.finalOffered = true; S.pending.unshift('main:final'); } return; }
+  const R = val(A.reward) || {}, got = []; if (R.gold) { S.gold += R.gold; got.push(`+${R.gold.toLocaleString('ko-KR')}냥`); } if (R.fame) { S.fame += R.fame; got.push(`명성 +${R.fame}`); }
+  if (R.threat) { S.threat = clamp(S.threat + R.threat, 0, 99); restage(); got.push(`경계 ${R.threat > 0 ? '+' : ''}${R.threat}`); }
+  if (R.boon && !S.boons[R.boon]) { S.boons[R.boon] = 1; const b = BOONS.find(x => x.id === R.boon); got.push(`특권 ${b.name}`); }
+  S.qNotes.push({ main: true, ch: NUM[S.main.act], name: `第${NUM[S.main.act]}幕 ${A.title}`, text: val(A.outro), got, fin: true, next: null });
+  S.main.act++; S.main.started = false; S.main.offered = false; S.main.visits = {}; S.main.paid = {}; mainTick(); }
+function mainStart(choiceId) { const A = curAct(); if (!A) return; if (A.choice) { const c = A.choice.find(x => x.id === choiceId) || A.choice[0]; S.main.flags[c.flag] = true; }
+  S.main.started = true; S.main.base = mainBase(); S.main.visits = {}; S.main.paid = {}; if (S.mode === 'port' && S.at) S.main.visits[S.at] = 0; mainTick(); }
+function mainVisit(k) { if (S.main && S.main.started) { S.main.visits[k] = ++S.main.vn; } }
+function mainPay(k) { const g = mainGoals().find(g => g.pay && g.pay.k === k && !g.done); if (!g || S.mode !== 'port' || S.at !== k || S.gold < g.pay.n) return null; S.gold -= g.pay.n; S.main.paid[k + g.pay.n] = 1; mainTick(); return g; }
+function mainDeliver(k) { const g = mainGoals().find(g => g.deliver && g.deliver.k === k && !g.done); if (!g || S.at !== k) return null; const d = g.deliver; const idx = []; S.slots.forEach((s, i) => { if (s.id === d.good && s.from !== k && idx.length < d.n) idx.push(i); }); if (idx.length < d.n) return null; for (const i of idx.reverse()) S.slots.splice(i, 1); S.main.paid['d' + k + d.good] = 1; return g; }
+function mainSpots() { return mainGoals().filter(g => g.spot && !g.done).map(g => { const [x, y] = nearestSea(...P(...g.spot.ll)); return { x, y, r: 48, name: g.spot.name, spec: g.spot.spec }; }); }
+function mainEnd(endId) { S.ending = endId; S.ended = 'ending'; return ENDINGS[endId]; }
+function mainStory(kind) { const A = curAct(); if (!A) return null; const n = NUM[S.main.act];
+  if (kind === 'start') { const opts = A.choice ? A.choice.map(c => ({ label: c.label, sub: c.sub, apply: () => { mainStart(c.id); return null; } })) : [{ label: '닻을 올린다', apply: () => { mainStart(); return null; } }];
+    return { who: 'main', act: n, title: `第${n}幕 ${A.title}`, text: val(A.intro), sub: A.choice ? '' : `목표 — ${A.goals ? (() => { const save = S.main.base; S.main.base = mainBase(); const t = A.goals().map(g => g.text).join(' · '); S.main.base = save; return t; })() : ''}`, opts }; }
+  if (kind === 'final') return { who: 'main', act: n, title: `第${n}幕 ${A.title} — 마지막 선택`, text: '모든 것이 이 순간에 달렸다.', opts: A.ending.map(e => ({ label: e.label, sub: e.sub, apply: () => { const id = e.end(); mainEnd(id); return null; } })) };
+  return null; }
+
+/* ═══════════ 선술집: 선원 · 주사위 · 포구 사건 ═══════════ */
+const MATES = [
+  { id: 'archer', name: '돌쇠', role: '활잡이', ch: '弓', from: '신라', text: '활 피해 +25%', hire: 2500, wage: 300 },
+  { id: 'rower', name: '억쇠', role: '노꾼 우두머리', ch: '櫓', from: '신라', text: '노 젓기와 해전 기동의 기력 소모 -40%', hire: 2000, wage: 250 },
+  { id: 'doctor', name: '허 의원', role: '배 의원', ch: '醫', from: '당', text: '열병을 막고, 입항할 때마다 선체 +12', hire: 3000, wage: 350 },
+  { id: 'trader', name: '왕소이', role: '흥정꾼', ch: '算', from: '당', text: '팔 때 6% 더 받는다', hire: 4000, wage: 500 },
+  { id: 'diver', name: '물개 순이', role: '해녀', ch: '潛', from: '탐라', text: '잠수할 때 숨 +30', hire: 2000, wage: 250 },
+  { id: 'seer', name: '무녀 달래', role: '점쟁이', ch: '巫', from: '신라', text: '소문을 들으면 헛소문 없이 정확한 값만 듣는다', hire: 2500, wage: 300 },
+  { id: 'carpenter', name: '곰배', role: '목수', ch: '斧', from: '신라', text: '수리비 -40%, 선체 최대 +20', hire: 3000, wage: 350 },
+  { id: 'ken', name: '겐', role: '떠돌이 무사', ch: '刃', from: '왜', text: '백병 피해 +25%', hire: 3500, wage: 400 },
+  { id: 'hassan', name: '하산', role: '대식 항해사', ch: '星', from: '대식', text: '항해 6% 빨라진다', hire: 4500, wage: 550 },
+  { id: 'shadow', name: '그림자 손', role: '첩자', ch: '影', from: '?', text: '경계가 20% 덜 오른다', hire: 3500, wage: 400 }
+];
+const MBY = Object.fromEntries(MATES.map(m => [m.id, m]));
+const hasMate = id => !!(S && S.mates && S.mates.includes(id));
+const mateCap = () => 2 + S.tier;
+const wages = () => (S.mates || []).reduce((a, id) => a + MBY[id].wage, 0);
+function tavern(k) { const t = S.taverns[k]; if (t && t.until > S.t) return t; const pool = MATES.filter(m => !hasMate(m.id)).sort(() => Math.random() - .5); const nt = { until: S.t + 30, offer: pool.slice(0, Math.random() < .35 ? 2 : 1).map(m => m.id), dice: 0 }; S.taverns[k] = nt; return nt; }
+function hireMate(id) { const k = S.at, t = tavern(k), m = MBY[id]; if (!m || !t.offer.includes(id) || hasMate(id)) return { ok: false, text: '' }; if (S.mates.length >= mateCap()) return { ok: false, text: `배가 작아 선원을 더 못 태운다 (최대 ${mateCap()})` }; if (S.gold < m.hire) return { ok: false, text: '돈이 모자란다' };
+  S.gold -= m.hire; S.mates.push(id); t.offer = t.offer.filter(x => x !== id); if (id === 'carpenter') { S.hullMax += 20; S.hull += 20; } return { ok: true, text: `${m.role} ${m.name}이 배에 올랐다. ${m.text}.` }; }
+function fireMate(id) { const i = S.mates.indexOf(id); if (i < 0) return null; S.mates.splice(i, 1); if (id === 'carpenter') { S.hullMax -= 20; S.hull = Math.min(S.hull, S.hullMax); } return MBY[id]; }
+function payWages() { const out = []; for (const id of S.mates.slice()) { const m = MBY[id]; if (S.gold >= m.wage) S.gold -= m.wage; else { fireMate(id); out.push(m); } } return out; }
+function rollDice(bet, guess) { const t = tavern(S.at); if (t.dice >= 3) return { ok: false, text: '주인이 손을 젓는다. "오늘은 그만하시오."' }; if (S.gold < bet) return { ok: false, text: '돈이 모자란다' };
+  t.dice++; const a = ri(1, 6), b = ri(1, 6), even = (a + b) % 2 === 0, win = (guess === 'even') === even; const pay = win ? Math.round(bet * .9) : -bet; S.gold += pay;
+  return { ok: true, a, b, even, win, pay, left: 3 - t.dice }; }
+const PORT_EVENTS = [
+  { id: 'brawl', when: () => true, title: '선술집 싸움', text: '선술집에서 왜 뱃사람과 당 뱃사람이 멱살을 잡았다. 탁자가 날아다닌다.', opts: () => [{ label: '말린다', sub: '300냥 · 명성', apply: () => { S.gold = Math.max(0, S.gold - 300); S.fame += 25; return '술값을 대신 내고 둘을 떼어 놓았다. 양쪽이 다 고개를 숙인다.'; } }, { label: '구경한다', apply: () => { if (Math.random() < .5) { const r = makeRumor('true'); return `싸움판 너머로 귀가 열렸다. "${r.line}"`; } return '의자가 날아와 어깨를 스쳤다.'; } }] },
+  { id: 'auction', when: () => freeSlots() > 0, title: '부두 경매', text: '주인 잃은 상자 하나가 경매에 붙었다. 봉인이 그대로다. 안에 무엇이 들었는지 아무도 모른다.', opts: () => [{ label: '1,500냥에 산다', sub: '무엇이 나올까', apply: () => { if (S.gold < 1500 || !freeSlots()) return '돈이 모자랐다.'; S.gold -= 1500; const id = pick(GOODS).id; S.slots.push({ id, cost: 1500 }); return `상자를 열었다 — ${G[id].name}! ${G[id].base * LOT > 2600 ? '횡재다.' : '본전은 하려나.'}`; } }, { label: '지켜본다', apply: () => '왕씨 상단 사람이 낙찰받았다.' }] },
+  { id: 'orphan', when: () => true, title: '부두의 아이', text: '부두에서 맨발의 아이가 배를 쳐다본다. 해적에게 부모를 잃었다고 한다. "배 타고 싶어요."', opts: () => [{ label: '데려간다', sub: '200냥 · 명성', apply: () => { S.gold = Math.max(0, S.gold - 200); S.fame += 30; S.stamina = 100; return '아이가 갑판을 뛰어다닌다. 선원들 얼굴이 펴졌다.'; } }, { label: '쌀 한 섬을 쥐여 준다', apply: () => { S.gold = Math.max(0, S.gold - 100); S.fame += 10; return '아이가 꾸벅 절을 했다.'; } }] },
+  { id: 'fire', when: () => true, title: '부두의 불', text: '창고에 불이 났다. 바람이 배 쪽으로 분다.', opts: () => [{ label: '물을 퍼 나른다', sub: '반나절 · 명성', apply: () => { S.t += .5; S.fame += 40; return '밤새 불을 껐다. 포구 사람들이 대사의 배 이름을 외운다.'; } }, { label: '배부터 뺀다', apply: () => { if (Math.random() < .3) { S.hull -= 10; return '불똥이 돛에 튀었다. 선체 -10'; } return '배는 무사하다.'; } }] },
+  { id: 'taxman', when: () => S.gold > 3000, title: '세리', text: '관청 세리가 장부를 들고 배에 오른다. "입항세가 올랐소."', opts: () => { const c = Math.round(S.gold * .05 / 10) * 10; return [{ label: '낸다', sub: `${c.toLocaleString('ko-KR')}냥`, apply: () => { S.gold -= c; return '세리가 도장을 찍고 내려갔다.'; } }, { label: '버틴다', sub: '경계 +5', apply: () => { addThreat(5); return '세리가 이를 갈며 돌아갔다. 장부에 이름이 적혔다.'; } }]; } },
+  { id: 'oldcap', when: () => S.maps.length < 3, title: '늙은 선장', text: '선술집 구석의 늙은 선장이 해도를 탁자에 편다. "다리가 이래서 이제 못 가오. 천 냥이면 넘기지."', opts: () => [{ label: '1,000냥에 산다', apply: () => { if (S.gold < 1000) return '돈이 모자랐다.'; S.gold -= 1000; const m = addMap(Math.random() < .4 ? 2 : 1); return m ? `해도를 받았다 — 寶 ${m.name}` : '해도는 이미 아는 곳이었다.'; } }, { label: '사양한다', apply: () => '늙은 선장이 해도를 다시 품에 넣는다.' }] },
+  { id: 'dance', when: () => true, title: '포구 잔치', text: '포구에 잔치가 열렸다. 북과 피리 소리. 선원들이 들썩인다.', opts: () => [{ label: '선원들을 풀어 준다', sub: '하루 · 기력과 명성', apply: () => { S.t += 1; S.stamina = 100; S.fame += 20; return '하루를 놀았다. 선원들 눈빛이 달라졌다.'; } }, { label: '일정이 바쁘다', apply: () => '선원들이 아쉬운 눈으로 돛줄을 감는다.' }] },
+  { id: 'swindle', when: () => freeSlots() > 0, title: '수상한 상인', text: () => { S._sw = pick(['spice', 'gold', 'fur', 'silk']); return `골목의 상인이 속삭인다. "${G[S._sw].name}, 시세 반값에 넘기겠소."`; }, opts: () => { const id = S._sw || 'spice', c = Math.round(G[id].base * LOT * .5 / 10) * 10; return [{ label: '산다', sub: `${c.toLocaleString('ko-KR')}냥`, apply: () => { if (S.gold < c || !freeSlots()) return '돈이 모자랐다.'; S.gold -= c; if (Math.random() < .5) { S.slots.push({ id, cost: c }); return `진짜였다! ${G[id].name} 한 상자.`; } S.slots.push({ id: 'sulfur', cost: c }); return '집에 와서 열어 보니 위에만 깔고 밑은 유황이다. 속았다.'; } }, { label: '돌려보낸다', apply: () => '상인이 혀를 차며 사라졌다.' }]; } }
+];
+function portEvent() { const pool = PORT_EVENTS.filter(e => e.when() && e.id !== S.lastPE); if (!pool.length) return null; const e = pick(pool); S.lastPE = e.id; return { who: 'port', title: e.title, text: typeof e.text === 'function' ? e.text() : e.text, opts: e.opts() }; }
+
 /* ─────────── 매 프레임 진행 ─────────── */
 function update(dt) {
   const out = []; if (!S || S.ended || S.draft) return out;
@@ -884,19 +1027,20 @@ function update(dt) {
     const w = wind(S.t, S.x, S.y); S.windDeg = angDiff(dir, w.dir) * 180 / Math.PI;
     const row = S.rowing && S.stamina > 0;
     const spd = (BASE_KMD * Math.min(1.05, w.str) * windFactor(S.windDeg) * shipSpeed() * (S.boost > 0 ? 1.45 : 1) + (row ? BASE_KMD * .55 : 0)) * (S.slow > 0 ? .8 : 1); S.spd = spd; if (S.boost > 0) S.boost -= step; if (S.slow > 0) S.slow -= step;
-    if (row) { S.stamina -= 13 * step; if (S.stamina <= 0) { S.stamina = 0; S.rowing = false; out.push({ type: 'tired' }); } } else S.stamina = Math.min(100, S.stamina + 3 * step);
+    if (row) { S.stamina -= 13 * step * (hasMate('rower') ? .6 : 1); if (S.stamina <= 0) { S.stamina = 0; S.rowing = false; out.push({ type: 'tired' }); } } else S.stamina = Math.min(100, S.stamina + 3 * step);
     const d = spd * step, L = Math.hypot(tx - S.x, ty - S.y);
     if (d >= L) { S.x = tx; S.y = ty; S.seg++; } else { S.x += Math.cos(dir) * d; S.y += Math.sin(dir) * d; }
     if (Math.floor(S.t * 4) !== Math.floor(t0 * 4)) revealCircle(S.x, S.y, REVEAL);
     for (const f of FINDS) if (!S.found[f.id] && Math.hypot(f.x - S.x, f.y - S.y) < 50) { S.found[f.id] = 1; S.fame += f.fame; S.gold += f.gold; if (f.fx) f.fx(S); S.voyage.finds.push(f.id); revealCircle(f.x, f.y, 80); out.push({ type: 'find', find: f }); questEval(); out.push(...regionCheck()); if (Math.random() < .35) { const m = addMap(2); if (m) out.push({ type: 'map', map: m, from: f.name }); } }
     { const m = S.maps.find(m => Math.hypot(m.x - S.x, m.y - S.y) < m.r); if (m) { S.maps.splice(S.maps.indexOf(m), 1); makeDive(m); out.push({ type: 'dive', site: m }); break; } }
     if (S.bounty && !(S.bounty.cool > S.t) && Math.hypot(S.bounty.x - S.x, S.bounty.y - S.y) < S.bounty.r) { bossBattle(); out.push({ type: 'battle', boss: true }); break; }
+    { const ms = mainSpots().find(q => Math.hypot(q.x - S.x, q.y - S.y) < q.r && !(S.main.cool > S.t)); if (ms) { makeBattle(Object.assign({}, ms.spec, { mainSpot: true })); out.push({ type: 'battle' }); break; } }
     { const sp = questSpots().find(q => Math.hypot(q.x - S.x, q.y - S.y) < q.r && !(S.quests[q.id].cool > S.t)); if (sp) { const bd = BOSSES.find(b => b.id === sp.g.boss); makeBattle({ kind: 'boss', boss: bd.id, name: bd.name, ch: bd.ch, g: bd.g, hp: bd.hp, atk: bd.atk, line: bd.line, quest: sp.id }); out.push({ type: 'battle', quest: true }); break; } }
     for (const k of PORT_IDS) if (!S.known[k] && Math.hypot(PORTS[k].x - S.x, PORTS[k].y - S.y) < 95) { S.known[k] = true; S.fame += 150; revealCircle(PORTS[k].x, PORTS[k].y, 90); out.push({ type: 'port', port: k }); }
     if (Math.floor(S.t) !== Math.floor(t0)) {
       const se = seasonOf(S.t); if (se !== S.season) { S.season = se; out.push({ type: 'season', season: se }); }
       for (const o of expireOrders()) out.push({ type: 'orderLost', order: o });
-      out.push(...newsTick());
+      out.push(...newsTick()); mainTick();
       if (S.t >= S.nextDue) { out.push({ type: 'quota', res: collectQuota() }); break; }
       const day = Math.floor(S.t);
       if (day - S.lastEvDay >= 2 && Math.random() < (inZone(S.x, S.y) ? .3 : .12)) { S.lastEvDay = day; out.push({ type: 'event', ev: rollEvent(w) }); break; }
@@ -905,7 +1049,7 @@ function update(dt) {
   return out;
 }
 /* 항구에 머무는 동안 흐른 시간도 상납 기한에 걸린다 */
-function portTick() { const out = []; if (S.mode === 'port' && !S.ended && !S.draft && S.t >= S.nextDue) out.push({ type: 'quota', res: collectQuota() }); out.push(...expireOrders().map(o => ({ type: 'orderLost', order: o }))); if (!S.ended) out.push(...newsTick()); questEval(); return out; }
+function portTick() { const out = []; if (S.mode === 'port' && !S.ended && !S.draft && S.t >= S.nextDue) out.push({ type: 'quota', res: collectQuota() }); out.push(...expireOrders().map(o => ({ type: 'orderLost', order: o }))); if (!S.ended) out.push(...newsTick()); questEval(); mainTick(); return out; }
 function arrive(k) {
   const v = S.voyage; S.mode = 'port'; S.at = k; S.stamina = 100; S.rowing = false; S.slow = 0; S.x = PORTS[k].x; S.y = PORTS[k].y; S.path = null; S.dest = null; tickMarket(k);
   const first = !S.docked[k]; S.docked[k] = 1; const fresh = first && !!PORTS[k].hidden; if (first) S.fame += 60;
@@ -918,7 +1062,9 @@ function arrive(k) {
     if (verdict === 'better' || verdict === 'right') S.stats.hits++; else if (verdict !== 'unknown') S.stats.misses++;
     return { i, id: s.id, cost: s.cost, inf: inf && { price: inf.price * LOT, ago: ago(inf.day), src: inf.src }, act: act * LOT, profit: act * LOT - s.cost, verdict }; });
   const rivalHere = S.rivals.map(R => R.last).filter(l => l && l.k === k && Math.floor(S.t) - l.day < 12).map(l => ({ id: l.id, rival: RIVALS.find(r => S.rivals.find(x => x.last === l).id === r.id) }));
-  observe(k, fresh); revealCircle(S.x, S.y, 110); makeOffer(k); makeBounty(k); offerQuests(k); questEval();
+  observe(k, fresh); revealCircle(S.x, S.y, 110); makeOffer(k); makeBounty(k); offerQuests(k); mainVisit(k); questEval(); mainTick(); tavern(k).dice = 0;
+  if (hasMate('doctor')) S.hull = Math.min(S.hullMax, S.hull + 12);
+  if (!first && Math.random() < .3) S.pending.push('port:ev');
   let letter = null; if (perk('tongue') || S.boons.letters) letter = makeRumor('true');
   S.threat = Math.max(0, S.threat - (S.t - v.t0) * .05); addThreat(.5);
   return { k, days: S.t - v.t0, first, fresh, items, storms: v.storms, finds: v.finds, letter, delivered, rivalHere, passenger, race };
@@ -936,6 +1082,7 @@ return { WORLD, VIEW, CELL, GW, GH, YEAR, LOT, LAND, LABELS, GOODS, G, PORTS, PO
   newGame, update, portTick, plan, depart, buy, sell, sellAll, buyRumor, rumorCost, tribute, tributeCost, canTribute, repair, repairCost, upgrade, nextShip,
   choose, nextStory, infoFor, tickMarket, buyPrice, sellPrice, cratePrice, pctOf, topDemand, activeBoom, freeSlots, capacity, ship, crewOf, perk,
   acceptOffer, quotaNow, quotaFor, takeBoon, daysToDue, inZone, pirateOdds, zoneR, NEWS, SPECIALS, STORE_MAX,
+  ARCS, ENDINGS, NUM, MATES, MBY, arcOf, curAct, mainGoals, mainTick, mainPay, mainDeliver, mainSpots, mainStory, hasMate, mateCap, wages, tavern, hireMate, fireMate, rollDice, portEvent,
   QUESTS, QBY, FIND_META, REGIONS, qStep, startQuest, questEval, questSpots, regionCheck,
   BOSSES, RELICS, GIMMICK, battleOpts, battleAct, battleClose, makeBattle, acceptBounty, makeBounty, addMap, diveAct, diveClose, diveCost, makeDive, arrowDmg, boardDmg,
   setRow, racers, specialInfo, useSpecial, storePut, storeTake, shipPrice, isClosed, liveNews,
