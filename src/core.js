@@ -946,7 +946,7 @@ const ARCS = {
   ] },
   tomo: { name: '그림자 상인', acts: [
     { title: '다자이후의 눈', at: () => true, intro: '하카타의 밀무역상 도모. 왜 조정은 외국과의 사사로운 거래를 금한다. 그러나 다자이후 관리들도 당의 비단은 좋아한다. 눈을 감게 만드는 것은 결국 돈이다.', goals: () => [G_.quota(2), G_.visit('naniwa')], outro: '나니와 귀족들 사이에서 "하카타의 도모"라는 이름이 오르내린다.', reward: { gold: 3000, fame: 100 } },
-    { title: '회역사', at: () => S.quotaN >= 3, intro: '왜 조정의 관리 후무로노 미야타마로가 은밀히 부른다. "청해진 장보고와 거래를 트고 싶소. 비단 값은 미리 치르겠소. 그대가 다리를 놓으시오."', goals: () => [G_.visit('cheonghae'), G_.deliver('hakata', 'silk', 3)], outro: '미야타마로가 흡족해한다. 청해진의 회역사가 하카타에 드나들기 시작했다. 도모의 이름이 조정 장부에 들어갔다.', reward: { gold: 7000, fame: 150 } },
+    { title: '회역사', at: () => S.quotaN >= 3, intro: '왜 조정의 관리 훈야노 미야타마로가 은밀히 부른다. "청해진 장보고와 거래를 트고 싶소. 비단 값은 미리 치르겠소. 그대가 다리를 놓으시오."', goals: () => [G_.visit('cheonghae'), G_.deliver('hakata', 'silk', 3)], outro: '미야타마로가 흡족해한다. 청해진의 회역사가 하카타에 드나들기 시작했다. 도모의 이름이 조정 장부에 들어갔다.', reward: { gold: 7000, fame: 150 } },
     { title: '몰수', at: () => S.quotaN >= 5, intro: '청해진 대사가 죽었다는 소식. 미야타마로는 청해진 사람이 싣고 온 물건을 "빚 대신"이라며 몰수했다. 청해진의 회역사 이충이 도모를 찾아와 무릎을 꿇는다. "물건을 되찾게 도와주시오."',
       choice: [{ id: 'help', label: '이충을 돕는다', sub: '조정을 상대로 판을 벌인다', flag: 'help' }, { id: 'buy', label: '몰수품을 헐값에 사들인다', sub: '남의 불행도 장사다', flag: 'buy' }],
       goals: () => S.main.flags.help ? [G_.pay('hakata', 15000, '관리들 입막음값'), G_.visit('cheonghae')] : [G_.pay('hakata', 8000, '몰수품 값'), G_.profit(25000)],
