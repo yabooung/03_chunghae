@@ -320,6 +320,32 @@ body.coaching .toasts{top:calc(env(safe-area-inset-top,0px) + 150px)}
 }
 @media (max-width:420px){ .slots{display:none} .meters .stat.gold b{font-size:13px} }
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+
+/* v3 */
+.sailbar .row{position:relative;display:flex;align-items:center;gap:6px;padding:7px 12px 9px;border:1.5px solid var(--ink);background:var(--hanji);font-weight:600;font-size:var(--fs-s);overflow:hidden;min-width:96px;justify-content:center}
+.sailbar .row em{font-style:normal;position:relative;z-index:1}
+.sailbar .row s{position:absolute;left:0;bottom:0;height:3px;background:var(--rok);text-decoration:none;transition:width .2s}
+.sailbar .row.on{background:var(--ink);color:var(--hanji-2)}
+.sailbar .row.on em{animation:rowpulse .5s ease-in-out infinite alternate}
+.sailbar .row:disabled{opacity:.45;cursor:default}
+@keyframes rowpulse{from{letter-spacing:0}to{letter-spacing:.08em}}
+.sailbar.chased{border-color:var(--ju);box-shadow:0 0 0 3px rgba(176,63,40,.25),var(--shadow);animation:chased 1s ease-in-out infinite alternate}
+@keyframes chased{from{box-shadow:0 0 0 2px rgba(176,63,40,.2),var(--shadow)}to{box-shadow:0 0 0 7px rgba(176,63,40,.35),var(--shadow)}}
+.special{display:grid;grid-template-columns:44px 1fr;gap:2px 12px;padding:10px 12px;border:1.5px solid var(--hwang);background:var(--hanji)}
+.special .sch{grid-row:span 2;width:44px;height:44px;background:var(--hwang);color:var(--hanji-2);font-family:var(--display);font-size:24px;display:grid;place-items:center}
+.special>b{font-family:var(--display);font-weight:400;font-size:17px;line-height:1.2}
+.special>small{font-size:var(--fs-xs);color:var(--ink-2);line-height:1.45}
+.special .sbtns{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.special .sbtns .btn{width:100%}
+.chipbtn{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 3px;border:1px solid var(--rule-2);font-size:var(--fs-xs);background:var(--hanji-2)}
+.chipbtn:hover:not(:disabled){border-color:var(--ink)} .chipbtn:disabled{opacity:.45}
+.chipbtn .glyph{width:20px;height:20px;font-size:12px}
+.newsl{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.newsl li{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:8px 10px;border-left:3px solid var(--ink);background:var(--hanji);font-size:var(--fs-s)}
+.newsl li b{font-weight:600} .newsl li span{color:var(--ink-3);font-size:var(--fs-xs)}
+.newsl li small{grid-column:1/-1;color:var(--ink-2);font-size:var(--fs-xs);line-height:1.45}
+.mate.newsbtn{border-color:var(--ink);color:var(--hanji-2);background:var(--ink)}
+@media (max-width:860px){.sailbar .row{min-width:78px;padding:6px 8px 8px}}
 </style>
 
 <canvas id="map" aria-label="해도"></canvas>
