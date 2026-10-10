@@ -421,6 +421,25 @@ function makeRumor(kind) {
   return { k, id, line: `${PORTS[k].name}에선 ${G[id].name}${JO(G[id].name,'을','를')} 상자당 ${(price * LOT).toLocaleString('ko-KR')}냥쯤 쳐준다더군.` };
 }
 
+
+/* ─────────── 시세 소식: 지나는 배·뱃사람이 물어 오는 값 움직임 ───────────
+   유행이 시작되거나 끝나면 아는 항구 것은 며칠 늦게 소식으로 들어온다(일부는 못 듣고, 가끔은 뜬소문).
+   들어온 소식은 소문 장부(S.rumors)에도 적혀 행선지 카드·시세표 값이 된다. */
+const WIRE_SRC = ['지나는 배', '뱃사람', '상인 편지', '포구 소문', '객주'];
+function wireTick() { const out = [], today = Math.floor(S.t); if (!S.wire) S.wire = { day: today, seen: {}, q: [] }; if (today <= S.wire.day) return out; S.wire.day = today; spawnBooms(today);
+  for (const b of S.booms) { const key = b.k + ':' + b.id + ':' + b.s;
+    if (b.s <= today && b.e > today && !S.wire.seen[key]) { S.wire.seen[key] = 1; if (S.known[b.k] && Math.random() < .7) S.wire.q.push({ at: b.s + ri(1, 4), kind: b.slump ? 'down' : 'up', k: b.k, id: b.id, pct: Math.round((b.m - 1) * 100), src: pick(WIRE_SRC) }); }
+    else if (b.e <= today && S.wire.seen[key] === 1) { S.wire.seen[key] = 2; if (S.known[b.k] && Math.random() < .55) S.wire.q.push({ at: today + ri(0, 3), kind: b.slump ? 'up' : 'down', end: true, k: b.k, id: b.id, src: pick(WIRE_SRC) }); } }
+  for (const key of Object.keys(S.wire.seen)) if (+key.split(':')[2] < today - 140) delete S.wire.seen[key];
+  if (Math.random() < .035) { const ks = PORT_IDS.filter(k => S.known[k] && k !== S.at); if (ks.length) { const k = pick(ks), id = pick(GOODS.filter(g => !PORTS[k].prod.includes(g.id))).id, up = Math.random() < .75;
+    S.wire.q.push({ at: today, kind: up ? 'up' : 'down', k, id, pct: up ? ri(50, 110) : -ri(30, 45), src: '뜬소문', fake: true }); } }
+  const due = S.wire.q.filter(w => w.at <= today); S.wire.q = S.wire.q.filter(w => w.at > today);
+  for (const w of due) { if (!S.known[w.k]) continue; tickMarket(w.k); const m = S.markets[w.k];
+    const price = w.fake ? Math.round(G[w.id].base * (1 + w.pct / 100) * .93) : Math.round(G[w.id].base * m.home[w.id] * boomMult(w.k, w.id, today) * .93 * sellBonus(w.k));
+    S.rumors.push({ k: w.k, id: w.id, price, day: today, src: w.src, fake: !!w.fake }); if (S.rumors.length > 60) S.rumors.splice(0, S.rumors.length - 60);
+    out.push({ type: 'wire', w: Object.assign({}, w, { day: today, price: price * LOT, hold: S.slots.some(x => x.id === w.id), dest: S.dest === w.k }) }); }
+  return out; }
+
 /* ─────────── 경쟁자 ─────────── */
 function initRivals() { S.rivals = RIVALS.map(r => { if (r.kind === 'pirate') { const z = pick(ZONES); return { id: r.id, x: z.x, y: z.y, zone: z.id, tx: z.x, ty: z.y, heading: 0, cool: 0 }; }
   const h = PORTS[r.home]; return { id: r.id, at: r.home, x: h.x, y: h.y, path: null, seg: 0, dest: null, good: null, wait: ri(2, 8), heading: 0, last: null }; }); }
@@ -1063,7 +1082,7 @@ function update(dt) {
     if (Math.floor(S.t) !== Math.floor(t0)) {
       const se = seasonOf(S.t); if (se !== S.season) { S.season = se; out.push({ type: 'season', season: se }); }
       for (const o of expireOrders()) out.push({ type: 'orderLost', order: o });
-      out.push(...newsTick()); mainTick();
+      out.push(...newsTick(), ...wireTick()); mainTick();
       if (S.t >= S.nextDue) { out.push({ type: 'quota', res: collectQuota() }); break; }
       const day = Math.floor(S.t);
       if (day - S.lastEvDay >= 2 && Math.random() < (inZone(S.x, S.y) ? .22 : .12)) { S.lastEvDay = day; out.push({ type: 'event', ev: rollEvent(w) }); break; }
@@ -1072,7 +1091,7 @@ function update(dt) {
   return out;
 }
 /* 항구에 머무는 동안 흐른 시간도 상납 기한에 걸린다 */
-function portTick() { const out = []; if (S.mode === 'port' && !S.ended && !S.draft && S.t >= S.nextDue) out.push({ type: 'quota', res: collectQuota() }); out.push(...expireOrders().map(o => ({ type: 'orderLost', order: o }))); if (!S.ended) out.push(...newsTick()); questEval(); mainTick(); return out; }
+function portTick() { const out = []; if (S.mode === 'port' && !S.ended && !S.draft && S.t >= S.nextDue) out.push({ type: 'quota', res: collectQuota() }); out.push(...expireOrders().map(o => ({ type: 'orderLost', order: o }))); if (!S.ended) out.push(...newsTick(), ...wireTick()); questEval(); mainTick(); return out; }
 function arrive(k) {
   const v = S.voyage; S.mode = 'port'; S.at = k; S.stamina = 100; S.rowing = false; S.slow = 0; S.x = PORTS[k].x; S.y = PORTS[k].y; S.path = null; S.dest = null; tickMarket(k);
   const first = !S.docked[k]; S.docked[k] = 1; const fresh = first && !!PORTS[k].hidden; if (first) S.fame += 60;
@@ -1085,12 +1104,13 @@ function arrive(k) {
     if (verdict === 'better' || verdict === 'right') S.stats.hits++; else if (verdict !== 'unknown') S.stats.misses++;
     return { i, id: s.id, cost: s.cost, inf: inf && { price: inf.price * LOT, ago: ago(inf.day), src: inf.src }, act: act * LOT, profit: act * LOT - s.cost, verdict }; });
   const rivalHere = S.rivals.map(R => R.last).filter(l => l && l.k === k && Math.floor(S.t) - l.day < 12).map(l => ({ id: l.id, rival: RIVALS.find(r => S.rivals.find(x => x.last === l).id === r.id) }));
-  observe(k, fresh); revealCircle(S.x, S.y, 110); makeOffer(k); makeBounty(k); offerQuests(k); mainVisit(k); questEval(); mainTick(); tavern(k).dice = 0;
+  const L0 = S.ledger[k]; observe(k, fresh); const moves = []; if (L0) for (const id of Object.keys(S.ledger[k].p)) { const a = L0.p[id], b = S.ledger[k].p[id]; if (a && b && Math.abs(b / a - 1) >= .15) moves.push({ id, pct: Math.round((b / a - 1) * 100), days: Math.floor(S.t) - L0.day }); } moves.sort((x, y) => Math.abs(y.pct) - Math.abs(x.pct));
+  revealCircle(S.x, S.y, 110); makeOffer(k); makeBounty(k); offerQuests(k); mainVisit(k); questEval(); mainTick(); tavern(k).dice = 0;
   if (hasMate('doctor')) S.hull = Math.min(S.hullMax, S.hull + 12);
   if (!first && Math.random() < .3) S.pending.push('port:ev');
   let letter = null; if (perk('tongue') || S.boons.letters) letter = makeRumor('true');
   S.threat = Math.max(0, S.threat - (S.t - v.t0) * .05); addThreat(.5);
-  return { k, days: S.t - v.t0, first, fresh, items, storms: v.storms, finds: v.finds, letter, delivered, rivalHere, passenger, race };
+  return { k, days: S.t - v.t0, first, fresh, items, storms: v.storms, finds: v.finds, letter, delivered, rivalHere, passenger, race, moves: moves.slice(0, 4) };
 }
 function sellAll(keep) { const res = []; for (let i = S.slots.length - 1; i >= 0; i--) if (!keep || !keep.includes(i)) { const r = sell(i); if (r) res.push(r); } return res.reverse(); }
 
@@ -1113,7 +1133,7 @@ return { WORLD, VIEW, CELL, GW, GH, YEAR, LOT, LAND, LABELS, GOODS, G, PORTS, PO
   ARCS, ENDINGS, NUM, MATES, MBY, arcOf, curAct, mainGoals, mainTick, mainPay, mainDeliver, mainSpots, mainStory, hasMate, mateCap, wages, tavern, hireMate, fireMate, rollDice, portEvent,
   QUESTS, QBY, FIND_META, REGIONS, qStep, startQuest, questEval, questSpots, regionCheck,
   BOSSES, RELICS, GIMMICK, battleOpts, battleAct, battleClose, makeBattle, acceptBounty, makeBounty, addMap, diveAct, diveClose, diveCost, makeDive, GASP, arrowDmg, boardDmg,
-  setRow, racers, specialInfo, useSpecial, storePut, storeTake, shipPrice, isClosed, liveNews,
+  wireTick, setRow, racers, specialInfo, useSpecial, storePut, storeTake, shipPrice, isClosed, liveNews,
   wind, monsoon, windWord, dateStr, seasonOf, doyOf, ago, assets, score, rankOf, seaAt, onLand, revealed, findPath, estimateDays, angDiff, pathZones };
 })();
 if (typeof module !== 'undefined') module.exports = CORE;
