@@ -5,10 +5,12 @@
 'use strict';
 const C = CORE, JO = C.JO, $ = id => document.getElementById(id);
 const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const won = n => fmt(n) + '냥';  // 돈은 늘 "1,150냥" — 숫자와 단위 사이를 띄우지 않는다
+const COARSE = matchMedia('(pointer:coarse)').matches;  // 손가락 기기면 Shift 대신 '길게 누르기'를 안내한다
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const COL = { hanji: css('--hanji'), hanji2: css('--hanji-2'), hanji3: css('--hanji-3'), ink: css('--ink'), ink2: css('--ink-2'), ink3: css('--ink-3'), cheong: css('--cheong'), rok: css('--rok'), rok2: css('--rok-2'), ju: css('--ju'), hwang: css('--hwang'), gold: css('--gold'), jok: css('--jok') };
 /* 움직임 줄이기 — 켜져 있으면 물결·흔들림·숫자 굴리기를 멈춘다 */
-const RMQ = matchMedia('(prefers-reduced-motion: reduce)'); let RM = RMQ.matches; RMQ.addEventListener && RMQ.addEventListener('change', e => { RM = e.matches; });
+const RMQ = matchMedia('(prefers-reduced-motion: reduce)'); let RM = RMQ.matches; RMQ.addEventListener && RMQ.addEventListener('change', e => { if (META.rm == null) RM = e.matches; });
 const KEY = 'chunghae.v6.save', MKEY = 'chunghae.v2.meta';
 const SEC_PER_DAY = .5, SPEEDS = [1, 2, 4];
 const SEASON_BANNER = [
@@ -25,6 +27,9 @@ const S = () => C.S;
 /* ─────────── 저장 ─────────── */
 const META = (() => { const d = { runs: 0, best: 0, unlocked: {}, tut: false, sound: true }; try { return Object.assign(d, JSON.parse(localStorage.getItem(MKEY) || '{}')); } catch (e) { return d; } })();
 const saveMeta = () => { try { localStorage.setItem(MKEY, JSON.stringify(META)); } catch (e) {} };
+/* 움직임 줄이기: 메뉴에서 고른 값(META.rm)이 기기 설정보다 앞선다. body.rm / body.rm-off 로 CSS 움직임도 함께 멈추거나 되살린다 */
+function setRM(v, keep) { if (!keep) { META.rm = v; saveMeta(); } RM = v; document.body.classList.toggle('rm', v); document.body.classList.toggle('rm-off', META.rm === false); const st = $('mMotionSt'); if (st) st.textContent = v ? '켬' : '끔'; }
+if (META.rm != null) setRM(!!META.rm, true);
 function saveGame() { const s = S(); if (!s || s.ended || s.mode !== 'port' || s.draft) return; try { localStorage.setItem(KEY, C.saveData()); } catch (e) {} }
 function hasSave() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(d && d.v === 6 && !d.ended); } catch (e) { return false; } }
 function loadGame() { try { return !!C.loadData(localStorage.getItem(KEY)); } catch (e) { return false; } } // 난이도가 없던 옛 저장은 바람으로 읽힌다
@@ -162,7 +167,7 @@ function relayout(recenter) {
   if (!pan.hidden) { if (NARROW()) a.h = H - top - pan.getBoundingClientRect().height - 8; else if (!pan.classList.contains('min')) a.w = W - 24 - 396; }
   AREA = a; cam.fit = Math.min(a.w / C.WORLD.w, a.h / C.WORLD.h);
   if (recenter) { cam.z = cam.wide ? cam.fit : defaultZoom(); const s = S(); if (s) { cam.x = s.x; cam.y = s.y; } }
-  clampCam();
+  clampCam(); placeCrew(); placeToasts();
 }
 const defaultZoom = () => NARROW() ? Math.max(cam.fit, AREA.w / 560) : Math.max(cam.fit, Math.min(AREA.w / 1000, AREA.h / 760));
 function clampCam() { cam.z = Math.max(cam.fit * .95, Math.min(cam.fit * 6, cam.z)); const hw = AREA.w / 2 / cam.z, hh = AREA.h / 2 / cam.z;
@@ -329,24 +334,30 @@ function paintHud() {
   const q = C.quotaNow(), dd = Math.ceil(C.daysToDue()); setText('hQuota', fmt(q)); setText('hDue', `${dd}일 뒤`);
   const qk = (s.gold >= q) + ':' + (dd <= 15); if (last.qr !== qk) { last.qr = qk; $('hQuotaBox').classList.toggle('ok', s.gold >= q); $('hQuotaBox').classList.toggle('urgent', s.gold < q && dd <= 15); }
   const slotKey = C.capacity() + ':' + s.slots.map(x => x.id).join(',');
-  if (last.slots !== slotKey) { last.slots = slotKey; $('hSlots').innerHTML = Array.from({ length: C.capacity() }, (_, i) => { const it = s.slots[i]; return it ? `<span class="slot full" style="background:${C.G[it.id].col}">${C.G[it.id].ch}</span>` : '<span class="slot"></span>'; }).join(''); }
+  if (last.slots !== slotKey) { last.slots = slotKey; $('hSlots').innerHTML = Array.from({ length: C.capacity() }, (_, i) => { const it = s.slots[i]; return it ? `<span class="slot full" style="background:${C.G[it.id].col}">${C.G[it.id].ch}</span>` : '<span class="slot"></span>'; }).join(''); $('hSlots').setAttribute('aria-label', `선창 ${s.slots.length}/${C.capacity()}`); $('hSlots').title = `선창 ${s.slots.length}/${C.capacity()}`; }
+  if (last.mode !== s.mode) { last.mode = s.mode; document.body.classList.toggle('sailing', s.mode === 'sail'); placeToasts(); }
   const mood = s.threat >= 60 || s.hull < s.hullMax * .3 ? 'grim' : 'neutral'; if (last.cap !== s.cap + mood) { last.cap = s.cap + mood; $('hCap').innerHTML = PORTRAIT.svg(s.cap, { size: 48, expr: mood }); $('hCap').title = `${C.CAPTAINS[s.cap].name} — ${C.CAPTAINS[s.cap].title}`; }
-  const th = Math.round(s.threat); if (last.th !== th) { last.th = th; $('hThreat').querySelector('b').textContent = th; $('hThreat').querySelector('s').style.width = th + '%'; $('hThreat').classList.toggle('hot', th >= 60); }
+  const th = Math.round(s.threat); if (last.th !== th) { last.th = th; $('hThreat').querySelector('b').textContent = th; $('hThreat').querySelector('s').style.width = th + '%'; $('hThreat').classList.toggle('hot', th >= 60); $('hThreatSt').textContent = th >= 85 ? '그림자' : th >= 60 ? '현상금' : th >= 30 ? '감찰' : '안전'; }
   const hu = Math.round(s.hull / s.hullMax * 100); if (last.hu !== hu) { last.hu = hu; $('hHull').querySelector('b').textContent = Math.round(s.hull); $('hHull').querySelector('s').style.width = hu + '%'; }
   const live = C.liveNews(); const ck = s.crew.map(c => `${c.k}${c.asked ? 1 : 0}${c.done ? 1 : 0}${c.alive ? 1 : 0}`).join('') + JSON.stringify(s.boons) + live.map(n => n.id).join() + Object.keys(s.relics || {}).join();
   if (last.crew !== ck) { last.crew = ck; const nb = Object.values(s.boons).reduce((a, b) => a + b, 0);
     $('crew').innerHTML = s.crew.map(c => { const d = C.CREW.find(x => x.k === c.k); const cls = !c.alive ? 'gone' : c.done ? 'done' : c.asked ? 'ask' : '';
       const tip = !c.alive ? '이제 없다.' : c.done ? `부탁을 들어줬다. ${d.perk}` : c.asked ? `부탁: "${d.ask}"<br>→ ${d.hint}` : '아직 말이 없다.';
-      return `<button class="mate pt ${cls}" aria-label="${d.name}">${PORTRAIT.svg(c.k, { size: 48, expr: PORTRAIT.exprs(c.k)[c.done ? 1 : 0] })}<span class="tip"><b>${d.name}</b> · ${d.role}<br>${tip}</span></button>`; }).join('')
-      + (live.length ? `<button class="mate newsbtn" aria-label="세상 소식 ${live.length}개">報<span class="tip"><b>세상 소식</b><br>${live.map(n => `· ${n.title} <small>(${Math.max(1, Math.ceil(n.e - s.t))}일)</small>`).join('<br>')}</span></button>` : '')
-      + (Object.keys(s.relics || {}).length ? `<button class="mate relicbtn" aria-label="유물">寶<span class="tip"><b>유물 ${Object.keys(s.relics).length}/${C.RELICS.length}</b><br>${C.RELICS.filter(r => s.relics[r.id]).map(r => `${r.ch} ${r.name} — ${r.text}`).join('<br>')}</span></button>` : '')
-      + (nb ? `<button class="mate boonsbtn" aria-label="특권 ${nb}개">特<span class="tip"><b>특권</b><br>${Object.entries(s.boons).map(([id, n]) => { const b = C.BOONS.find(x => x.id === id); return `${b.ch} ${b.name}${n > 1 ? ' ×' + n : ''} — ${b.text}`; }).join('<br>')}</span></button>` : ''); }
+      return `<button class="mate pt ${cls}" aria-label="${d.name}" aria-expanded="false">${PORTRAIT.svg(c.k, { size: 48, expr: PORTRAIT.exprs(c.k)[c.done ? 1 : 0] })}<span class="tip"><b>${d.name}</b> · ${d.role}<br>${tip}</span></button>`; }).join('')
+      + (live.length ? `<button class="mate newsbtn" aria-label="세상 소식 ${live.length}개" aria-expanded="false">報<span class="tip"><b>세상 소식</b><br>${live.map(n => `· ${n.title} <small>(${Math.max(1, Math.ceil(n.e - s.t))}일)</small>`).join('<br>')}</span></button>` : '')
+      + (Object.keys(s.relics || {}).length ? `<button class="mate relicbtn" aria-label="유물" aria-expanded="false">寶<span class="tip"><b>유물 ${Object.keys(s.relics).length}/${C.RELICS.length}</b><br>${C.RELICS.filter(r => s.relics[r.id]).map(r => `${r.ch} ${r.name} — ${r.text}`).join('<br>')}</span></button>` : '')
+      + (nb ? `<button class="mate boonsbtn" aria-label="특권 ${nb}개" aria-expanded="false">特<span class="tip"><b>특권</b><br>${Object.entries(s.boons).map(([id, n]) => { const b = C.BOONS.find(x => x.id === id); return `${b.ch} ${b.name}${n > 1 ? ' ×' + n : ''} — ${b.text}`; }).join('<br>')}</span></button>` : ''); }
   if (s.mode === 'sail' && s.path && s.path[s.seg + 1]) { let rem = Math.hypot(s.path[s.seg + 1][0] - s.x, s.path[s.seg + 1][1] - s.y); for (let i = s.seg + 1; i < s.path.length - 1; i++) rem += Math.hypot(s.path[i + 1][0] - s.path[i][0], s.path[i + 1][1] - s.path[i][1]);
     const st = Math.round(s.stamina), sk = st + ':' + s.rowing; if (last.st !== sk) { last.st = sk; const rb = $('sbRow'); if (rb) { rb.classList.toggle('on', !!s.rowing); rb.disabled = st <= 3 && !s.rowing; rb.querySelector('s').style.width = st + '%'; rb.querySelector('em').textContent = s.rowing ? '젓는 중' : st <= 3 ? '지쳤다' : '노 저어라'; } }
     const ch = s.rivals.some(R => R.chasing); if (last.ch !== ch) { last.ch = ch; $('sailbar').classList.toggle('chased', ch); }
     const days = s.spd > 1 ? rem / s.spd : 0; const el = $('sbRem'); if (el) el.textContent = `${days > .1 ? `남은 약 ${Math.max(1, Math.round(days))}일` : '곧 닿는다'} · ${C.windWord(s.windDeg || 0)}${C.inZone(s.x, s.y) ? ' · 해적 해역' : ''}`; }
 }
 
+/* 선원·報·特·寶: 누르면 쪽지가 열리고(aria-expanded) 다른 곳을 누르면 닫힌다. 마우스 올림은 CSS가 맡는다 */
+const closeMates = () => $('crew').querySelectorAll('.mate.open').forEach(x => { x.classList.remove('open'); x.setAttribute('aria-expanded', 'false'); const t = x.querySelector('.tip'); if (t) t.style.transform = ''; });
+const fitTip = m => { const t = m.querySelector('.tip'); if (!t) return; t.style.transform = ''; const r = t.getBoundingClientRect(); const d = r.left < 8 ? 8 - r.left : r.right > innerWidth - 8 ? innerWidth - 8 - r.right : 0; if (d) t.style.transform = `translateX(${Math.round(d)}px)`; };  // 쪽지가 화면 밖으로 나가면 안으로 민다
+$('crew').addEventListener('click', e => { e.stopPropagation(); const m = e.target.closest('.mate'); if (!m) return; const on = !m.classList.contains('open'); closeMates(); if (on) { m.classList.add('open'); m.setAttribute('aria-expanded', 'true'); fitTip(m); } });
+document.addEventListener('click', e => { if (!e.target.closest('#crew')) closeMates(); });
 /* 돈: 바뀌면 숫자가 굴러가고 밑에 차액이 잠깐 뜬다 */
 const GT = { v: null, from: 0, to: 0, t0: 0 };
 function paintGold(g) { const el = $('hGold');
@@ -357,11 +368,50 @@ function goldDelta(d) { d = Math.round(d); if (!d) return; const box = $('hGoldB
   box.querySelectorAll('.delta').forEach(x => x.remove()); const sp = document.createElement('span'); sp.className = 'delta ' + (d > 0 ? 'up' : 'dn'); sp.textContent = (d > 0 ? '+' : '') + fmt(d); box.appendChild(sp); setTimeout(() => sp.remove(), 1700); }
 
 /* ─────────── 알림 · 팝 · 띠 ─────────── */
-function toast(msg, kind, noLog) { if (!noLog && kind !== 'cx') journal(msg, kind); if (!noLog && !kind && feedVisible()) return null; const el = document.createElement('div'); el.className = 'toast ' + (kind || ''); el.innerHTML = msg; $('toasts').appendChild(el); setTimeout(() => el.remove(), 3600); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); return el; }
+/* 알림: 창이 열려 있는 동안 온 것은 모아 두었다가(넷까지) 창이 닫히면 차례로 보여 준다. 한 번에 셋까지 */
+const TQ = [];
+function toast(msg, kind, noLog, opt) { if (!noLog && kind !== 'cx') journal(msg, kind); if (!noLog && !kind && feedVisible()) return null;
+  if (anyModal()) { TQ.push({ msg, kind, opt }); if (TQ.length > 4) TQ.shift(); return null; }
+  const el = document.createElement('div'); el.className = 'toast ' + (kind || ''); el.innerHTML = msg; if (opt && opt.onclick) { el.onclick = opt.onclick; el.setAttribute('role', 'button'); el.tabIndex = 0; }
+  $('toasts').appendChild(el); setTimeout(() => el.remove(), 3600); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); return el; }
+function flushToasts() { const q = TQ.splice(0); q.forEach((t, i) => setTimeout(() => { if (!anyModal()) toast(t.msg, t.kind, true, t.opt); else { TQ.push(t); } }, i * 220)); }
 function pop(txt, x, y, kind) { const el = document.createElement('div'); el.className = 'pop ' + (kind || ''); el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 1400); }
 const popAt = (el, txt, kind) => { const r = el.getBoundingClientRect(); pop(txt, r.left + r.width / 2, r.top + r.height / 2, kind); };
 function banner(big, small) { $('bnBig').textContent = big; $('bnSmall').textContent = small; const b = $('banner'); b.hidden = false; const d = b.firstElementChild; d.style.animation = 'none'; void d.offsetWidth; d.style.animation = ''; clearTimeout(banner.t); banner.t = setTimeout(() => b.hidden = true, 2800); }
-const anyModal = () => ['mEvent', 'mReveal', 'mStory', 'mQuota', 'sEnd', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex'].some(id => !$(id).hidden);
+/* ─────────── 창 쌓기 · 초점 가두기 ───────────
+   창이 열리면 뒤(해도·머리띠·패널·선원·안내·소식창·첫 화면)와 아래 깔린 다른 창을 inert로 막고, 제목(h2)으로 이름을 붙이고,
+   닫히면 열었던 단추로 초점을 돌려준다. hidden 속성을 지켜보므로 여는 쪽은 그대로 $('mX').hidden = false/true 를 쓰면 된다 */
+const MODALS = ['mEvent', 'mReveal', 'mStory', 'mQuota', 'sEnd', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex', 'mNew', 'mHelp'];
+const anyModal = () => MODALS.some(id => !$(id).hidden);
+const BG_SEL = '#map,.hud,#crew,#tracker,#coach,#feed,#panel,#dest,#sailbar,#menu,#sTitle';
+const MST = { stack: [], opener: new Map() };
+const topModal = () => MST.stack[MST.stack.length - 1] || null;
+const focusables = el => [...el.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && !x.closest('[hidden]') && !x.closest('[inert]') && x.getClientRects().length);
+function applyModals() { const top = topModal();
+  for (const el of document.querySelectorAll(BG_SEL)) el.inert = !!top;
+  for (const id of MODALS) { const m = $(id); m.inert = !!top && m !== top && !m.hidden; }
+  if (!top) return; const card = top.querySelector('[role="dialog"]') || top;
+  if (!card.getAttribute('aria-label')) { const h = card.querySelector('h2'); if (h) { if (!h.id) h.id = top.id + 'H'; card.setAttribute('aria-labelledby', h.id); } }
+  if (!top.contains(document.activeElement)) { const f = focusables(top)[0]; if (f) f.focus({ preventScroll: true }); else { if (!card.hasAttribute('tabindex')) card.tabIndex = -1; card.focus({ preventScroll: true }); } } }
+new MutationObserver(recs => { let changed = false;
+  for (const r of recs) { const m = r.target; if (!MODALS.includes(m.id)) continue; const i = MST.stack.indexOf(m);
+    if (!m.hidden && i < 0) { MST.stack.push(m); const a = document.activeElement; MST.opener.set(m, a && a !== document.body && !m.contains(a) ? a : null); changed = true; }
+    else if (m.hidden && i >= 0) { MST.stack.splice(i, 1); const o = MST.opener.get(m); MST.opener.delete(m); changed = true;
+      if (o && !topModal() && o.isConnected && !o.closest('[hidden]') && o.getClientRects().length) o.focus({ preventScroll: true }); } }
+  if (changed) { applyModals(); if (!topModal() && TQ.length) flushToasts(); } }).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });
+/* Esc: 닫을 수 있는 창은 닫고, '계속' 단추가 떠 있는 창은 그것을 누른다. 선택이 남은 창(이야기·특권)은 그대로 둔다 */
+function closeTop(top) { const id = top.id;
+  if (id === 'mCodex') { closeCodex(); return true; }
+  if (id === 'mBook' || id === 'mRetire2' || id === 'mNew' || id === 'mHelp') { top.hidden = true; return true; }
+  const b = top.querySelector('#evOk,#btOk,#dvOk,#rvOk'); if (b && !b.disabled) { b.click(); return true; } return false; }
+addEventListener('keydown', e => { const top = topModal(); if (!top) return;
+  if (e.key === 'Escape') { if (closeTop(top)) { e.preventDefault(); e.stopImmediatePropagation(); } return; }
+  if (e.key === 'Tab') { const f = focusables(top); if (!f.length) { e.preventDefault(); return; } const i = f.indexOf(document.activeElement);
+    if (e.shiftKey ? i <= 0 : (i < 0 || i === f.length - 1)) { e.preventDefault(); (e.shiftKey ? f[f.length - 1] : f[0]).focus({ preventScroll: true }); } } }, true);
+/* 되돌릴 수 없는 단추는 한 번 더 눌러야 실행된다(3초 안에). 첫 누름에 글자가 바뀌고 붉게 찬다 */
+function confirmTap(b, label) { if (b.dataset.sure) { delete b.dataset.sure; return true; }
+  b.dataset.sure = '1'; b.dataset.was = b.innerHTML; b.innerHTML = label; b.classList.add('danger', 'sure');
+  setTimeout(() => { if (b.isConnected && b.dataset.sure) { b.innerHTML = b.dataset.was; delete b.dataset.sure; b.classList.remove('sure'); } }, 3000); return false; }
 
 /* ─────────── 첫 판 안내 ─────────── */
 let coachStep = -1;
@@ -373,18 +423,29 @@ const COACH = [
   '소문이 맞았을까? 상자가 하나씩 열린다. <b>팔고 내린다</b>.',
   '잘했다. 항구마다 <b>그곳에서만</b> 할 수 있는 일이 있고, <b>報</b>는 바다 너머 소식, 위의 <b>장부</b>(B)에는 항구별 시세·이야기·탐험 도감이 있다. 상납을 내면 <b>특권</b>을 고른다. <b>흰 종이</b>는 아직 아무도 그리지 않은 바다 — 숨은 항구는 값이 두 배다.'
 ];
-/* 안내가 떠 있으면 알림은 안내 아래로 내려간다 — 안내 길이가 화면마다 달라 실제 높이로 잰다 */
-function placeToasts() { const c = $('coach'); $('toasts').style.top = c.hidden ? '' : `${Math.round(c.getBoundingClientRect().bottom + 8)}px`; }
+/* 안내가 떠 있으면 알림은 안내 아래로 내려간다 — 안내 길이가 화면마다 달라 실제 높이로 잰다.
+   좁은 화면에서는 안내가 아래쪽 시트(패널·항해 띠·행선지·소식창) 바로 위에 붙는다: 그 높이를 --sheet-h 로 넘긴다 */
+function placeToasts() { const c = $('coach'); $('toasts').style.top = c.hidden || NARROW() ? '' : `${Math.round(c.getBoundingClientRect().bottom + 8)}px`;
+  let h = 0; if (NARROW()) for (const id of ['panel', 'sailbar', 'dest', 'feed']) { const el = $(id); if (el.hidden || getComputedStyle(el).display === 'none') continue; h = Math.max(h, innerHeight - el.getBoundingClientRect().top); }
+  document.documentElement.style.setProperty('--sheet-h', Math.round(h) + 'px'); }
 function showCoach(on) { $('coach').hidden = !on; document.body.classList.toggle('coaching', on); placeToasts(); }
-function coach(step) { if (META.tut || coachStep >= step || coachStep === -2) return; coachStep = step; $('coachText').innerHTML = COACH[step]; showCoach(true);
-  if (step === 5) { setTimeout(() => { if (coachStep === 5) { showCoach(false); META.tut = true; saveMeta(); } }, 10000); } }
-$('coachSkip').onclick = () => { showCoach(false); coachStep = -2; META.tut = true; saveMeta(); };
+/* 안내는 조건형이다: 사는 것·행선지 카드·출항·입항이면 다음 단계로 넘어가고, 「다음」을 누르면 언제든 넘어간다 */
+function coach(step) { if (META.tut || coachStep >= step || coachStep === -2) return; coachGo(step); }
+function coachGo(step) { if (step >= COACH.length) { coachEnd(); return; } coachStep = step; $('coachText').innerHTML = COACH[step]; $('coachNext').textContent = step === COACH.length - 1 ? '알겠다' : '다음'; showCoach(true);
+  if (step === 1 && NARROW() && !$('panel').hidden && !panelMin) setPanelMin(true);  // 좁은 화면: 도장을 누를 수 있게 지도를 보여 준다
+  if (step === COACH.length - 1) setTimeout(() => { if (coachStep === step) coachEnd(); }, 10000); }
+function coachEnd() { showCoach(false); coachStep = -2; META.tut = true; saveMeta(); }
+$('coachNext').onclick = () => coachGo(coachStep + 1);
+$('coachSkip').onclick = coachEnd;
 
 /* ─────────── 항구 장부 ─────────── */
 let lastQuote = null, panelMin = false;
 function openPanel() { const p = $('panel'); p.hidden = false; panelMin = false; p.classList.remove('min'); $('pGrab').textContent = '접기'; paintPanel(); relayout(false); }
 function closePanel() { $('panel').hidden = true; relayout(false); }
-$('pHead').onclick = () => { panelMin = !panelMin; $('panel').classList.toggle('min', panelMin); $('pGrab').textContent = panelMin ? '펼치기' : '접기'; relayout(false); };
+function setPanelMin(v) { panelMin = v; $('panel').classList.toggle('min', v); $('pGrab').textContent = v ? '펼치기' : '접기'; $('pHead').setAttribute('aria-expanded', v ? 'false' : 'true'); relayout(false); }
+$('pHead').onclick = () => setPanelMin(!panelMin);
+/* 좁은 화면에서 정박 중이면 선원 초상이 장부 머리 안으로 들어가 해도 위 자리를 비운다 */
+function placeCrew() { const crew = $('crew'), host = NARROW() && !$('panel').hidden ? $('pHead') : document.body; if (crew.parentNode === host) return; if (host === document.body) document.body.insertBefore(crew, $('tracker')); else host.insertBefore(crew, $('pGrab')); }
 function tagFor(pct) { return pct <= 80 ? ['cheap', '싸다'] : pct >= 130 ? ['dear', '비싸다'] : ['mid', '보통']; }
 function gl(g, cls) { return `<span class="glyph ${cls || ''}" style="background:${g.col}">${g.ch}</span>`; }
 /* 물건 그림 — 32칸, 1.7 굵기 둥근 선 하나로 통일. 모서리에 한자 도장 */
@@ -410,11 +471,11 @@ function paintPanel() {
   $('pSeal').textContent = P.ch; $('pName').textContent = P.name; $('pSub').textContent = `${P.nation} · 정박 중`; ART.portBanner($('pHead'), k, s.t);
   const free = C.freeSlots();
   const tiles = m.stock.map(id => { const g = C.G[id], pr = C.cratePrice(k, id), pct = C.pctOf(k, id), [tc, tl] = tagFor(pct), b = C.activeBoom(k, id, d);
-    return `<button class="good" data-buy="${id}" ${!free || s.gold < pr ? 'disabled' : ''}>${gi(g)}<span class="tagl ${tc}">${tl}</span><span class="nm">${g.name}</span><span class="pr">${fmt(pr)}<small> 냥</small></span>${b ? `<span class="boom">${b.slump ? '남아돈다' : '유행'}</span>` : ''}</button>`; }).join('');
+    return `<button class="good" data-buy="${id}" ${!free || s.gold < pr ? 'disabled' : ''}>${gi(g)}<span class="tagl ${tc}">${tl}</span><span class="nm">${g.name}</span><span class="pr">${fmt(pr)}<small>냥</small></span>${b ? `<span class="boom">${b.slump ? '남아돈다' : '유행'}</span>` : ''}</button>`; }).join('');
   const wants = C.topDemand(k, 3).map(id => `<span class="want">${gl(C.G[id])}${C.G[id].name} <b>${fmt(C.sellPrice(k, id) * C.LOT)}</b></span>`).join('');
   const hold = s.slots.length ? s.slots.map((it, i) => { const g = C.G[it.id], now = C.sellPrice(k, it.id) * C.LOT, pl = now - it.cost;
       const be = bestElsewhere(it.id);
-      return `<div class="crate">${gl(g)}<div class="gr">${g.name} · 산 값 <b>${fmt(it.cost)}</b><br>여기서 <b>${fmt(now)}</b> <span class="${pl >= 0 ? 'up' : 'dn'}">${pl >= 0 ? '+' : ''}${fmt(pl)}</span>${be ? `<br><small class="hint ${be.price * C.LOT > now ? 'up' : ''}">▲ ${C.PORTS[be.k].name} ${fmt(be.price * C.LOT)} <span>(${C.ago(be.day)})</span></small>` : ''}</div><button class="btn" data-sell="${i}">판다</button></div>`; }).join('')
+      return `<div class="crate">${gl(g)}<div class="gr">${g.name} · 산 값 <b>${fmt(it.cost)}</b><br>여기서 <b>${fmt(now)}</b> <span class="${pl >= 0 ? 'up' : 'dn'}">${pl >= 0 ? '+' : ''}${fmt(pl)}</span>${be ? `<br><small class="hint ${be.price * C.LOT > now ? 'up' : ''}">▲ ${C.PORTS[be.k].name} ${fmt(be.price * C.LOT)} <span>(${C.ago(be.day)})</span></small>` : ''}</div><button class="btn ${pl < 0 ? 'danger' : ''}" data-sell="${i}">판다</button></div>`; }).join('')
     : '<p class="fine" style="text-align:left;margin:0">선창이 비었다.</p>';
   const off = s.offers[k], ords = s.orders;
   const offerHtml = off && !off.none ? `<div class="order">${gl(C.G[off.good])}<span class="gr"><b>${C.PORTS[off.to].name}</b>까지 ${C.G[off.good].name} <b>${off.n}상자</b> · ${off.days}일 안에<br><span class="up">보수 ${fmt(off.reward)}냥</span></span><button class="btn blue" data-act="accept" ${ords.length >= 2 ? 'disabled' : ''}>${ords.length >= 2 ? '두 건까지' : '맡는다'}</button></div>` : '<p class="fine" style="text-align:left;margin:0">지금 이 항구엔 맡길 일이 없다.</p>';
@@ -429,13 +490,13 @@ function paintPanel() {
   ].join('');
   const tabsDef = [['market', '시장', 0], ['port', '항구', C.liveNews().length ? '·' : 0], ['work', '일거리', (off && !off.none && ords.length < 2 ? 1 : 0) + (s.bOffers[k] && !s.bOffers[k].none && !s.bounty ? 1 : 0) + (C.mainGoals().some(g => g.pay && !g.done && g.pay.k === k) ? 1 : 0)], ['tavern', '선술집', C.tavern(k).offer.length]];
   const body = panelTab === 'market' ? `
-    <div class="sec"><h3>시장 — 한 상자 ${C.LOT}묶음<span>빈 칸 ${free} · Shift/길게 눌러 가득</span></h3><div class="goods">${tiles}</div></div>
+    <div class="sec"><h3>시장 — 한 상자 ${C.LOT}묶음<span>빈 칸 ${free} · ${COARSE ? '길게 누르면 가득' : 'Shift+누르면 가득'}</span></h3><div class="goods">${tiles}</div></div>
     <div class="sec"><h3>이 항구가 비싸게 사는 것</h3><div class="wants">${wants}</div></div>
     <div class="sec"><h3>내 짐<span>▲ 아는 곳 중 가장 비싼 곳</span></h3><div class="hold">${hold}</div></div>`
     : panelTab === 'port' ? `${specialHtml(k)}<div class="sec"><h3>배와 조정</h3><div class="acts">${acts}</div></div>${newsHtml()}`
     : panelTab === 'work' ? `<div class="sec"><h3>본 이야기</h3>${mainBox(k)}</div>${targetsHtml(k)}<div class="sec"><h3>의뢰<span>맡은 일 ${ords.length}/2</span></h3>${offerHtml}${ordHtml || pas ? `<div class="hold" style="margin-top:6px">${ordHtml}${pas}</div>` : ''}</div>`
     : tavernHtml(k);
-  $('pBody').innerHTML = `<div class="ptabs">${tabsDef.map(([id, l, b]) => `<button class="${panelTab === id ? 'on' : ''}" data-ptab="${id}">${l}${b ? `<i>${b === '·' ? '' : b}</i>` : ''}</button>`).join('')}</div>${body}`;
+  $('pBody').innerHTML = `<div class="ptabs" role="tablist">${tabsDef.map(([id, l, b]) => `<button class="${panelTab === id ? 'on' : ''}" data-ptab="${id}" role="tab" aria-selected="${panelTab === id}">${l}${b ? `<i>${b === '·' ? '' : b}</i>` : ''}</button>`).join('')}</div>${body}`;
   $('pLeft').textContent = `상납까지 ${Math.ceil(C.daysToDue())}일`;
   cxLink($('pBody'), { sel: '.special small, .newsl small', max: 3 });
 }
@@ -456,7 +517,7 @@ $('pBody').addEventListener('click', e => {
   if (b.dataset.sell != null) { const r = C.sell(+b.dataset.sell); if (!r) return; saleFx([r], b); after(); runStories(); return; }
   if (b.dataset.ptab) { panelTab = b.dataset.ptab; paintPanel(); $('pBody').scrollTop = 0; return; }
   if (b.dataset.hire) { const r = C.hireMate(b.dataset.hire); if (!r.ok) { toast(r.text || '안 된다'); return; } AU.good(); toast(r.text, 'good'); after(); return; }
-  if (b.dataset.fire) { const m = C.fireMate(b.dataset.fire); if (m) toast(`${m.name}이 배에서 내렸다.`); after(); return; }
+  if (b.dataset.fire) { if (!confirmTap(b, '정말 내린다')) return; const m = C.fireMate(b.dataset.fire); if (m) toast(`${m.name}이 배에서 내렸다.`); after(); return; }
   if (b.dataset.dice) { const [bet, guess] = b.dataset.dice.split(':'); const r = C.rollDice(+bet, guess); if (!r.ok) { toast(r.text); return; } diceFx(r); return; }
   if (b.dataset.act === 'mainpay') { const g = C.mainPay(s.at); if (g) { AU.pay(); toast(`${g.text} — 냈다.`, 'good'); } after(); runStories(); return; }
   if (b.dataset.look) { const t = b.dataset.look === 'b' ? s.bounty : s.maps[+b.dataset.look.slice(1)]; if (t) lookAt(t.x, t.y, Math.max(cam.z, cam.fit * 1.6)); return; }
@@ -481,7 +542,8 @@ function buyMax(id, b) { let n = 0, sum = 0; while (C.freeSlots()) { const r = C
 function diceFx(r) { const cup = $('dcup'); if (!cup) return; const R6 = () => 1 + Math.floor(Math.random() * 6); AU.noise(.5, { freq: 900, q: 3, gain: .2 }); cup.classList.add('shake'); let n = 0; const done = RM ? 0 : 8;
   const iv = setInterval(() => { cup.innerHTML = die(R6()) + die(R6()); if (++n > done) { clearInterval(iv); cup.classList.remove('shake'); cup.innerHTML = die(r.a) + die(r.b);
     if (r.win) AU.coin(1.6); else AU.bad(); journal(`홀짝 — ${r.a}+${r.b}=${r.a + r.b} ${r.even ? '짝' : '홀'}. ${r.win ? `+${fmt(r.pay)}냥` : `${fmt(r.pay)}냥`}`);
-    setTimeout(() => { paintHud(); paintPanel(); const d = $('dres'); if (d) { d.innerHTML = `${r.a} + ${r.b} = <b>${r.a + r.b}</b> · ${r.even ? '짝' : '홀'} — ${r.win ? `<b class="up">+${fmt(r.pay)}냥</b>` : `<b class="dn">${fmt(r.pay)}냥</b>`}`; } const c2 = $('dcup'); if (c2) c2.innerHTML = die(r.a) + die(r.b); }, 350); } }, 70); }
+    setTimeout(() => { paintHud(); paintPanel(); const d = $('dres'); if (d) { d.className = 'fine dres hit' + (r.win ? '' : ' lost'); d.innerHTML = `${r.a} + ${r.b} = <b>${r.a + r.b}</b> · ${r.even ? '짝' : '홀'} — ${r.win ? `<b class="up">+${fmt(r.pay)}냥</b>` : `<b class="dn">${fmt(r.pay)}냥</b>`}`; } const c2 = $('dcup'); if (c2) c2.innerHTML = die(r.a) + die(r.b);
+      toast(`홀짝 ${r.a}+${r.b}=${r.a + r.b} ${r.even ? '짝' : '홀'} — <b>${r.win ? '+' : ''}${fmt(r.pay)}냥</b>`, r.win ? 'good' : 'bad', true); }, 350); } }, 70); }
 function saleFx(results, anchor) { results.forEach((r, i) => { setTimeout(() => { AU.coin(r.mult);
     const el = anchor || $('hGold'); const rc = el.getBoundingClientRect(); pop(`${r.profit >= 0 ? '+' : ''}${fmt(r.profit)}${r.mult >= 1.5 ? `  ×${r.mult.toFixed(1)}` : ''}`, rc.left + rc.width / 2 + (i % 3 - 1) * 40, rc.top - 10 - i * 6, r.profit < 0 ? 'bad' : r.mult >= 2 ? 'big' : ''); }, i * 160); });
   const r0 = results[results.length - 1]; if (r0) toast(`${C.PORTS[S().at].name} ${C.G[r0.id].name} 시세 ${r0.pct0}% → <b>${r0.pct1}%</b> — 내가 풀어서 눌렸다${results.some(r => r.threat >= 1) ? ` · 경계 +${Math.round(results.reduce((a, r) => a + r.threat, 0))}` : ''}`);
@@ -514,20 +576,20 @@ function showDest(p, keepPick) {
     <div class="routes">${routes}</div>${warn ? `<div class="chips">${warn}</div>` : ''}<ul>${rows}</ul><div class="row"><button class="btn" id="dCancel">그만둔다</button><button class="btn main" id="dGo">출항</button></div>`;
   $('dest').hidden = false; $('dCancel').onclick = hideDest; $('dGo').onclick = () => go(p);
   $('dest').querySelectorAll('[data-route]').forEach(b => b.onclick = () => { routePick = b.dataset.route; showDest(p, true); });
-  if (!$('panel').hidden) { panelMin = true; $('panel').classList.add('min'); $('pGrab').textContent = '펼치기'; relayout(false); }
+  if (!$('panel').hidden && !panelMin) setPanelMin(true); else placeToasts();
   if (!keepPick) { const end = p.main.path[p.main.path.length - 1]; const mx = (s.x + end[0]) / 2, my = (s.y + end[1]) / 2, span = Math.max(Math.abs(end[0] - s.x) / (AREA.w * .75), Math.abs(end[1] - s.y) / (AREA.h * .65));
     lookAt(mx, my, Math.max(cam.fit, Math.min(cam.z, 1 / Math.max(span, 1e-3)))); }
-  if (coachStep === 1 && p.port === 'jeoksan') coach(2);
+  if (coachStep === 1) coach(2);  // 어느 행선지 카드든 열리면 다음 안내
 }
-function hideDest() { destPlan = null; $('dest').hidden = true; }
+function hideDest() { destPlan = null; $('dest').hidden = true; placeToasts(); }
 function go(p) { const s = S(); const useAlt = routePick === 'alt' && !!p.alt; hideDest(); lastQuote = null; trail = [[s.x, s.y]]; if (!C.depart(p, useAlt)) return; AU.depart(); closePanel(); showSailbar(); paintHud(); cam.touched = 0; cam.wide = false; lookAt(s.x, s.y, defaultZoom());
-  if (coachStep === 2) coach(3); }
+  if (coachStep >= 0 && coachStep < 3) coach(3); }  // 출항하면 어느 단계에 있었든 항해 안내로
 let speedIdx = 0;
 function showSailbar() { const s = S(); const el = $('sailbar'); el.hidden = false;
   if (s.mode === 'sea') { el.innerHTML = `<span class="to">바다 위<small>지도를 눌러 다음 행선지</small></span>`; return; }
   last.st = null; last.ch = null; el.innerHTML = `<span class="to">${s.dest ? '→ ' + C.PORTS[s.dest].name : '탐험'}<small id="sbRem"></small></span><button class="row" id="sbRow" title="노 저어라 (Space) — 기력을 써서 바람과 상관없이 빨라진다"><em>노 저어라</em><s></s></button><div class="speed" role="group" aria-label="빠르기">${SPEEDS.map((v, i) => `<button data-sp="${i}" class="${i === speedIdx ? 'on' : ''}">${v}×</button>`).join('')}</div>`;
-  $('sbRow').onclick = () => toggleRow(); el.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speedIdx = +b.dataset.sp; el.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', +x.dataset.sp === speedIdx)); }); }
-const hideSailbar = () => { $('sailbar').hidden = true; $('sailbar').classList.remove('chased'); };
+  $('sbRow').onclick = () => toggleRow(); el.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speedIdx = +b.dataset.sp; el.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', +x.dataset.sp === speedIdx)); }); placeToasts(); }
+const hideSailbar = () => { $('sailbar').hidden = true; $('sailbar').classList.remove('chased'); placeToasts(); };
 function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.init(); const on = C.setRow(!s.rowing); if (on) { const ml = C.mateLine('row'); if (ml) toast(ml.line, '', true); AU.noise(.25, { freq: 500, q: 2, gain: .25 }); AU.tone(160, { dur: .2, gain: .1 }); } else if (s.stamina <= 3) toast('선원들이 지쳤다. 기력은 쉬면서 천천히 찬다.'); paintHud(); }
 
 /* ─────────── 사건 ─────────── */
@@ -554,7 +616,7 @@ function openReveal(info) { panelTab = 'market'; for (const mv of (info.moves ||
     return `<div class="flip" data-n="${n}"><div class="in"><div class="f">${gi(g)}<small>${it.inf ? `${it.inf.src} ${fmt(it.inf.price)}<br>${it.inf.ago}` : '이 항구 값을 모른다'}</small></div>
       <div class="b"><span class="nm">${gl(g)}${g.name}</span><span class="was">산 값 ${fmt(it.cost)}</span><span class="was">${it.inf ? `${it.inf.src} ${fmt(it.inf.price)} →` : '여기 값'}</span><span class="now">${fmt(it.act)}</span><span class="plrow"><span class="pl ${it.profit >= 0 ? 'up' : 'dn'}">${it.profit >= 0 ? '+' : ''}${fmt(it.profit)}</span><span class="stamp ${it.verdict}">${VERDICT[it.verdict]}</span></span><button class="keep ${sell[n] ? 'sell' : ''}" data-k="${n}">${sell[n] ? '판다' : '남긴다'}</button></div></div></div>`; }).join('');
   $('rvCard').innerHTML = `<div class="eyebrow">입항 · ${C.dateStr(s.t)}</div><h2>${P.name}</h2><p class="sub" style="margin:0">${sub}</p>${fresh}${deliv}${extraHtml}${rivals}${info.letter ? `<p class="letter">${s.boons.letters ? '비둘기 편지' : '아사 동생의 편지'} — “${info.letter.line}”</p>` : ''}
-    ${info.items.length ? `<div class="crates">${cards}</div><div class="total"><span>팔면</span><span class="big" id="rvTotal">…</span></div>` : '<p style="margin-top:14px">빈 배로 들어왔다.</p>'}
+    ${info.items.length ? `<div class="crates" data-n="${info.items.length}">${cards}</div><div class="total"><span>팔면</span><span class="big" id="rvTotal">…</span></div>` : '<p style="margin-top:14px">빈 배로 들어왔다.</p>'}
     <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn main" id="rvOk">${info.items.length ? '팔고 내린다' : '내린다'}</button></div>`;
   ART.cardArt($('rvCard'), 'port', info.k, s.t); $('mReveal').hidden = false; if (info.delivered.length || extra.length) AU.good(); spNote = null;
   const total = () => info.items.reduce((a, it, n) => a + (sell[n] ? it.profit : 0), 0);
@@ -656,9 +718,9 @@ function openBattle() { const s = S(), B = s.battle; if (!B) return; hideDest();
   $('btCard').innerHTML = `<div class="eyebrow">해전 · ${C.dateStr(s.t)}</div><div class="bt-head">${B.e.boss && PORTRAIT.has(B.e.boss) ? `<span class="bseal pt">${PORTRAIT.svg(B.e.boss, { size: 72, frame: 'seal' })}</span>` : `<span class="bseal ${B.e.boss ? 'boss' : ''}">${B.e.ch}</span>`}<div><h2>${B.e.name}</h2><small>${B.e.boss ? '현상 수배 두목 · ' : ''}${B.e.line || '평범한 해적'}</small></div></div>
     <canvas id="btCv" aria-hidden="true"></canvas><div class="bt-bars"><div class="hb me"><span>내 배</span><s><i class="ghost" id="btMeG"></i><i id="btMe"></i></s><b id="btMeN"></b></div><div class="hb foe"><span>${B.e.name}</span><s><i class="ghost" id="btFoeG"></i><i id="btFoe"></i></s><b id="btFoeN"></b></div></div>
     <div class="bt-intent" id="btIntent" aria-live="polite"></div><div class="bt-log" id="btLog">${B.e.boss ? '두목의 배가 앞을 막아선다. 도망칠 생각은 없어 보인다.' : '적이 다가온다. 저쪽의 다음 수를 읽고 맞받아라.'}</div>
-    <div class="bt-acts" id="btActs"></div><div class="bt-foot"><span class="stam">기력 <s><i id="btSt"></i></s></span><button class="linkbtn" id="btGive">${s.slots.length ? '상자 하나 내주고 빠진다' : '통행료 내고 빠진다'}</button></div>`;
+    <div class="bt-acts" id="btActs"></div><div class="bt-foot"><span class="stam">기력 <s><i id="btSt"></i></s></span><button class="btn danger" id="btGive">${s.slots.length ? `상자 하나 내주고 빠진다 <small>(${s.slots.length}상자 중 하나)</small>` : `통행료 ${won(Math.min(s.gold, 1200 + 400 * s.tier))} 내고 빠진다`}</button></div>`;
   $('mBattle').hidden = false; BT.open = true; requestAnimationFrame(() => { btLayout(); paintBattle(); });
-  $('btGive').onclick = () => battleDo('surrender'); }
+  $('btGive').onclick = () => { if (!confirmTap($('btGive'), s.slots.length ? '정말 내준다' : '정말 낸다')) return; battleDo('surrender'); }; }
 function paintBattle() { const s = S(), B = s.battle; if (!B) return; const pct = (v, m) => Math.max(0, Math.min(100, v / m * 100)) + '%';
   for (const [id, v] of [['btMe', pct(s.hull, s.hullMax)], ['btFoe', pct(B.e.hp, B.e.max)]]) { $(id).style.width = v; $(id + 'G').style.width = v; }
   $('btMeN').textContent = `${Math.max(0, Math.round(s.hull))}/${s.hullMax}`; $('btFoeN').textContent = `${B.e.hp}/${B.e.max}`; $('btSt').style.width = pct(s.stamina, 100);
@@ -777,10 +839,14 @@ function drawQuestMarks(s) { for (const t of questTargets(s)) { const [x, y] = t
       ctx.fillStyle = COL.hanji2; ctx.font = `bold 11px ${css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', bx, by + .5); } } }
 function drawMissed(s) { for (const f of C.FINDS) { if (s.found[f.id] || !C.revealed(f.x, f.y)) continue; const [x, y] = toS(f.x, f.y); if (!onScreen(x, y)) continue;
     ctx.save(); ctx.globalAlpha = .55 + Math.sin(clock * 2 + f.x) * .2; ctx.strokeStyle = COL.ink2; ctx.setLineDash([2, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = COL.ink2; ctx.font = `bold 11px ${css('--ui')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + .5); ctx.restore(); } }
-function openBook(tab) { if (tab) bookTab = tab; AU.init(); paintBook(); $('mBook').hidden = false; }
+function openBook(tab) { if (tab) bookTab = tab; AU.init(); paintBook(); $('mBook').hidden = false; tabsFade($('bkTabs')); }
+/* 탭 줄이 넘치면 가장자리를 흐리고(data-fade) 고른 탭이 보이게 밀어 둔다 */
+function tabsFade(el) { if (!el) return; const f = () => { const max = el.scrollWidth - el.clientWidth; el.dataset.fade = max <= 2 ? '' : (el.scrollLeft > 2 ? 'l' : '') + (el.scrollLeft < max - 2 ? 'r' : ''); };
+  if (!el.dataset.fadeWired) { el.dataset.fadeWired = '1'; el.addEventListener('scroll', f, { passive: true }); }
+  const on = el.querySelector('.on'); if (on && on.scrollIntoView && el.scrollWidth > el.clientWidth + 2) on.scrollIntoView({ block: 'nearest', inline: 'nearest' }); f(); }
 function paintBook() { const s = S(); if (!s) return;
-  const tabs = [['market', '시세'], ['quest', `이야기${Object.values(s.quests || {}).filter(q => !q.done).length ? ' ·' + Object.values(s.quests).filter(q => !q.done).length : ''}`], ['dex', `도감 ${Object.keys(s.found).length}/${C.FINDS.length}`], ['log', '일지'], ['codex', `사전 ${CODEX.count(CX.st).n}/${CODEX.count(CX.st).m}`]];
-  $('bkTabs').innerHTML = tabs.map(([id, l]) => `<button class="${bookTab === id ? 'on' : ''}" data-tab="${id}">${l}</button>`).join('');
+  const tabs = [['market', '시세'], ['quest', `이야기${Object.values(s.quests || {}).filter(q => !q.done).length ? ' ·' + Object.values(s.quests).filter(q => !q.done).length : ''}`], ['dex', `도감 ${Object.keys(s.found).length}/${C.FINDS.length}`], ['log', '일지'], ['codex', `사전 ${CODEX.count(CX.st).n}/${CODEX.count(CX.st).m} →`]];
+  $('bkTabs').innerHTML = tabs.map(([id, l]) => `<button class="${bookTab === id ? 'on' : ''} ${id === 'codex' ? 'go' : ''}" data-tab="${id}" role="tab" aria-selected="${bookTab === id}">${l}</button>`).join(''); tabsFade($('bkTabs'));
   $('bkBody').innerHTML = bookTab === 'market' ? bookMarket(s) : bookTab === 'quest' ? bookQuest(s) : bookTab === 'log' ? bookLog(s) : bookDex(s);
   $('bkTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { if (b.dataset.tab === 'codex') { openCodex(); return; } bookTab = b.dataset.tab; paintBook(); });
   $('bkBody').querySelectorAll('[data-good]').forEach(b => b.onclick = () => { bookGood = b.dataset.good || null; paintBook(); });
@@ -859,7 +925,7 @@ function feedHtml(e, fresh) { const s = S();
 function feedRender() { const s = S(), el = $('feedList'); if (!el || !s || !s.log) return; const list = s.log.filter(feedOk).slice(-FEED.max);
   el.innerHTML = list.length ? list.map(e => feedHtml(e)).join('') : '<p class="fempty">아직 들어온 소식이 없다. 바다에 나가면 지나는 배들이 값 소식을 물어 온다.</p>';
   el.scrollTop = el.scrollHeight; paintFeedHead(); }
-function paintFeedHead() { $('feed').classList.toggle('min', FEED.min); $('feedUnread').textContent = FEED.unread ? FEED.unread : ''; $('feedUnread').hidden = !FEED.unread;
+function paintFeedHead() { $('feed').classList.toggle('min', FEED.min); $('feedUnread').textContent = FEED.unread ? FEED.unread : ''; $('feedUnread').hidden = !FEED.unread; $('feedToggle').setAttribute('aria-expanded', FEED.min ? 'false' : 'true'); placeToasts();
   $('feedTabs').querySelectorAll('[data-ff]').forEach(b => b.classList.toggle('on', b.dataset.ff === FEED.filter));
   const s = S(), lastE = s && s.log && s.log.length ? s.log[s.log.length - 1] : null; $('feedPeek').innerHTML = lastE ? feedHtml(lastE) : ''; }
 function feedAdd(e) { const el = $('feedList'); if (!el || !feedOk(e)) return; const near = el.scrollHeight - el.scrollTop - el.clientHeight < 40; const emp = el.querySelector('.fempty'); if (emp) emp.remove();
@@ -908,7 +974,7 @@ function handle(out) {
   if (s.mode === 'sail' && Math.floor(s.t * 2) !== Math.floor((trail.t || 0) * 2)) { trail.t = s.t; trail.push([s.x, s.y]); if (trail.length > 500) trail.shift(); }
 }
 function finish(retire) {
-  const s = S(); if (!s || !$('sEnd').hidden) return; $('feed').hidden = true; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); showCoach(false);
+  const s = S(); if (!s || !$('sEnd').hidden) return; $('feed').hidden = true; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex', 'mNew', 'mHelp'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); showCoach(false);
   if (retire && !s.ended) s.ended = 'retire';
   const sc = C.score(), rank = C.rankOf(sc), why = s.ended;
   const wasAra = META.unlocked.ara, wasTomo = META.unlocked.tomo; META.runs++; META.best = Math.max(META.best, sc);
@@ -946,9 +1012,8 @@ function cxCheck() { const s = S(); if (!s || !$('sTitle').hidden) return;
 function cxMark(t) { CODEX.mark(CX.st, t); cxCheck(); }
 /* 새 항목은 한 번에 묶어 알린다. 누르면 사전이 열린다 */
 function cxToast() { const ids = CX.queue.splice(0).filter(id => CODEX.BY[id]); if (!ids.length) return;
-  const el = toast(`<span class="cx-tch" aria-hidden="true">典</span><span><b>사전에 새 항목</b> — ${ids.slice(0, 3).map(id => CODEX.BY[id].title).join(' · ')}${ids.length > 3 ? ` 외 ${ids.length - 3}` : ''}</span>`, 'cx');
-  if (el) { el.setAttribute('role', 'button'); el.onclick = () => openCodex(ids.length === 1 ? { id: ids[0] } : {}); } }
-function cxFact() { const e = CODEX.fact(CX.st); if (!e) return; const el = toast(`<span class="cx-tch" aria-hidden="true">知</span><span><b>알고 있었나요?</b> ${e.fact}</span>`, 'cx'); if (el) el.onclick = () => openCodex({ id: e.id, sheet: true }); }
+  toast(`<span class="cx-tch" aria-hidden="true">典</span><span><b>사전에 새 항목</b> — ${ids.slice(0, 3).map(id => CODEX.BY[id].title).join(' · ')}${ids.length > 3 ? ` 외 ${ids.length - 3}` : ''}</span>`, 'cx', false, { onclick: () => openCodex(ids.length === 1 ? { id: ids[0] } : {}) }); }
+function cxFact() { const e = CODEX.fact(CX.st); if (!e) return; toast(`<span class="cx-tch" aria-hidden="true">知</span><span><b>알고 있었나요?</b> ${e.fact}</span>`, 'cx', false, { onclick: () => openCodex({ id: e.id, sheet: true }) }); }
 function paintCxBadge() { const n = Object.keys(CX.st.n).length, c = CODEX.count(CX.st); $('bCodex').classList.toggle('new', n > 0); $('bMenu').classList.toggle('cxnew', n > 0);
   $('mDict').textContent = `사전 — 바다의 백과 ${c.n}/${c.m}${n ? ` · 새 ${n}` : ''}`; $('cxTN').textContent = `${c.n}/${c.m}`; }
 
@@ -1006,7 +1071,7 @@ function cxArt() { const e = CODEX.BY[CX.id], cv = $('cxBody').querySelector('.c
 function paintCodex(keep) { const st = CX.st, all = CODEX.count(st), sc = keep ? $('cxBody').scrollTop : 0;
   $('cxCount').textContent = `${all.n} / ${all.m}`;
   const tabs = [['all', '전체', all], ...CODEX.CATS.map(c => [c.id, c.name, CODEX.count(st, c.id)])];
-  $('cxTabs').innerHTML = tabs.map(([id, l, k]) => { const on = CX.cat === id && !CX.id && !CX.q; return `<button class="${on ? 'on' : ''}" data-cxcat="${id}" role="tab" aria-selected="${on}">${l}<small class="num">${k.n}/${k.m}</small></button>`; }).join('');
+  $('cxTabs').innerHTML = tabs.map(([id, l, k]) => { const on = CX.cat === id && !CX.id && !CX.q; return `<button class="${on ? 'on' : ''}" data-cxcat="${id}" role="tab" aria-selected="${on}">${l}<small class="num">${k.n}/${k.m}</small></button>`; }).join(''); tabsFade($('cxTabs'));
   $('cxBody').innerHTML = CX.id ? cxEntry(CODEX.BY[CX.id]) : CX.q ? cxResults() : cxList();
   if (CX.id) { cxLink($('cxBody').querySelector('.cx-e'), { sel: '.cx-hist p, .cx-debate, .cx-game p', max: 6, self: CX.id }); cxArt(); }
   $('cxBody').scrollTop = sc; }
@@ -1027,12 +1092,16 @@ $('bCodexT').onclick = () => openCodex();
 function paintTitleCodex() { paintCxBadge(); const e = CODEX.fact(CX.st); $('cxFactT').innerHTML = e ? `<b>알고 있었나요?</b> ${e.fact}` : ''; }
 
 /* ─────────── 메뉴 ─────────── */
-function hideMenu() { $('menu').hidden = true; }
+function hideMenu() { $('menu').hidden = true; $('bMenu').setAttribute('aria-expanded', 'false'); }
 $('tracker').onclick = () => { if (!anyModal()) openBook('quest'); };
 $('tracker').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('tracker').click(); } };
 $('bBook').onclick = e => { e.stopPropagation(); hideMenu(); if (anyModal() && $('mBook').hidden) return; if (!$('mBook').hidden) { $('mBook').hidden = true; return; } openBook(); };
 $('bkClose').onclick = () => { $('mBook').hidden = true; };
-$('bMenu').onclick = e => { e.stopPropagation(); AU.init(); $('mSound').textContent = AU.on ? '소리 끄기' : '소리 켜기'; $('menu').hidden = !$('menu').hidden; };
+$('bMenu').onclick = e => { e.stopPropagation(); AU.init(); $('mSound').textContent = AU.on ? '소리 끄기' : '소리 켜기'; const open = $('menu').hidden; $('menu').hidden = !open; $('bMenu').setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) { const f = $('menu').querySelector('button'); if (f) f.focus({ preventScroll: true }); } };
+$('mHowto').onclick = () => { hideMenu(); $('mHelp').hidden = false; };
+$('mHelpOk').onclick = () => { $('mHelp').hidden = true; };
+$('mCoach').onclick = () => { hideMenu(); META.tut = false; saveMeta(); coachStep = -1; coachGo(0); };
+$('mMotion').onclick = () => { setRM(!RM); };
 $('mWide').onclick = () => { const s = S(); cam.wide = !cam.wide; $('mWide').textContent = cam.wide ? '가까이 보기' : '해도 전체 보기'; lookAt(cam.wide ? C.WORLD.w / 2 : s.x, cam.wide ? C.WORLD.h / 2 : s.y, cam.wide ? cam.fit : defaultZoom()); hideMenu(); };
 $('mShip').onclick = () => { const s = S(); cam.wide = false; $('mWide').textContent = '해도 전체 보기'; lookAt(s.x, s.y, defaultZoom()); hideMenu(); };
 $('mSound').onclick = () => { AU.init(); AU.set(!AU.on); $('mSound').textContent = AU.on ? '소리 끄기' : '소리 켜기'; };
@@ -1042,7 +1111,8 @@ $('mRetireNo').onclick = () => { $('mRetire2').hidden = true; };
 
 /* ─────────── 첫 화면 ─────────── */
 let capSel = 'gungbok', diffSel = C.DIFFS[META.diff] ? META.diff : C.DIFF_NEW;
-function showTitle() { $('feed').hidden = true; const t = $('sTitle'); t.classList.remove('out'); t.hidden = false; $('bCont').hidden = !hasSave(); taLayout();
+function showTitle() { $('feed').hidden = true; const t = $('sTitle'); t.classList.remove('out'); t.hidden = false; taLayout();
+  { const sv = hasSave(); $('bCont').hidden = !sv; $('bCont').className = 'btn' + (sv ? ' main big' : ''); $('bStart').className = 'btn' + (sv ? '' : ' main big'); }  // 저장이 있으면 '이어하기'가 주단추
   $('diffs').innerHTML = Object.entries(C.DIFFS).map(([id, d]) => `<button class="dif-b ${diffSel === id ? 'on' : ''}" data-diff="${id}" role="radio" aria-checked="${diffSel === id}"><span class="dch">${d.ch}</span><b>${d.name}</b><small>${d.sub}</small></button>`).join('');
   $('diffs').querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diffSel = b.dataset.diff; META.diff = diffSel; saveMeta(); showTitle(); $('diffs').querySelector(`[data-diff="${diffSel}"]`).focus({ preventScroll: true }); });
   $('diffLine').textContent = `${C.DIFFS[diffSel].name} — ${C.DIFFS[diffSel].text}`;
@@ -1061,7 +1131,9 @@ function startGame(cap, diff) {
   coachStep = META.tut ? -2 : -1; if (!META.tut && cap === 'gungbok') setTimeout(() => coach(0), 1900);
   setTimeout(runStories, 1500);
 }
-$('bStart').onclick = () => startGame(capSel);
+$('bStart').onclick = () => { if (hasSave()) { $('mNew').hidden = false; return; } startGame(capSel); };  // 저장이 있으면 덮어쓰기 전에 묻는다
+$('mNewYes').onclick = () => { $('mNew').hidden = true; startGame(capSel); };
+$('mNewNo').onclick = () => { $('mNew').hidden = true; };
 $('bCont').onclick = () => { AU.init(); if (!loadGame()) { toast('이어할 항해가 없다.'); return; } fogRebuild(); resetView(); leaveTitle(); coachStep = -2; cam.touched = 0; openPanel(); relayout(true); paintHud(); toast('항해를 이어간다.'); setTimeout(runStories, 500); };
 
 /* ─────────── 첫 화면 그림: 먹으로 그린 바다와 신라 상선 ─────────── */
@@ -1159,10 +1231,15 @@ function frame(now) { const dt = Math.min(.1, (now - prev) / 1000); prev = now; 
 
 /* ─────────── 시작 ─────────── */
 paintSoundIcon();
+/* 글꼴은 본문 맨 끝 <style id="fontcss">로 들어온다(배치 CSS·화면·스크립트가 먼저). 그 자리가 생길 때까지 '닻을 올리는 중' 덮개를 두고, 글꼴이 준비되면 해도 바탕을 그리고 덮개를 걷는다 */
 const FONTS = [['40px "Chunghae Myeong"', '청해'], ['600 15px "Chunghae Sans"', '냥'], ['15px "Chunghae Sans"', '냥'], ['40px "Chunghae Seal"', '淸海'], ['40px "Chunghae Brush"', '淸海']];
-const fontsReady = (document.fonts && document.fonts.load) ? Promise.race([Promise.all(FONTS.map(([f, t]) => document.fonts.load(f, t))), new Promise(r => setTimeout(r, 2500))]) : Promise.resolve();
-fontsReady.then(() => { sealCache.clear(); TA.bg = null; paintBase(); });
+const fontCss = new Promise(r => { if (window.__FONTCSS) r(); else { document.addEventListener('fontcss', r, { once: true }); setTimeout(r, 12000); } });  // build.js가 글꼴 <style> 바로 뒤에서 'fontcss' 를 쏜다 — 여는 태그만 왔을 때 속지 않는다
+const fontsReady = fontCss.then(() => (document.fonts && document.fonts.load) ? Promise.race([Promise.all(FONTS.map(([f, t]) => document.fonts.load(f, t))), new Promise(r => setTimeout(r, 2500))]) : null).catch(() => null);
+const repaintBase = () => { sealCache.clear(); TA.bg = null; paintBase(); };
+fontsReady.then(repaintBase);
+/* 덮개는 글꼴이 들어오면 걷는다. 느린 회선이면 1.5초만 더 기다렸다가 대체 글꼴로 먼저 열고, 글꼴이 오면 해도 바탕을 다시 그린다 */
+Promise.race([fontsReady, new Promise(r => setTimeout(r, 1500))]).then(() => { if (!baseReady) repaintBase(); const b = $('boot'); if (b) b.remove(); });
 C.newGame('gungbok'); fogReset(); relayout(true); cam.z = cam.fit; cam.x = C.WORLD.w / 2; cam.y = C.WORLD.h / 2; showTitle(); requestAnimationFrame(frame);
-window.__CHUNGHAE = { C, CODEX, CX, openCodex, cxCheck, cxLink, startGame, paintTracker, setTab: t => { panelTab = t; paintPanel(); }, openBook, drainQuests, runStories, openBattle, openDive, battleDo, diveDo, toggleRow, paintPanel, openPanel, finish, openReveal, openEvent, openQuota, showDest, cam, relayout, lookAt };
+window.__CHUNGHAE = { C, CODEX, CX, openCodex, cxCheck, cxLink, startGame, toast, paintTracker, setTab: t => { panelTab = t; paintPanel(); }, openBook, drainQuests, runStories, openBattle, openDive, battleDo, diveDo, toggleRow, paintPanel, openPanel, finish, openReveal, openEvent, openQuota, showDest, cam, relayout, lookAt };
 })();
 
