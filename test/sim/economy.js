@@ -39,7 +39,7 @@ function play(style,diff){
       const reserve=C.daysToDue()<35?Math.max(0,C.quotaNow()-S.slots.reduce((a,x)=>a+x.cost*.7,0)):0;
       if(best&&best.g>0)while(C.freeSlots()&&S.gold>=C.cratePrice(here,best.id)+reserve)if(!C.buy(best.id).ok)break;
       if(style!=='lazy'&&Math.random()<.35){const tg=S.bounty&&!(S.bounty.cool>S.t)?S.bounty:S.maps[0];if(tg){const p=C.plan({x:tg.x,y:tg.y});if(p&&!p.closedPort){HUNT++;C.depart(p);continue;}}}
-      if(style!=='lazy'&&Math.random()<.4){const gs=C.mainGoals().filter(g=>!g.done);let tk=null;for(const g of gs){if(g.k)tk=g.k;if(g.pay&&S.gold>g.pay.n)tk=g.pay.k;if(g.text.includes('들른다')){const ks=['mizhou','chuzhou','deungju'].filter(k=>!S.main.visits[k]);if(ks.length)tk=ks[0];}if(g.spot){const sp=C.mainSpots()[0];if(sp){const pp=C.plan({x:sp.x,y:sp.y});if(pp){C.depart(pp);tk='__';break;}}}}
+      if(style!=='lazy'&&Math.random()<.4){const gs=C.mainGoals().filter(g=>!g.done);let tk=null;for(const g of gs){if(g.k&&!tk)tk=g.k;if(g.pay&&S.gold>g.pay.n)tk=g.pay.k;if(g.text.includes('들른다')){const ks=['mizhou','chuzhou','deungju'].filter(k=>!S.main.visits[k]);if(ks.length)tk=ks[0];}if(g.spot){const sp=C.mainSpots()[0];if(sp){const pp=C.plan({x:sp.x,y:sp.y});if(pp){C.depart(pp);tk='__';break;}}}}
         if(tk==='__')continue; if(tk&&tk!==here){const pp=C.plan(tk);if(pp&&!pp.closedPort){C.depart(pp);continue;}}}
       let p=C.plan(dest);if(!p||p.closedPort){const alt=PORT_IDS.filter(k=>k!==here&&S.known[k]&&!C.isClosed(k));p=C.plan(alt[Math.floor(Math.random()*alt.length)]);if(!p||p.closedPort)continue;}
       if(style!=='lazy'){const sp=C.specialInfo(here);if(sp&&sp.can&&!sp.passive&&sp.kind!=='store'&&sp.kind!=='swap'){const r=C.useSpecial(here);if(r.ok)SPU[sp.kind]=(SPU[sp.kind]||0)+1;resolve();}}
