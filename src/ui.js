@@ -976,7 +976,8 @@ function paintTracker() { const s = S(), el = $('tracker'); if (!el) return; if 
   if (last.trk === key) return; last.trk = key; el.hidden = false;
   const qa = qids.length;
   // 맡은 이야기의 지금 단계도 셋까지 — 본 이야기 밑에 書 표시로
-  const orderLis = orders.map(x => `<li class="tk-o">${x.o.royal ? '皇' : C.orderText(x.o).ch} ${x.line} · <em class="${x.left <= 10 ? 'dn' : ''}">${x.left}일</em></li>`).join('');
+  const ql = qids.slice(0, 3).map(id => { const st = C.qStep(id), p = C.questProg(id); return `<li class="tk-qs">書 ${st.text}${p ? ` <em>${p}</em>` : ''}</li>`; }).join('');
+  const orderLis =orders.map(x => `<li class="tk-o">${x.o.royal ? '皇' : C.orderText(x.o).ch} ${x.line} · <em class="${x.left <= 10 ? 'dn' : ''}">${x.left}일</em></li>`).join('');
   el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}${ql}${orderLis}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '다음 소식이 오면 막이 열린다'}</li>${ql}${orderLis}</ul>`); }
 
 
