@@ -1,5 +1,5 @@
 // 해전 시뮬: 첫 해, 적마다 smart(예고를 읽는다) / random(아무 수나) 승률.
-// 보통 적은 첫 배(어선), 두목은 현상금을 받기 시작하는 중선으로 싸운다. 피해는 진 판이면 난파 뒤 남은 선체 기준.
+// 보통 적은 첫 배(어선), 두목은 수배가 나오기 시작하는 배(BOSS_TIER: 장씨·사부로 중선, 왕두·여적 대선, 오쿠마·이랑 누선)로 싸운다. 피해는 진 판이면 난파 뒤 남은 선체 기준.
 // 사용: node test/sim/battle.js [판 수=300] [난이도: baram|pungrang|taepung|all=all]
 const C = require('../../src/core.js');
 const N = +process.argv[2] || 300, ARG = process.argv[3] || 'all';
@@ -20,7 +20,7 @@ function fight(diff, sp, pol, tier) { let w = 0, loss = 0;
   return { w: w / N, loss: loss / N }; }
 const pc = x => (x * 100).toFixed(0).padStart(3) + '%';
 for (const diff of DIFFS) { console.log(`\n== ${C.DIFFS[diff].name} (${diff}) · 첫 해 · ${N}판씩`); const agg = { reg: [0, 0, 0], boss: [0, 0] };
-  for (const [grp, list] of [['reg', REG], ['boss', BOSS]]) for (const [nm, sp] of list) { const t = grp === 'boss' ? 1 : 0, a = fight(diff, sp, smart, t), b = fight(diff, sp, rand, t);
+  for (const [grp, list] of [['reg', REG], ['boss', BOSS]]) for (const [nm, sp] of list) { const t = grp === 'boss' ? (C.BOSS_TIER[sp.boss] || 1) : 0, a = fight(diff, sp, smart, t), b = fight(diff, sp, rand, t);
     agg[grp][0] += a.w / list.length; agg[grp][1] += b.w / list.length; if (grp === 'reg' && sp.kind === 'pirate') agg.reg[2] += b.w / 3;
-    console.log(`  ${(nm + (t ? '(중선)' : '')).padEnd(12)} smart ${pc(a.w)} 피해 ${a.loss.toFixed(0).padStart(3)} · random ${pc(b.w)} 피해 ${b.loss.toFixed(0).padStart(3)}`); }
+    console.log(`  ${(nm + (t ? `(${C.SHIPS[t].name})` : '')).padEnd(12)} smart ${pc(a.w)} 피해 ${a.loss.toFixed(0).padStart(3)} · random ${pc(b.w)} 피해 ${b.loss.toFixed(0).padStart(3)}`); }
   console.log(`  ▶ 해적 3종 random ${pc(agg.reg[2])} · 보통 적 5종 smart ${pc(agg.reg[0])} random ${pc(agg.reg[1])} · 두목 smart ${pc(agg.boss[0])} random ${pc(agg.boss[1])}`); }

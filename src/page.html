@@ -6,12 +6,18 @@
 <meta name="description" content="청해 — 바람의 장부. 828년 신라·당·왜·발해의 바다를 누비는 교역·해전·탐험 게임.">
 <title>청해 — 바람의 장부</title>
 <style>
-/*@FONTS@*/
+/* 글꼴(@font-face)은 본문 끝 <style id="fontcss">에 들어간다 — 배치 CSS와 화면 뼈대가 먼저 그려지고, 글꼴은 뒤따라온다 */
 /* ═══════════════════════════════════════════════════════════
    청해 — 화면 설계
    세계는 하나: 한지에 먹으로 그린 고지도. 색은 석청·석록·주사·석황, 테두리에만 단청을 조금.
    글꼴: 본문 Chunghae Sans · 제목·이야기 Chunghae Myeong · 큰 한자 Chunghae Brush · 도장 Chunghae Seal
+   쌓임(z): 패널 12 < 머리띠 13 < 행선지·항해 띠 14 < 안내 25 < 알림 30 < 메뉴 35 < 창 50 < 띠(勝·季) 60 < 첫 화면·결산 70 < 사전 80 < 터지는 숫자 85 < 닻 올리는 중 95
    ═══════════════════════════════════════════════════════════ */
+/* 닻을 올리는 중 — 종이 바탕은 바로 뜨고, 글씨는 0.35초 뒤에 떠서 빠른 회선에서는 보이지 않는다. ui.js가 글꼴이 들어오면 걷는다 */
+#boot{position:fixed;inset:0;z-index:95;display:grid;place-items:center;background:#ece5d3;color:#565e57;font:17px/1.5 "Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;letter-spacing:.08em}
+#boot>div{animation:bootin .4s .35s both;text-align:center}
+#boot b{display:block;font:400 64px/1 "Noto Serif KR","Nanum Myeongjo",AppleMyungjo,serif;color:#1b2324;margin-bottom:14px}
+@keyframes bootin{from{opacity:0}to{opacity:1}}
 :root{
   /* 종이 */
   --hanji:#ece5d3;  --hanji-2:#f5f0e3;  --hanji-3:#e2d9c3;  --hanji-4:#d3c7aa;
@@ -24,7 +30,8 @@
   --rok-2:#5c8a6a;    /* 석록 — 채움 */
   --ju:#b03a26;       /* 주사 — 도장, 나쁜 쪽 */
   --ju-2:#8d2a1b;
-  --hwang:#85631a;    /* 석황 — 돈(글자) */
+  --hwang:#755416;    /* 석황 — 돈(글자). 한지 위 대비 5.4 */
+  --hwang-2:#85631a;  /* 석황 — 선·장식(글자에는 쓰지 않는다) */
   --gold:#c19a3e;     /* 석황 — 채움 */
   --jok:#22324a;      /* 쪽빛 — 표지·장황 */
   --sea:#6f9c98;
@@ -79,7 +86,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .btn.blue{background:var(--cheong);border-color:var(--cheong);color:var(--hanji-2)}
 .btn.blue:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
 .btn.main.risky{background:var(--ju);border-color:var(--ju);box-shadow:0 2px 0 var(--ju-2)}
-.linkbtn{font-size:var(--fs-xs);color:var(--ink-3);text-decoration:underline;text-underline-offset:3px;min-height:32px;padding:0 4px}
+/* 단추 규칙: 검정 .main = 나아간다 · 파랑 .blue = 받아들인다 · .danger = 되돌릴 수 없는 일(테두리+붉은 글자, 한 번 더 누르면 실행) */
+.btn.danger{background:none;border-color:var(--ju);color:var(--ju)}
+.btn.danger:hover:not(:disabled){background:rgba(176,58,38,.08)}
+.btn.danger.sure{background:var(--ju);color:var(--hanji-2);animation:sure .25s var(--ease)}
+@keyframes sure{from{transform:scale(.96)}to{transform:none}}
+.linkbtn{font-size:var(--fs-xs);color:var(--ink-3);text-decoration:underline;text-underline-offset:3px;min-height:var(--tap);padding:0 6px}
 .icon{width:var(--tap);height:var(--tap);display:grid;place-items:center;border:1px solid var(--rule-3);background-color:var(--hanji-2);background-image:var(--grain);box-shadow:var(--shadow);transition:background-color .15s}
 .icon:hover{background-color:var(--hanji-3)}
 .icon svg{width:18px;height:18px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -91,7 +103,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   box-shadow:inset 0 0 0 2px rgba(245,240,227,.5),inset 0 -6px 10px rgba(0,0,0,.18),0 2px 0 rgba(27,35,36,.2)}
 .gi svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .gi svg .f{fill:currentColor;stroke:none;opacity:.9}
-.gi i{position:absolute;right:-5px;bottom:-4px;width:19px;height:19px;display:grid;place-items:center;background:var(--ju);color:var(--hanji-2);font:normal 11px/1 var(--seal);
+.gi i{position:absolute;right:-5px;bottom:-4px;width:20px;height:20px;display:grid;place-items:center;background:var(--ju);color:var(--hanji-2);font:normal 12px/1 var(--seal);
   transform:rotate(-6deg);box-shadow:inset 0 0 0 1px rgba(245,240,227,.6)}
 
 /* ═══ 상단 계기 ═══ */
@@ -108,12 +120,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .vane{width:16px;height:16px;flex:none;transition:transform 1.2s var(--ease)}
 .vane path{fill:none;stroke:var(--cheong);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .vane circle{fill:none;stroke:var(--rule-2)}
-.dif{font-style:normal;margin-left:4px;padding:0 5px;border:1px solid var(--rule-2);color:var(--ink-2);font-size:11px;letter-spacing:.04em;line-height:16px}
+.dif{font-style:normal;margin-left:4px;padding:0 5px;border:1px solid var(--rule-2);color:var(--ink-2);font-size:var(--fs-xs);letter-spacing:.04em;line-height:16px}
 .hud .sp{flex:1}
 .meters{display:flex;align-items:center;gap:16px;background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--rule-3);
   padding:7px 16px;box-shadow:var(--shadow),var(--frame);min-height:56px}
 .stat{display:flex;flex-direction:column;line-height:1.15;position:relative}
-.k{font-size:11px;letter-spacing:.12em;color:var(--ink-3);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.k{font-size:var(--fs-xs);letter-spacing:.1em;color:var(--ink-3);display:flex;align-items:center;gap:4px;white-space:nowrap}
 .k svg{width:13px;height:13px;flex:none}
 .stat b{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;transition:color .3s}
 .stat.gold b{color:var(--ink);min-width:4.2ch}
@@ -139,17 +151,25 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .gauge .k{justify-content:space-between}
 .gauge .k b{color:var(--ink);letter-spacing:0;font-weight:600;font-size:12px}
 .gauge.threat.hot .k b{color:var(--ju)}
+.gauge .st{font-size:var(--fs-xs);line-height:1.1;color:var(--ink-3);letter-spacing:.04em;white-space:nowrap}
+.gauge.threat.hot .st{color:var(--ju)}
 .stat.quota{padding-left:14px;border-left:1px solid var(--rule)}
 .stat.quota b{color:var(--ju)}
 .stat.quota.ok b{color:var(--rok)}
 .stat.quota.urgent b{animation:urgent 1s ease-in-out infinite}
 @keyframes urgent{50%{opacity:.4}}
+/* 상납 칸 밑줄: "지금 속도면 N냥" 예측(ui.js paintHud). 모자라면 붉게. 좁은 화면에서는 숨기고 title로만 */
+.qhint{display:block;font-size:var(--fs-xs);line-height:1.2;color:var(--ink-3);white-space:nowrap;letter-spacing:0;margin-top:1px}
+.qhint.short{color:var(--ju)}
+.stat.fame .k{letter-spacing:.06em}
+.stat.fame b{font-size:15px}
 .bookbtn{display:flex;align-items:center;gap:8px;height:var(--tap);padding:0 14px 0 6px;border:1px solid var(--ink);background-color:var(--hanji-2);background-image:var(--grain);box-shadow:var(--shadow);font-size:var(--fs-s);font-weight:600;transition:background-color .15s,color .15s}
 .bookbtn span{width:28px;height:28px;display:grid;place-items:center;background:var(--jok);color:var(--hanji-2);font-family:var(--seal);font-size:16px;box-shadow:inset 0 0 0 1px rgba(245,240,227,.3)}
 .bookbtn:hover{background-color:var(--ink);color:var(--hanji-2)}
 
-/* ═══ 선원 · 소식 단추 ═══ */
-.crew{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:9;display:flex;gap:10px}
+/* ═══ 선원 · 소식 단추 — 머리띠 아래 왼쪽(해도 왼쪽 아래 항구를 가리지 않는다). 좁은 화면에서 정박 중이면 장부 머리 안으로 들어간다 ═══ */
+.crew{position:fixed;left:16px;top:calc(env(safe-area-inset-top,0px) + 92px);z-index:9;display:flex;gap:10px}
+.crew:empty{display:none}
 .mate{position:relative;width:48px;height:48px;border-radius:50%;background-color:var(--hanji-2);background-image:var(--grain);border:1.5px solid var(--ink);
   display:grid;place-items:center;font-family:var(--display);font-size:20px;box-shadow:var(--shadow);transition:transform .15s var(--ease)}
 .mate:hover{transform:translateY(-2px)}
@@ -157,9 +177,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 @keyframes ping{0%{box-shadow:0 0 0 0 rgba(176,58,38,.5)}70%,100%{box-shadow:0 0 0 8px rgba(176,58,38,0)}}
 .mate.done{border-color:var(--cheong);color:var(--cheong);box-shadow:0 0 0 3px var(--hanji-2),0 0 0 4.5px var(--cheong),var(--shadow)}
 .mate.gone{opacity:.4;text-decoration:line-through}
-.mate .tip{display:none;position:absolute;bottom:58px;left:0;width:260px;background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--rule-3);
-  padding:10px 12px;font-family:var(--ui);font-size:var(--fs-s);line-height:1.5;text-align:left;box-shadow:var(--shadow-lg);color:var(--ink);z-index:2}
-.mate:hover .tip,.mate:focus-visible .tip{display:block}
+.mate .tip{display:none;position:absolute;top:56px;left:0;width:260px;background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--rule-3);
+  padding:10px 12px;font-family:var(--ui);font-size:var(--fs-s);line-height:1.5;text-align:left;box-shadow:var(--shadow-lg);color:var(--ink);z-index:5}
+/* 누르면 열리고(aria-expanded) 밖을 누르면 닫힌다. 마우스가 있는 기기에서는 올려놓아도 보인다 */
+.mate.open .tip,.mate:focus-visible .tip{display:block}
+@media (hover:hover){.mate:hover .tip{display:block}}
 .tip b{font-family:var(--display);font-weight:400;font-size:16px}
 .mate.boonsbtn{border-color:var(--cheong);color:var(--hanji-2);background:var(--cheong);font-family:var(--seal)}
 .mate.newsbtn{border-color:var(--ink);color:var(--hanji-2);background:var(--ink);font-family:var(--seal)}
@@ -173,6 +195,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .toast b{color:var(--ink)}
 .toast.good{border-left-color:var(--rok)} .toast.good b{color:var(--rok)}
 .toast.bad{border-left-color:var(--ju)} .toast.bad b{color:var(--ju)}
+#toasts .toast:nth-last-child(n+4){display:none}  /* 한 번에 셋까지 — 사전 알림(.cx, display:flex)도 함께 센다 */
 @keyframes toast{0%{opacity:0;transform:translateY(-10px) scale(.98)}7%{opacity:1;transform:none}86%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-6px)}}
 .coach{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 84px);transform:translateX(-50%);z-index:25;
   width:min(470px,calc(100% - 32px));background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--cheong);border-top:4px solid var(--cheong);padding:12px 14px;
@@ -180,15 +203,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .coach::before{content:"導";flex:none;width:32px;height:32px;display:grid;place-items:center;background:var(--cheong);color:var(--hanji-2);font-family:var(--seal);font-size:17px}
 .coach p{margin:0;flex:1;font-size:var(--fs-s);min-width:0}
 .coach p b{color:var(--cheong)}
-.coach button{font-size:var(--fs-xs);color:var(--ink-3);white-space:nowrap;min-height:36px;padding:0 4px;text-decoration:underline;text-underline-offset:3px}
-.pop{position:fixed;z-index:70;pointer-events:none;font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;
+.coach .cbtns{display:flex;flex-direction:column;align-items:stretch;gap:2px;flex:none}
+.coach .cbtns .btn{min-height:var(--tap);padding:4px 12px;font-size:var(--fs-xs)}
+.coach .linkbtn{min-height:var(--tap)}
+.pop{position:fixed;z-index:85;pointer-events:none;font-weight:600;font-size:22px;font-variant-numeric:tabular-nums;
   color:var(--rok);text-shadow:0 0 6px var(--hanji-2),0 0 3px var(--hanji-2),0 0 1px var(--hanji-2);animation:pop 1.3s var(--ease) forwards;white-space:nowrap;transform:translate(-50%,-50%)}
 .pop.bad{color:var(--ju)} .pop.big{font-size:34px;font-family:var(--display);font-weight:400;color:var(--ink)}
 .pop.hit{font-family:var(--display);font-weight:400;font-size:40px;color:var(--ju);text-shadow:2px 2px 0 var(--hanji-2),-1px -1px 0 var(--hanji-2),0 0 10px rgba(245,240,227,.9)}
 .pop.hit.me{color:var(--ink)}
 .pop.crit{font-size:52px}
 @keyframes pop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}16%{opacity:1;transform:translate(-50%,-50%) scale(1.18)}30%{transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-150%)}}
-.banner{position:fixed;inset:0;z-index:40;display:grid;place-items:center;pointer-events:none}
+.banner{position:fixed;inset:0;z-index:60;display:grid;place-items:center;pointer-events:none}
 .banner div{position:relative;text-align:center;animation:banner 2.8s var(--ease) forwards;padding:30px 60px}
 .banner div::before{content:"";position:absolute;inset:8% -10%;z-index:-1;background:radial-gradient(closest-side,rgba(245,240,227,.92),rgba(245,240,227,.7) 55%,rgba(245,240,227,0))}
 .banner b{display:block;font-family:var(--brush);font-weight:400;font-size:clamp(84px,15vw,150px);line-height:1;color:var(--ink);text-shadow:0 0 1px var(--ink)}
@@ -218,14 +243,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 }
 .p-body{flex:1;overflow-y:auto;padding:0 16px 16px;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:var(--rule-2) transparent}
 .sec{padding-top:16px}
-.sec h3{margin:0 0 9px;font-size:11px;letter-spacing:.16em;color:var(--ink-3);font-weight:600;display:flex;justify-content:flex-start;align-items:center;gap:8px}
+.sec h3{margin:0 0 9px;font-size:var(--fs-xs);letter-spacing:.14em;color:var(--ink-3);font-weight:600;display:flex;justify-content:flex-start;align-items:center;gap:8px}
 .sec h3::before{content:"";width:7px;height:7px;background:var(--ju);transform:rotate(45deg);flex:none;margin-right:-2px}
 .sec h3 span{letter-spacing:0;color:var(--ink-2);font-weight:500;margin-left:auto;text-align:right}
 .ptabs{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:0 -16px 2px;padding:6px 12px 0;background-color:var(--hanji-2);background-image:var(--grain);border-bottom:1.5px solid var(--ink)}
 .ptabs button{position:relative;min-height:var(--tap);padding:8px 4px;font-size:var(--fs-s);font-weight:600;color:var(--ink-3);border:1px solid transparent;border-bottom:0;margin-bottom:-1.5px;transition:color .15s,background-color .15s}
 .ptabs button:hover{color:var(--ink)}
 .ptabs button.on{color:var(--ink);background:var(--hanji);border-color:var(--ink);border-bottom:1.5px solid var(--hanji);box-shadow:inset 0 3px 0 var(--ju)}
-.ptabs i{position:absolute;top:4px;right:6px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--ju);color:var(--hanji-2);font:600 10.5px/16px var(--ui);font-style:normal}
+.ptabs i{position:absolute;top:3px;right:5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--ju);color:var(--hanji-2);font:600 12px/17px var(--ui);font-style:normal}
 .ptabs i:empty{min-width:8px;width:8px;height:8px;padding:0;top:8px}
 .goods{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px}
 .goods>.good{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:12px 10px 10px;border:1px solid var(--rule-2);
@@ -236,10 +261,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .goods>.good .nm{font-size:var(--fs-s);font-weight:600}
 .goods>.good .pr{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
 .goods>.good .pr small{font-size:var(--fs-xs);font-weight:400;color:var(--ink-3)}
-.tagl{font-size:11px;padding:1px 6px;border:1px solid currentColor;line-height:1.4;font-weight:600}
+.tagl{font-size:var(--fs-xs);padding:1px 6px;border:1px solid currentColor;line-height:1.4;font-weight:600}
 .tagl.cheap{color:var(--rok)} .tagl.dear{color:var(--ju)} .tagl.mid{color:var(--ink-3)}
 .goods>.good .tagl{position:absolute;top:10px;right:9px}
-.goods>.good .boom{position:absolute;bottom:10px;right:9px;font-size:11px;color:var(--ju);font-weight:600}
+.goods>.good .boom{position:absolute;bottom:10px;right:9px;font-size:var(--fs-xs);color:var(--ju);font-weight:600}
 .wants{display:flex;flex-wrap:wrap;gap:6px}
 .want{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border:1px solid var(--rule-2);font-size:var(--fs-s);background:var(--hanji)}
 .want .glyph{width:24px;height:24px;font-size:13px}
@@ -248,7 +273,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .crate{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px;border:1px solid var(--rule-2);background:var(--hanji)}
 .crate .gr{flex:1;min-width:0;font-size:var(--fs-s);line-height:1.4}
 .crate .gr b{font-variant-numeric:tabular-nums}
-.crate .hint{font-size:11.5px;color:var(--ink-3)} .crate .hint.up{color:var(--rok)} .crate .hint span{color:var(--ink-3)}
+.crate .hint{font-size:var(--fs-xs);color:var(--ink-3)} .crate .hint.up{color:var(--rok)} .crate .hint span{color:var(--ink-3)}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .act{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border:1px solid var(--rule-2);text-align:left;background:var(--hanji);min-height:56px;transition:border-color .15s,transform .1s}
 .act:hover:not(:disabled){border-color:var(--ink)}
@@ -270,7 +295,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .special .sbtns .btn{width:100%}
 .chip{font-size:var(--fs-xs);padding:2px 8px;border:1px solid currentColor;line-height:1.5;font-weight:600}
 .chip.fair{color:var(--rok)} .chip.side{color:var(--hwang)} .chip.head{color:var(--ju)} .chip.plain{color:var(--ink-2)}
-.chipbtn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:3px 10px 3px 4px;border:1px solid var(--rule-2);font-size:var(--fs-xs);background:var(--hanji-2)}
+.chipbtn{display:inline-flex;align-items:center;gap:6px;min-height:var(--tap);padding:3px 10px 3px 4px;border:1px solid var(--rule-2);font-size:var(--fs-xs);background:var(--hanji-2)}
 .chipbtn:hover:not(:disabled){border-color:var(--ink)} .chipbtn:disabled{opacity:.45}
 .chipbtn .glyph{width:24px;height:24px;font-size:13px}
 .newsl{list-style:none;margin:0;padding:0;display:grid;gap:6px}
@@ -303,11 +328,13 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 @keyframes dshake{0%{transform:rotate(-9deg)}50%{transform:rotate(9deg) translateY(-4px)}100%{transform:rotate(-9deg)}}
 .dbtns{display:flex;flex-direction:column;gap:6px} .drow{display:flex;gap:6px;align-items:center} .drow small{width:56px;font-size:var(--fs-xs);color:var(--ink-3)} .drow .btn{flex:1;padding:6px}
 .dres{grid-column:1/-1;text-align:left!important;margin:0!important}
+.dres.hit{font-size:var(--fs-m);color:var(--ink);padding:8px 10px;border-left:3px solid var(--rok);background:var(--hanji-2);animation:rise2 .3s var(--ease)}
+.dres.hit.lost{border-color:var(--ju)}
 
 /* ═══ 행선지 카드 · 항해 띠 ═══ */
 .dest,.sailbar{position:fixed;z-index:14;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
   background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--rule-3);box-shadow:var(--shadow-lg)}
-.dest{width:min(440px,calc(100% - 32px));padding:16px 16px 14px;animation:up .35s var(--ease)}
+.dest{width:min(440px,calc(100% - 32px));max-height:calc(100% - 110px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:16px 16px 14px;animation:up .35s var(--ease)}
 .dest::before{content:"";position:absolute;left:0;right:0;top:-1px;height:7px;background:var(--band)}
 @keyframes up{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
 .dest h4{margin:2px 0 8px;font-family:var(--display);font-weight:400;font-size:21px;display:flex;align-items:center;gap:10px}
@@ -351,7 +378,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   box-shadow:var(--shadow-lg),var(--frame);padding:26px 24px 20px;position:relative;animation:unroll .42s var(--ease);overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin}
 .card::before{content:"";position:absolute;left:0;right:0;top:0;height:7px;background:var(--band)}
 @keyframes unroll{from{opacity:0;transform:translateY(14px) scale(.97);clip-path:inset(0 0 40% 0)}to{opacity:1;transform:none;clip-path:inset(0 0 0 0)}}
-.card .eyebrow,.eyebrow{font-size:11px;letter-spacing:.2em;color:var(--ink-3);font-weight:600}
+.card .eyebrow,.eyebrow{font-size:var(--fs-xs);letter-spacing:.18em;color:var(--ink-3);font-weight:600}
 .card h2{margin:4px 0 10px;font-family:var(--display);font-weight:400;font-size:31px;line-height:1.15;text-wrap:balance;letter-spacing:.01em}
 .card p{margin:0 0 14px;max-width:62ch}
 .card .sub{font-size:var(--fs-s);color:var(--cheong)}
@@ -373,10 +400,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 #stCard.chapter h2{font-size:33px}
 #stCard.chapter p{font-family:var(--display);font-size:17.5px;line-height:1.8}
 
-/* 입항 개봉 */
-.reveal{width:min(660px,100%)}
+/* 입항 개봉 — 상자 수에 맞춰 폭이 정해진다(상자 1~2개면 좁게) */
+.reveal{width:fit-content;min-width:min(430px,100%);max-width:min(660px,100%)}
 .crates{display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:10px;margin:14px 0}
-.flip{perspective:800px;height:212px}
+.crates[data-n="1"]{grid-template-columns:minmax(134px,180px)} .crates[data-n="2"]{grid-template-columns:repeat(2,minmax(134px,180px))} .crates[data-n="3"]{grid-template-columns:repeat(3,minmax(134px,1fr))}
+.flip{perspective:800px;height:220px}
 .flip .in{position:relative;width:100%;height:100%;transition:transform .6s var(--ease-back);transform-style:preserve-3d}
 .flip.open .in{transform:rotateY(180deg)}
 .flip .f,.flip .b{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border:1px solid var(--rule-3);padding:12px;display:flex;flex-direction:column;gap:6px;background:var(--hanji)}
@@ -394,7 +422,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .stamp{font-family:var(--display);font-size:15px;line-height:1.2;padding:2px 6px;border:2px solid currentColor;white-space:nowrap;transform:rotate(14deg) scale(1.8);opacity:0;transition:opacity .2s .45s,transform .35s var(--ease-back) .45s;mix-blend-mode:multiply}
 .flip.open .stamp{opacity:.92;transform:rotate(-6deg)}
 .stamp.better{color:var(--rok)} .stamp.right{color:var(--cheong)} .stamp.worse,.stamp.fake{color:var(--ju)} .stamp.unknown{color:var(--ink-3)}
-.keep{margin-top:auto;font-size:var(--fs-xs);min-height:34px;padding:4px 6px;border:1px solid var(--rule-3);align-self:stretch;text-align:center;font-weight:600}
+.keep{margin-top:auto;font-size:var(--fs-xs);min-height:var(--tap);padding:4px 6px;border:1px solid var(--rule-3);align-self:stretch;text-align:center;font-weight:600}
 .keep.sell{background:var(--ink);color:var(--hanji-2);border-color:var(--ink)}
 .total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid var(--rule-2)}
 .total .big{font-size:36px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -409,6 +437,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   transform:rotate(-12deg);opacity:.85;mix-blend-mode:multiply;animation:stampin .5s var(--ease-back) .25s both;box-shadow:inset 0 0 0 2px var(--hanji-2),inset 0 0 0 4px var(--ju)}
 @keyframes stampin{from{opacity:0;transform:rotate(-12deg) scale(2.2)}60%{opacity:.95;transform:rotate(-12deg) scale(.94)}to{opacity:.85;transform:rotate(-12deg) scale(1)}}
 .card.quota h2,.card.quota>p{padding-right:84px}
+.card.quota .sub{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 .boons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .boon{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:14px;min-height:150px;border:1px solid var(--rule-3);background:var(--hanji);text-align:left;min-width:0;transition:transform .15s var(--ease),border-color .15s,box-shadow .15s;
   animation:deal .45s var(--ease-back) both}
@@ -440,11 +469,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .bt-intent{display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;align-items:center;padding:10px 12px;border:1.5px solid var(--ink);background:var(--hanji);font-size:var(--fs-s);position:relative}
 .bt-intent .ico{grid-row:span 2;width:46px;height:46px;display:grid;place-items:center;background:var(--ink);color:var(--hanji-2)}
 .bt-intent .ico svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.bt-intent .lbl{font-size:11px;letter-spacing:.14em;color:var(--ink-3);white-space:nowrap;font-weight:600}
+.bt-intent .lbl{font-size:var(--fs-xs);letter-spacing:.12em;color:var(--ink-3);white-space:nowrap;font-weight:600}
 .bt-intent b{font-size:var(--fs-m);line-height:1.35}
 .bt-intent .pun{font-weight:600;font-size:var(--fs-xs);color:var(--ju);white-space:nowrap}
 .bt-intent em{grid-row:span 2;font-style:normal;font-family:var(--display);font-size:30px;color:var(--ju);line-height:1;text-align:right}
-.bt-intent em small{display:block;font-family:var(--ui);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3)}
+.bt-intent em small{display:block;font-family:var(--ui);font-size:var(--fs-xs);letter-spacing:.08em;color:var(--ink-3)}
 .bt-intent .cnt{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:var(--fs-xs);color:var(--ink-2);margin-top:4px}
 .bt-intent .cnt span{display:inline-flex;align-items:center;gap:3px;padding:1px 7px 1px 2px;border:1px solid var(--rule-2);background:var(--hanji-2)}
 .bt-intent .cnt span i{font-style:normal;font-family:var(--seal);width:18px;height:18px;display:grid;place-items:center;background:var(--cheong);color:var(--hanji-2);font-size:12px}
@@ -462,11 +491,13 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .bact:active:not(:disabled){transform:scale(.97)}
 .bact:disabled{opacity:.36;cursor:default}
 .bact .bch{font-family:var(--seal);font-size:26px;line-height:1}
-.bact b{font-size:var(--fs-s)} .bact small{font-size:11px;color:var(--ink-3);line-height:1.35}
-.bact kbd{position:absolute;top:4px;right:5px;font:10.5px var(--ui);color:var(--ink-3)}
+.bact b{font-size:var(--fs-s)} .bact small{font-size:var(--fs-xs);color:var(--ink-3);line-height:1.35}
+.bact kbd{position:absolute;top:3px;right:5px;font:600 12px/1 var(--ui);color:var(--ink-2);padding:2px 4px;border:1px solid var(--rule-2);background:var(--hanji-2)}
+.bact:hover:not(:disabled) kbd{color:var(--ink);background:var(--hanji-2)}
 .bact.counter{border-color:var(--cheong);box-shadow:inset 0 0 0 2px var(--cheong)}
-.bact.counter::after{content:"맞수";position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--cheong);color:var(--hanji-2);font-size:10.5px;font-weight:600;padding:0 6px;line-height:16px;letter-spacing:.06em}
-.bt-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:var(--fs-xs);color:var(--ink-3)}
+.bact.counter::after{content:"맞수";position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--cheong);color:var(--hanji-2);font-size:12px;font-weight:600;padding:0 6px;line-height:17px;letter-spacing:.06em}
+.bt-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:var(--fs-xs);color:var(--ink-3)}
+.bt-foot .btn.danger{font-size:var(--fs-xs);padding:4px 10px;flex-direction:column;gap:0;line-height:1.3} .bt-foot .btn small{font-size:var(--fs-xs);font-weight:400;white-space:nowrap}
 .stam{display:flex;align-items:center;gap:6px}.stam s{display:block;width:84px;height:6px;background:var(--hanji-3);position:relative;text-decoration:none}.stam i{position:absolute;inset:0 auto 0 0;background:var(--rok-2);transition:width .3s}
 .card.shake{animation:cshake .32s linear}
 @keyframes cshake{0%,100%{transform:none}20%{transform:translate(-6px,2px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-4px,1px)}80%{transform:translate(3px,0)}}
@@ -491,7 +522,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .haul{display:flex;flex-wrap:wrap;gap:5px}
 .hchip{width:32px;height:32px;display:grid;place-items:center;background:var(--cheong);color:var(--hanji-2);font-family:var(--seal);font-size:16px;animation:findin .4s var(--ease-back)}
 .hchip.relic{background:var(--hwang)}
-.dv-row{display:flex;gap:8px;justify-content:flex-end;align-items:flex-end;margin-top:14px}
+.dv-row{display:flex;gap:8px;justify-content:flex-end;align-items:flex-end;margin-top:14px;min-height:96px}
 
 /* ═══ 장부(책) — 오침안정 실 매기 · 붉은 괘선 ═══ */
 .card.book{width:min(900px,100%);height:min(780px,calc(100% - 8px));display:flex;flex-direction:column;padding:0;background-color:var(--jok);
@@ -507,25 +538,31 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .bk-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .bk-head h2{margin:2px 0 10px!important;font-family:var(--brush)!important;font-size:38px!important;letter-spacing:.06em}
 .bk-head .eyebrow{color:var(--ju)}
-.bk-tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--ju);overflow-x:auto;scrollbar-width:none}
+.bk-tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--ju);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.bk-tabs::-webkit-scrollbar{display:none}
+/* 탭이 넘치면 가장자리를 흐려 더 있다는 것을 알린다(ui.js tabsFade) */
+.bk-tabs[data-fade="r"]{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 44px),transparent)}
+.bk-tabs[data-fade="l"]{-webkit-mask-image:linear-gradient(90deg,transparent,#000 44px);mask-image:linear-gradient(90deg,transparent,#000 44px)}
+.bk-tabs[data-fade="lr"]{-webkit-mask-image:linear-gradient(90deg,transparent,#000 44px,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(90deg,transparent,#000 44px,#000 calc(100% - 44px),transparent)}
 .bk-tabs button{flex:none;min-height:var(--tap);padding:8px 16px;font-size:var(--fs-s);font-weight:600;color:var(--ink-3);border:1px solid transparent;border-bottom:0;margin-bottom:-1.5px;white-space:nowrap}
+.bk-tabs button.go{color:var(--ju-2)}
 .bk-tabs button:hover{color:var(--ink)}
 .bk-tabs button.on{color:var(--ink);background:var(--hanji-2);border-color:var(--ju);border-bottom:1.5px solid var(--hanji-2);box-shadow:inset 0 3px 0 var(--ju)}
 .bk-body{flex:1;overflow:auto;padding:12px 2px 22px;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin}
 .bk-goods{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
-.bk-goods button{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:3px 10px 3px 4px;border:1px solid var(--rule-2);font-size:var(--fs-xs);background:var(--hanji);font-weight:600}
+.bk-goods button{display:inline-flex;align-items:center;gap:5px;min-height:var(--tap);padding:3px 10px 3px 4px;border:1px solid var(--rule-2);font-size:var(--fs-xs);background:var(--hanji);font-weight:600}
 .bk-goods button:first-child{padding-left:10px}
 .bk-goods button.on{border-color:var(--ink);background:var(--ink);color:var(--hanji-2)}
 .bk-goods .glyph{width:24px;height:24px;font-size:13px}
 .bk-note{text-align:left!important;margin:4px 0 10px!important;max-width:none!important}
-.bk-nat{margin:16px 0 4px;font-size:11px;letter-spacing:.18em;color:var(--ju);font-weight:600;border-bottom:1.5px solid rgba(176,58,38,.55);padding-bottom:4px}
+.bk-nat{margin:16px 0 4px;font-size:var(--fs-xs);letter-spacing:.16em;color:var(--ju);font-weight:600;border-bottom:1.5px solid rgba(176,58,38,.55);padding-bottom:4px}
 .bk-nat small{letter-spacing:0;color:var(--ink-2);margin-left:6px;font-weight:500}
 .bk-row{width:100%;display:grid;grid-template-columns:32px 150px 1fr 1fr;gap:10px;align-items:center;min-height:48px;padding:7px 8px;border:1px solid transparent;border-bottom-color:rgba(176,58,38,.22);text-align:left;font-size:var(--fs-s);
   background:linear-gradient(90deg,transparent calc(32px + 13px),rgba(176,58,38,.16) calc(32px + 13px) calc(32px + 14px),transparent 0)}
 .bk-row:hover{border-color:var(--ink);background-color:var(--hanji)}
 .bk-row .seal{width:30px;height:30px;font-size:16px;transform:rotate(-2deg)}
 .bk-row .nm{display:flex;flex-direction:column;font-weight:600;line-height:1.3}
-.bk-row .nm small{font-weight:400;font-size:11px;color:var(--ink-3)} .bk-row .nm small.sp{color:var(--hwang)}
+.bk-row .nm small{font-weight:400;font-size:var(--fs-xs);color:var(--ink-3)} .bk-row .nm small.sp{color:var(--hwang)}
 .bk-row .gs{display:flex;flex-wrap:wrap;gap:4px}
 .bk-g{display:inline-flex;align-items:center;gap:4px;padding:2px 7px 2px 2px;font-size:var(--fs-xs);border:1px solid var(--rule);background:rgba(245,240,227,.6)}
 .bk-g .glyph{width:20px;height:20px;font-size:11px}
@@ -534,7 +571,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink-3)}
 .bk-row.one{grid-template-columns:32px 120px 1fr 130px}
 .bk-row.one .pr{display:flex;flex-direction:column;align-items:flex-end;font-size:16px;font-variant-numeric:tabular-nums}
-.bk-row.one .pr small{font-size:11px;color:var(--ink-3)}
+.bk-row.one .pr small{font-size:var(--fs-xs);color:var(--ink-3)}
 .bk-row.best{background-color:rgba(61,110,80,.09);border-color:var(--rok)}
 .bk-q{display:flex;gap:12px;align-items:flex-start;padding:10px;border:1px solid var(--rule-2);margin-bottom:6px;font-size:var(--fs-s);background:rgba(245,240,227,.6)}
 .bk-q.on{border-color:var(--cheong);border-width:1.5px;box-shadow:inset 3px 0 0 var(--cheong)}
@@ -553,14 +590,14 @@ b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink
 .logl{padding:4px 0 4px 10px;border-left:2px solid var(--rule-2);font-size:var(--fs-s);line-height:1.55;margin-bottom:2px}
 .logl.good{border-color:var(--rok)} .logl.bad{border-color:var(--ju)}
 .acts-line{display:flex;gap:4px;margin:4px 0 10px} .acts-line span{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px 2px;border:1px solid var(--rule-2);font-family:var(--brush);font-size:19px;color:var(--ink-3)}
-.acts-line small{font-family:var(--ui);font-size:10.5px} .acts-line .done{background:var(--ink);color:var(--hanji-2);border-color:var(--ink)} .acts-line .now{border:1.5px solid var(--ju);color:var(--ju)}
+.acts-line small{font-family:var(--ui);font-size:var(--fs-xs)} .acts-line .done{background:var(--ink);color:var(--hanji-2);border-color:var(--ink)} .acts-line .now{border:1.5px solid var(--ju);color:var(--ju)}
 
 /* ═══ 사전 — 붉은 표지에 실로 맨 백과. 장부와 같은 책 틀, 표지만 주사 ═══ */
 .cxbtn{position:relative}
 .cxbtn span{background:var(--ju-2)}
 .cxbtn.new::after,#bMenu.cxnew::after{content:"";position:absolute;top:-4px;right:-4px;width:12px;height:12px;border-radius:50%;background:var(--ju);border:2px solid var(--hanji-2)}
 #bMenu{position:relative}
-#mCodex{z-index:55}
+#mCodex,#mNew{z-index:80}  /* 사전은 어디서 열어도(첫 화면·장부·이야기 위) 맨 위. 새 항해 확인도 첫 화면(70) 위 */
 .card.book.codex{background-color:var(--ju-2);width:min(860px,100%)}
 .codex .bk-head .eyebrow .num{margin-left:6px;color:var(--ink-2);letter-spacing:0}
 .cx-hbtn{display:flex;gap:6px;align-items:center}
@@ -569,8 +606,8 @@ b.ag-new{color:var(--rok)} b.ag-mid{color:var(--hwang)} b.ag-old{color:var(--ink
 .cx-find svg{width:18px;height:18px;flex:none;fill:none;stroke:var(--ink-3);stroke-width:2;stroke-linecap:round}
 .cx-find input{-webkit-appearance:none;appearance:none;border-radius:0;flex:1;min-width:0;height:calc(var(--tap) - 2px);border:0;background:none;font:inherit;font-size:16px;color:var(--ink);user-select:text;-webkit-user-select:text;outline:none}
 .cx-find input::placeholder{color:var(--ink-3)}
-#cxTabs button small{font-weight:500;color:var(--ink-3);margin-left:3px;font-size:11px}
-.cx-cat{margin:16px 0 6px;display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.18em;color:var(--ju);font-weight:600;border-bottom:1.5px solid rgba(176,58,38,.55);padding-bottom:4px}
+#cxTabs button small{font-weight:500;color:var(--ink-3);margin-left:3px;font-size:var(--fs-xs)}
+.cx-cat{margin:16px 0 6px;display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);letter-spacing:.16em;color:var(--ju);font-weight:600;border-bottom:1.5px solid rgba(176,58,38,.55);padding-bottom:4px}
 .cx-cat:first-child{margin-top:4px}
 .cx-cat .num{letter-spacing:0;color:var(--ink-2);font-weight:500}
 .cx-cat i{font-style:normal;font-family:var(--seal);font-size:15px;letter-spacing:0}
@@ -583,8 +620,8 @@ button.cx-card:hover{border-color:var(--ink);background:var(--hanji)}
 .cx-card .cx-t b{font-family:var(--display);font-weight:400;font-size:17px}
 .cx-card .cx-t b .hj{font-family:var(--seal);font-size:12px;color:var(--ink-3);margin-left:5px}
 .cx-card .cx-t small{font-size:var(--fs-xs);color:var(--ink-3);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.cx-card.new::after{content:"새";position:absolute;top:5px;right:6px;font-size:10.5px;font-weight:600;color:var(--hanji-2);background:var(--ju);padding:0 5px;line-height:17px}
-.cx-fictag{font-family:var(--ui);font-size:10px;color:var(--ju);border:1px solid rgba(176,58,38,.5);padding:0 4px;margin-left:6px;vertical-align:2px;font-weight:600}
+.cx-card.new::after{content:"새";position:absolute;top:5px;right:6px;font-size:12px;font-weight:600;color:var(--hanji-2);background:var(--ju);padding:0 5px;line-height:18px}
+.cx-fictag{font-family:var(--ui);font-size:var(--fs-xs);color:var(--ju);border:1px solid rgba(176,58,38,.5);padding:0 4px;margin-left:6px;vertical-align:2px;font-weight:600}
 .cx-s{flex:none;width:40px;height:40px;display:grid;place-items:center;background:var(--ink);color:var(--hanji-2);font-family:var(--seal);font-size:20px;box-shadow:inset 0 0 0 1px rgba(245,240,227,.25)}
 .cx-s.pt{background:none;box-shadow:none}
 .cx-s.cat-person{background:var(--ju)} .cx-s.cat-place{background:var(--cheong)} .cx-s.cat-good{background:var(--hwang)} .cx-s.cat-sea{background:var(--cheong-2)} .cx-s.cat-culture{background:var(--rok)} .cx-s.cat-event{background:var(--ink-2)}
@@ -606,10 +643,10 @@ button.cx-card:hover{border-color:var(--ink);background:var(--hanji)}
 .cx-art .cx-s{width:84px;height:84px;font-size:44px}
 .cx-art .gi{width:84px;height:84px} .cx-art .gi svg{width:50px;height:50px} .cx-art .gi i{width:30px;height:30px;font-size:17px;right:-4px;bottom:-4px}
 .cx-pts{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
-.cx-pts figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:2px;width:64px;font-size:11px;color:var(--ink-2);text-align:center;line-height:1.25}
+.cx-pts figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:2px;width:68px;font-size:var(--fs-xs);color:var(--ink-2);text-align:center;line-height:1.25}
 .cx-pts figure .portrait{width:56px;height:56px}
 .cx-fic{display:inline-block;margin-top:8px;padding:2px 8px;font-size:var(--fs-xs);font-weight:600;color:var(--ju);border:1.5px solid var(--ju);transform:rotate(-1deg)}
-.cx-e h4{margin:18px 0 6px;font-size:11px;letter-spacing:.2em;color:var(--ju);font-weight:600;display:flex;align-items:center;gap:8px}
+.cx-e h4{margin:18px 0 6px;font-size:var(--fs-xs);letter-spacing:.18em;color:var(--ju);font-weight:600;display:flex;align-items:center;gap:8px}
 .cx-e h4::after{content:"";flex:1;border-bottom:1px solid rgba(176,58,38,.4)}
 .cx-e p{margin:0 0 10px;line-height:1.8;font-size:var(--fs-m)}
 .cx-hist p{font-family:var(--display);font-size:16.5px;line-height:1.85}
@@ -623,7 +660,7 @@ button.cx-card:hover{border-color:var(--ink);background:var(--hanji)}
 button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .cx-chip.lock{border-style:dashed;border-color:var(--rule-3);color:var(--ink-3);font-weight:500;padding-left:12px}
 .cx-src ul{margin:0;padding:0 0 0 18px;font-size:var(--fs-xs);color:var(--ink-2);line-height:1.7}
-.cx-note{margin:16px 0 0;font-size:11px;color:var(--ink-3);line-height:1.6}
+.cx-note{margin:16px 0 0;font-size:var(--fs-xs);color:var(--ink-3);line-height:1.6}
 /* 글 속 낱말 — 열린 항목만 점선 밑줄. 손가락이 닿는 자리는 위아래로 넓힌다 */
 .cx-link{position:relative;border-bottom:1.5px dotted currentColor;cursor:pointer;transition:color .15s;-webkit-user-select:none;user-select:none}
 .cx-link::after{content:"";position:absolute;left:-2px;right:-2px;top:-11px;bottom:-11px}
@@ -633,7 +670,7 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .toast.cx .cx-tch{flex:none;width:26px;height:26px;display:grid;place-items:center;background:var(--ju-2);color:var(--hanji-2);font-family:var(--seal);font-size:14px}
 .toast.cx b{color:var(--ju-2)}
 .t-codex{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.t-codex .btn{flex:none} .t-codex .cxs{font-family:var(--seal);font-size:16px;color:var(--ju-2)} .t-codex small{color:var(--ink-3);font-weight:500}
+.t-codex .btn{flex:none} .t-codex .cxs{font-family:var(--seal);font-size:16px;color:var(--ju-2)} .t-codex small{color:var(--ink-3);font-weight:500;font-size:var(--fs-xs)}
 .t-codex .fine{flex:1;min-width:200px}
 /* 낱말을 눌러 연 사전: 이야기 위에 얹는 쪽지 */
 #mCodex.sheet .card.book.codex{width:min(620px,100%);height:min(640px,calc(100% - 8px))}
@@ -649,8 +686,8 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
   #mCodex.sheet .card.book.codex{height:min(80%,640px)}
 }
 
-/* 본 이야기 추적 */
-.tracker{position:fixed;z-index:9;left:16px;top:calc(env(safe-area-inset-top,0px) + 92px);width:300px;padding:10px 12px;background-color:rgba(245,240,227,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border:1px solid var(--rule-2);box-shadow:0 6px 18px -10px rgba(27,30,28,.35);cursor:pointer;font-size:var(--fs-s);text-shadow:0 0 3px var(--hanji-2),0 0 1px var(--hanji-2);transition:background-color .2s,border-color .15s}
+/* 본 이야기 추적 — 선원 초상 아래 */
+.tracker{position:fixed;z-index:9;left:16px;top:calc(env(safe-area-inset-top,0px) + 152px);width:300px;padding:10px 12px;background-color:rgba(245,240,227,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border:1px solid var(--rule-2);box-shadow:0 6px 18px -10px rgba(27,30,28,.35);cursor:pointer;font-size:var(--fs-s);text-shadow:0 0 3px var(--hanji-2),0 0 1px var(--hanji-2);transition:background-color .2s,border-color .15s}
 .tracker:hover,.tracker:focus-visible{background-color:rgba(245,240,227,.9)}
 .tracker:hover{border-color:var(--ink)}
 .tk-h{display:flex;align-items:center;gap:8px} .tk-h .mch{width:36px;height:28px;font-size:15px} .mch small{font-size:.6em;margin-left:1px;opacity:.85;font-family:var(--seal)} .tk-h b{font-family:var(--display);font-weight:400;font-size:17px;flex:1}
@@ -660,11 +697,50 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .endtag span{width:32px;height:32px;display:grid;place-items:center;background:var(--ink);color:var(--hanji-2);font-family:var(--seal);font-size:18px}
 .endtag.true{border-color:var(--hwang)} .endtag.true span{background:var(--hwang)} .endtag.history span{background:var(--ju)}
 
-/* 메뉴 */
-.menu{position:fixed;top:calc(env(safe-area-inset-top,0px) + 66px);right:16px;z-index:30;background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--rule-3);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;min-width:200px;animation:fade .15s}
-.menu button{min-height:var(--tap);padding:10px 16px;text-align:left;font-size:var(--fs-s);border-bottom:1px solid var(--rule)}
+/* ═══ 장부 표 — 계절 결산(.report)·앞으로 네 번의 상납(.curve)은 상납 창과 결산 두루마리에, 결말 나무(.etrees)는 결산에 ═══ */
+.report,.curve{margin-top:14px}
+.report h3,.curve h3,.etrees h3{margin:0 0 6px;font-size:var(--fs-xs);letter-spacing:.14em;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:8px}
+.report h3::before,.curve h3::before,.etrees h3::before{content:"";width:7px;height:7px;background:var(--ju);transform:rotate(45deg);flex:none}
+.report h3 small,.curve h3 small,.etrees h3 small{font-size:var(--fs-xs);letter-spacing:0;font-weight:500;color:var(--ink-3)}
+.report .ledger,.curve .ledger{padding:6px 0;margin:0}
+.ledger .in dd{color:var(--rok)} .ledger .out dd{color:var(--ju)}
+.ledger .sum{grid-column:1/-1;border-bottom:0;border-top:1.5px solid rgba(176,58,38,.6);margin-top:4px;padding-top:8px} .ledger .sum dt{color:var(--ink);font-weight:600} .ledger .sum dd{font-family:var(--display);font-weight:400;font-size:20px}
+.curve .ledger .now dt,.curve .ledger .now dd{color:var(--ju);font-weight:600}
+.curve .fine{margin-top:6px}
+/* 값 압력: "최근 풀린 상자 N(나·왕씨) · 회복 ~N일" — 찾는 물건 표와 내 짐 줄 아래 한 줄 */
+.hint{font-size:var(--fs-xs);color:var(--ink-3);line-height:1.4} .hint.dn{color:var(--ju)} .hint.up{color:var(--rok)}
+.want{flex-wrap:wrap} .want .press{flex-basis:100%;margin:2px 0 0 -4px;font-weight:400;white-space:normal}
+.crate .press{color:var(--ink-3)}
+/* 입항 카드: 손해 보고 파는 단추는 붉게 */
+.keep.sell.loss{background:var(--ju);border-color:var(--ju)}
+/* 결말 나무 — 선장마다 결말 묶음. 본 결말만 제목이 보이고 내 결말은 붉은 테 */
+.etrees{margin-top:20px;padding-top:14px;border-top:1.5px solid rgba(176,58,38,.6)}
+.etree{margin-top:10px;padding:8px 10px;border:1px solid var(--rule);background:rgba(245,240,227,.5)}
+.etree.mine{border-color:var(--rule-3)}
+.etree>b{display:block;font-family:var(--display);font-weight:400;font-size:16px;margin-bottom:4px}
+.etree span{display:grid;grid-template-columns:26px 1fr;gap:0 8px;align-items:center;padding:4px 0;border-top:1px solid var(--rule);font-size:var(--fs-s)}
+.etree span i{grid-row:span 2;width:26px;height:26px;display:grid;place-items:center;font-style:normal;font-family:var(--seal);font-size:15px;background:var(--hanji-4);color:var(--hanji-2)}
+.etree span.seen i{background:var(--ink)} .etree span.now i{background:var(--ju)}
+.etree span em{font-style:normal;font-weight:600;color:var(--ink-3)} .etree span.seen em{color:var(--ink)} .etree span.now em{color:var(--ju)}
+.etree span small{font-size:var(--fs-xs);color:var(--ink-3);line-height:1.4}
+/* 선술집 — 다른 사람 알아본다 */
+.reroll{width:100%}
+
+/* 메뉴 — 머리띠 밖(body 바로 아래)에 둔다. 머리띠의 쌓임 맥락 안에 있으면 패널(12) 뒤로 들어간다 */
+.menu{position:fixed;top:calc(env(safe-area-inset-top,0px) + 66px);right:16px;z-index:35;background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--rule-3);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;min-width:220px;animation:fade .15s}
+.menu button{min-height:var(--tap);padding:10px 16px;text-align:left;font-size:var(--fs-s);border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:10px}
 .menu button:last-child{border-bottom:0;color:var(--ju)}
 .menu button:hover{background:var(--hanji-3)}
+.menu button kbd,.menu button .st{margin-left:auto;font:600 12px/1 var(--ui);color:var(--ink-3);padding:3px 6px;border:1px solid var(--rule-2)}
+.menu button .st{border:0;padding:0}
+.menu .sep{height:1px;background:var(--rule-2);margin:2px 0}
+/* 조작법 */
+.help{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;font-size:var(--fs-s)}
+.help h3{grid-column:1/-1;margin:10px 0 4px;font-size:var(--fs-xs);letter-spacing:.16em;color:var(--ink-3);font-weight:600}
+.help h3:first-child{margin-top:0}
+.help div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--rule)}
+.help kbd{font:600 12px/1 var(--ui);color:var(--ink);padding:4px 7px;border:1px solid var(--rule-3);background:var(--hanji);white-space:nowrap;box-shadow:0 1px 0 var(--rule-2)}
+@media (max-width:520px){.help{grid-template-columns:1fr}}
 
 /* ═══ 첫 화면 ═══ */
 .screen{position:fixed;inset:0;z-index:70;overflow-y:auto;background:var(--hanji);touch-action:pan-y;overscroll-behavior:contain}
@@ -683,23 +759,29 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .vseal{writing-mode:vertical-rl;font-family:var(--display);font-size:18px;letter-spacing:.24em;color:var(--hanji-2);background:var(--ju);padding:12px 6px;margin-top:8px;
   box-shadow:inset 0 0 0 1.5px var(--ju),inset 0 0 0 3px rgba(245,240,227,.65);animation:vsealin .55s var(--ease-back) .9s both}
 @keyframes vsealin{from{opacity:0;transform:scale(1.8)}60%{opacity:1;transform:scale(.95)}to{transform:none}}
-.t-kicker{margin:0;font-size:11px;letter-spacing:.24em;color:var(--ju);font-weight:600}
+.t-kicker{margin:0;font-size:var(--fs-xs);letter-spacing:.22em;color:var(--ju);font-weight:600}
 .tagline{font-family:var(--display);font-size:20px;line-height:1.6;text-align:left;text-wrap:pretty;margin:0;word-break:keep-all}
-.t-h{margin:6px 0 -4px;font-size:11px;letter-spacing:.2em;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:8px}
+.stat.quota.point{box-shadow:0 0 0 2px var(--ju),0 0 14px rgba(176,58,38,.45);border-radius:6px}
+.cap .hook{display:block;font-style:normal;font-family:var(--display);font-size:12.5px;line-height:1.45;color:var(--ink-2);margin:4px 0 2px;word-break:keep-all}
+.epilogue{margin:10px 0 4px;padding:10px 14px;border-left:3px solid var(--ju);background:rgba(27,35,36,.04)}
+.epilogue p{margin:0 0 6px;font-family:var(--display);font-size:15px;line-height:1.6;word-break:keep-all}
+.epilogue p:last-child{margin:0}
+.t-h{margin:6px 0 -4px;font-size:var(--fs-xs);letter-spacing:.18em;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:8px}
+.t-h small{font-size:var(--fs-xs);letter-spacing:.04em;font-weight:500;color:var(--ink-3)}
 .t-h::after{content:"";flex:1;height:1px;background:var(--rule-2)}
 .caps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .cap{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto 1fr;gap:2px 10px;align-items:start;padding:12px;border:1px solid var(--rule-3);background:var(--hanji);text-align:left;min-width:0;transition:border-color .15s,transform .15s var(--ease),box-shadow .15s;position:relative}
 .cap:hover:not(:disabled){border-color:var(--ink);transform:translateY(-2px)}
 .cap .cs{grid-row:span 2;width:40px;height:40px;display:grid;place-items:center;background:var(--ink-2);color:var(--hanji-2);font-family:var(--seal);font-size:22px;box-shadow:inset 0 0 0 1.5px rgba(245,240,227,.45)}
 .cap .nm{font-family:var(--display);font-size:22px;line-height:1.1}
-.cap small{font-size:11.5px;color:var(--ink-3);line-height:1.35}
+.cap small{font-size:var(--fs-xs);color:var(--ink-3);line-height:1.35}
 .cap p{grid-column:1/-1;margin:6px 0 0;font-size:var(--fs-xs);line-height:1.45;color:var(--ink-2)}
 .cap.on{border:2px solid var(--ink);padding:11px;background:var(--hanji-2);box-shadow:0 8px 18px -10px rgba(27,35,36,.5)}
 .cap.on .cs{background:var(--ju)}
 .cap.on::after{content:"";position:absolute;right:8px;top:8px;width:9px;height:9px;background:var(--ju);transform:rotate(45deg)}
 .cap:disabled{opacity:.62;cursor:default}
 .cap:disabled .cs{background:var(--ink-4)}
-.cap .lock{grid-column:1/-1;margin-top:6px;font-size:11.5px;color:var(--ju);line-height:1.4}
+.cap .lock{grid-column:1/-1;margin-top:6px;font-size:var(--fs-xs);color:var(--ju);line-height:1.4}
 .diffs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
 .dif-b{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;padding:8px 6px;border:1px solid var(--rule-3);background:var(--hanji);transition:border-color .15s}
 .dif-b:hover{border-color:var(--ink)}
@@ -711,10 +793,21 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .start-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .start-row .btn{padding:12px 22px;font-size:var(--fs-m)}
 .t-sheet .start-row{justify-content:flex-start}
+.t-sheet .start-row .btn.main{order:-1}  /* 저장이 있으면 '이어하기'가 주단추로 앞에 선다 */
 .btn.big{min-height:56px;padding:12px 30px 12px 22px;font-family:var(--display);font-weight:400;font-size:21px;letter-spacing:.06em;gap:12px}
 .btn.big::before{content:"錨";font-family:var(--seal);font-size:16px;width:28px;height:28px;display:grid;place-items:center;background:var(--ju);color:var(--hanji-2);box-shadow:inset 0 0 0 1px rgba(245,240,227,.5)}
 .fine{font-size:var(--fs-xs);color:var(--ink-3);text-align:left;max-width:60ch;margin:0;line-height:1.6}
-.t-credit{position:fixed;left:max(5vw,24px);bottom:18px;font-size:11px;letter-spacing:.14em;color:rgba(27,35,36,.6);pointer-events:none}
+.t-credit{position:fixed;left:max(5vw,24px);bottom:18px;font-size:var(--fs-xs);letter-spacing:.14em;color:rgba(27,35,36,.6);pointer-events:none}
+/* PC 낮은 창(800px 안팎): 첫 화면 종이를 조금 조여 사전 단추까지 한눈에 */
+@media (min-width:681px) and (max-height:820px){
+  .t-wrap{padding:16px max(5vw,24px)}
+  .t-sheet{padding:22px 26px 16px;gap:10px}
+  .t-brush{font-size:88px}
+  .tagline{font-size:18px;line-height:1.5}
+  .cap{padding:10px} .cap.on{padding:9px}
+  .dif-line{min-height:2.4em}
+  .btn.big{min-height:50px}
+}
 
 /* 결산 — 두루마리 */
 #sEnd{background:rgba(27,35,36,.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
@@ -742,67 +835,90 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 
 /* ═══ 좁은 화면 ═══ */
 @media (max-width:860px){
-  .hud{gap:8px;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 8px}
-  .cartouche{padding:5px 10px 5px 5px;gap:8px;flex:none}
+  .hud{gap:6px;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px 8px}
+  .hud .sp{display:none}
+  .cartouche{padding:5px 8px 5px 5px;gap:6px;flex:none}
   .brand{font-size:16px;padding:4px 3px}
   .when b{font-size:14px;white-space:nowrap}
-  .meters{gap:10px;padding:5px 10px;min-height:50px}
+  .meters{flex:1;min-width:0;gap:8px;padding:5px 8px;min-height:50px;justify-content:space-between;overflow:hidden}
+  .stat.gold b{min-width:0}
   .gauge{width:58px}
   .gauge.hull{display:none}
   #bSound{display:none}
   .stat.quota{padding-left:8px}
   .stat.quota .k{letter-spacing:.02em}
+  .k{letter-spacing:.04em}
   .slot{width:15px;height:19px;font-size:10px}
   .stat b{font-size:15px}
   .panel{left:0;right:0;width:auto;top:auto;bottom:0;height:min(58%,540px);border-left:0;border-right:0;padding-bottom:env(safe-area-inset-bottom,0px);animation:sheetup .4s var(--ease)}
   @keyframes sheetup{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
   .panel.min{height:auto}
   .panel.min .p-body,.panel.min .p-foot{display:none}
-  .p-head{padding:16px 16px 8px;cursor:pointer;min-height:64px}
+  .p-head{padding:16px 12px 8px 14px;cursor:pointer;min-height:64px;gap:8px}
   .p-head::after{content:"";position:absolute;top:10px;left:50%;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:var(--rule-2)}
   .p-head .seal{width:38px;height:38px;font-size:22px}
-  .p-head h2{font-size:24px}
-  .p-head .grab{display:flex;align-items:center;margin-left:auto;min-height:40px;padding:0 6px;font-size:var(--fs-xs);color:var(--ink-3)}
+  .p-head h2{font-size:22px}
+  .p-head>div{min-width:0}
+  .p-head .grab{display:flex;align-items:center;margin-left:auto;min-height:40px;padding:0 6px;font-size:var(--fs-xs);color:var(--ink-3);flex:none}
   .p-foot{display:none}
   .crew{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 68px);left:10px;gap:6px}
+  /* 정박 중에는 선원 초상이 장부 머리 안에 선다(ui.js placeCrew) — 해도 위 자리를 비운다 */
+  .p-head .crew{position:static;top:auto;left:auto;bottom:auto;margin-left:auto;gap:4px;flex:none;z-index:auto}  /* scenes.js의 .has-art>* {position:relative} 를 받아도 밀리지 않게 자리값을 비운다 */
+  .p-head .crew .mate{width:40px;height:40px;font-size:15px}
+  .p-head .crew .mate .tip{top:auto;bottom:46px;left:auto;right:0}  /* 아래 시트 안에서는 위로 연다 */
   .mate{width:40px;height:40px;font-size:16px}
   .mate .tip{bottom:auto;top:48px}
   .card{padding:22px 16px 16px}
   .card h2{font-size:25px}
-  .flip{height:204px}
-  .crates{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .flip{height:210px}
+  .crates,.crates[data-n]{grid-template-columns:repeat(2,minmax(0,1fr))} .crates[data-n="1"]{grid-template-columns:minmax(0,1fr)}
   #bMenu{position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 68px);z-index:9;width:40px;height:40px}
   .menu{top:calc(env(safe-area-inset-top,0px) + 114px);right:10px}
   .bookbtn{position:fixed;right:56px;top:calc(env(safe-area-inset-top,0px) + 68px);z-index:9;height:40px}
   .tracker{left:10px;right:10px;width:auto;top:calc(env(safe-area-inset-top,0px) + 116px);padding:6px 10px}
   .tracker ul{display:none} .tracker.open ul{display:block}
-  .toasts,.coach{top:calc(env(safe-area-inset-top,0px) + 160px)}
-  .toasts{gap:4px}
+  .toasts{top:calc(env(safe-area-inset-top,0px) + 160px);gap:4px}
+  /* 안내는 아래쪽 시트 손잡이 바로 위에 한 줄로(--sheet-h: 아래에 붙은 것의 높이, ui.js placeToasts) */
+  .coach{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + var(--sheet-h,0px) + 8px);left:10px;right:10px;width:auto;transform:none;padding:8px 10px;gap:8px;border-top-width:3px;animation:none}
+  .coach::before{width:26px;height:26px;font-size:14px}
+  .coach p{font-size:var(--fs-xs);line-height:1.4}
+  /* 단추 둘을 세로로 세워 글 자리를 넓힌다 — 석 줄까지 깔끔히 들어간다 */
+  .coach .cbtns{flex-direction:column;gap:0;align-items:stretch}
+  .coach .cbtns .btn{min-height:var(--tap);padding:2px 10px}
+  .coach .linkbtn{padding:0 4px;min-height:var(--tap)}
+  .qhint{display:none}
   .toast{font-size:13px;padding:7px 12px 7px 10px}
-  .toast:nth-last-child(n+3){display:none}
+  #toasts .toast:nth-last-child(n+3){display:none}
   .sailbar{left:10px;right:10px;transform:none;width:auto;padding:8px 8px 8px 12px;gap:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);animation:none}
   .sailbar .to{flex:1;min-width:0;font-size:16px}
   .sailbar .to small{overflow:hidden;text-overflow:ellipsis}
   .sailbar .row{min-width:84px;padding:6px 8px 8px}
-  .speed button{min-width:38px}
+  .speed button{min-width:40px;padding:0 4px}
   .dest{animation:none}
 }
 @media (max-width:680px){
   .t-wrap{display:block;padding:0}
-  .t-sheet{width:auto;margin:clamp(220px,46vh,400px) 0 0;border-left:0;border-right:0;padding:26px 16px 30px;animation-delay:.3s}
-  .t-head{grid-template-columns:1fr;gap:6px}
-  .t-mark{position:absolute;top:calc(-1 * clamp(220px,46vh,400px) + 18px);left:16px;right:16px;justify-content:flex-end;flex-direction:row-reverse}
-  .t-brush{font-size:clamp(78px,24vw,110px);text-shadow:0 0 18px rgba(245,240,227,.8)}
-  .tagline{font-size:17px}
+  /* 그림은 38vh — 선장·난이도·닻 단추가 첫 화면에서 한 번에 보이게 */
+  .t-sheet{width:auto;margin:clamp(200px,38vh,400px) 0 0;border-left:0;border-right:0;padding:22px 16px 30px;animation-delay:.3s}
+  .t-head{grid-template-columns:1fr;gap:4px}
+  .t-mark{position:absolute;top:calc(-1 * clamp(200px,38vh,400px) + 14px);left:16px;right:16px;justify-content:flex-end;flex-direction:row-reverse}
+  .t-brush{font-size:clamp(72px,22vw,100px);text-shadow:0 0 18px rgba(245,240,227,.8)}
+  .tagline{font-size:16.5px;line-height:1.5}
   .caps{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-  .cap{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px 8px}
-  .cap.on{padding:9px 7px}
+  .cap{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 8px}
+  .cap.on{padding:7px 7px}
   .cap .cs{width:34px;height:34px;font-size:19px;margin-bottom:2px}
+  .cap .cs.pt{width:52px;height:52px}
   .cap .nm{font-size:19px}
-  .cap small{font-size:11px}
-  .cap p,.cap .lock{margin-top:2px;font-size:11.5px}
-  .t-sheet .start-row{position:sticky;bottom:0;z-index:2;margin:0 -16px;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px);background:linear-gradient(rgba(245,240,227,0),rgba(245,240,227,.96) 26%);}
-  .t-sheet .start-row .btn{flex:1}
+  .cap small{font-size:var(--fs-xs)}
+  .cap p,.cap .lock{margin-top:2px;font-size:var(--fs-xs);line-height:1.35}
+  .diffs{gap:6px}
+  .dif-b{padding:8px 4px;gap:6px}
+  .dif-b b{font-size:17px}
+  .dif-line{margin-top:-4px!important;min-height:0;padding-bottom:6px}
+  .t-sheet .start-row{position:sticky;bottom:0;z-index:2;margin:0 -16px;padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px);background:linear-gradient(rgba(245,240,227,0),rgba(245,240,227,.97) 18%);}
+  .t-sheet .start-row .btn{flex:1;min-height:52px}
+  .t-sheet .start-row .btn.big{padding-left:14px;padding-right:16px;font-size:19px}
   .t-credit{display:none}
   .boons{grid-template-columns:1fr} .boon{min-height:0}
   .bt-acts{grid-template-columns:repeat(3,1fr)} .bact{min-height:92px;padding:8px 4px} .bact kbd{display:none}
@@ -816,10 +932,34 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
   .bk-stats{grid-template-columns:repeat(2,1fr)} .bk-tabs button{padding:8px 12px}
   .scroll{padding:30px 18px 22px} .scroll h2{font-size:28px;padding-right:86px} .scroll .lead{padding-right:0} .scroll .rank{width:78px;height:78px;font-size:18px;top:22px;right:16px}
   .ledger{grid-template-columns:1fr}
-  .card.quota h2,.card.quota>p{padding-right:0} .q-stamp{width:60px;height:60px;font-size:30px;top:14px;right:14px}
+  .card.quota h2{padding-right:72px} .card.quota>p{padding-right:0} .q-stamp{width:60px;height:60px;font-size:30px;top:14px;right:14px}
 }
-@media (max-width:420px){ .slots{display:none} .meters .stat.gold b{font-size:14px} .t-sheet{gap:12px} }
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition:none!important}}
+@media (max-width:420px){
+  .slots{display:none} .meters .stat.gold b{font-size:14px} .t-sheet{gap:12px}
+  /* 390px 폰: 날짜 한 줄, 경계는 막대 없이 숫자+상태 말 */
+  .cartouche{padding:4px 6px 4px 4px;gap:5px}
+  .when b{font-size:13px}
+  .season{gap:3px;letter-spacing:0}
+  .dif{margin-left:2px;padding:0 3px;letter-spacing:0}
+  .capb{display:none}  /* 390px: 선장 초상을 숨겨 계기판에 자리를 준다(초상은 정박 장부·이야기 창에 있다) */
+  .meters{gap:5px;padding:4px 6px}
+  .k{letter-spacing:0;gap:3px}
+  .stat b{font-size:14px}
+  .stat.fame .k{letter-spacing:0}
+  .stat.quota{padding-left:6px}
+  .gauge.threat{width:auto;gap:1px}
+  .gauge.threat i{display:none}
+  .gauge.threat .k{gap:3px}
+  /* 난이도 셋: 글자가 위아래로 선다 — '태풍 어려움'이 두 줄로 깨지지 않게 */
+  .dif-b{flex-direction:column;gap:2px;min-height:62px;padding:6px 2px}
+  .dif-b.on{padding:5px 1px}
+  .dif-b .dch{font-size:20px}
+  .dif-b b{font-size:16px}
+  .dif-b small{font-size:var(--fs-xs)}
+}
+/* 움직임 줄이기 — 기기 설정(prefers-reduced-motion)이거나 메뉴에서 켰을 때(body.rm). 메뉴에서 끄면(body.rm-off) 기기 설정을 무시한다 */
+@media (prefers-reduced-motion:reduce){body:not(.rm-off) *,body:not(.rm-off) *::before,body:not(.rm-off) *::after{animation-duration:.01ms!important;animation-delay:0s!important;transition:none!important}}
+body.rm *,body.rm *::before,body.rm *::after{animation-duration:.01ms!important;animation-delay:0s!important;transition:none!important}
 
 /* ═══ 인물 초상 (src/art/portraits.js가 그린 SVG) ═══ */
 .portrait{display:block;width:100%;height:100%;overflow:visible}
@@ -843,6 +983,13 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
   .capb{width:40px;height:40px}
 }
 @media (max-width:520px){
+  /* 폰: 선장 카드를 한 줄에 하나씩, 초상은 왼쪽 — 세 칸으로 나누면 소개 글이 다섯 줄로 갈라진다 */
+  .caps{grid-template-columns:1fr;gap:6px}
+  .cap,.cap.on{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;gap:0 10px;align-items:center;padding:8px 10px}
+  .cap .cs.pt,.cap.on .cs.pt{grid-row:span 3;width:56px;height:56px;margin:0}
+  .cap .nm{font-size:18px;line-height:1.15}
+  .cap .hook,.cap p,.cap .lock{grid-column:2;margin:2px 0 0}
+  .cap.on::after{right:6px;top:6px}
   .cartouche .brand{display:none}
   .capb{width:36px;height:36px;margin-left:0}
   .cap .cs.pt{width:60px;height:60px}
@@ -870,15 +1017,16 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .feed:hover .feed-h,.feed.min .feed-h{opacity:1}
 .feed-h>b{font-family:var(--display);font-weight:400;font-size:16px}
 .feed-tabs{display:flex;gap:2px;flex:1}
-.feed-tabs button{padding:2px 8px;font-size:var(--fs-xs);color:var(--ink-3);border:1px solid transparent}
+.feed-tabs button{padding:2px 8px;min-height:var(--tap);min-width:40px;font-size:var(--fs-xs);color:var(--ink-3);border:1px solid transparent}
 .feed-tabs button.on{color:var(--ink);border-color:var(--rule-2);background:var(--hanji)}
-.feed-unread{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ju);color:var(--hanji-2);font-size:11px;line-height:18px;text-align:center}
-.feed-tg{width:28px;height:28px;display:grid;place-items:center;color:var(--ink-2);font-size:14px}
+.feed-unread{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ju);color:var(--hanji-2);font-size:var(--fs-xs);line-height:18px;text-align:center}
+.feed-tg{width:var(--tap);height:var(--tap);display:grid;place-items:center;color:var(--ink-2);font-size:14px;border:1px solid var(--rule);background:rgba(245,240,227,.6)}
+.feed-tg:hover{border-color:var(--ink);color:var(--ink)}
 .feed-list{overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:4px 0 6px;scroll-behavior:smooth}
 .feed-peek{display:none}
 .fe{width:100%;display:grid;grid-template-columns:34px auto 1fr;align-items:start;gap:6px;padding:5px 10px 5px 8px;font-size:var(--fs-xs);line-height:1.45;text-align:left;border-left:3px solid transparent}
-.fe .fd{color:var(--ink-4);font-size:11px;padding-top:2px}
-.fe .fic{width:18px;height:18px;display:grid;place-items:center;font-family:var(--seal);font-size:11px;color:var(--ink-3)}
+.fe .fd{color:var(--ink-3);font-size:var(--fs-xs);padding-top:2px}
+.fe .fic{width:18px;height:18px;display:grid;place-items:center;font-family:var(--seal);font-size:12px;color:var(--ink-3)}
 .fe.good .fic{color:var(--rok)} .fe.bad .fic{color:var(--ju)} .fe.news .fic{background:var(--ink);color:var(--hanji-2)}
 .fe .fx{color:var(--ink-2);min-width:0}
 .fe.news{border-left-color:var(--ink)} .fe.news .fx{color:var(--ink)}
@@ -889,10 +1037,10 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .fe.mkt .fx b{color:var(--ink);font-weight:600}
 .fe.mkt em{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums} .fe.mkt em.up{color:var(--rok)} .fe.mkt em.dn{color:var(--ju)}
 .fe.mkt .fw{color:var(--ink-3);margin-left:4px}
-.fe .fsrc{color:var(--ink-4);font-size:10.5px}
+.fe .fsrc{color:var(--ink-3);font-size:var(--fs-xs)}
 .fe.mkt.up{border-left-color:var(--rok-2)} .fe.mkt.down{border-left-color:var(--ju)}
 .fe.mine{background:rgba(193,154,62,.12)}
-.ftag{display:inline-block;margin-left:5px;padding:0 5px;font-size:10px;border:1px solid var(--gold);color:var(--hwang)}
+.ftag{display:inline-block;margin-left:5px;padding:0 5px;font-size:var(--fs-xs);border:1px solid var(--gold);color:var(--hwang)}
 .fe.new{animation:fein 1.6s var(--ease)}
 @keyframes fein{0%{opacity:0;transform:translateX(-14px);background:rgba(193,154,62,.38)}35%{opacity:1;transform:none;background:rgba(193,154,62,.32)}100%{background:rgba(193,154,62,0)}}
 .fempty{margin:10px 12px;font-size:var(--fs-xs);color:var(--ink-3)}
@@ -906,9 +1054,15 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
   .panel:not([hidden]):not(.min) ~ .feed{display:none}
   .feed.min .feed-h{padding:3px 6px 3px 10px}
 }
+/* 소식창과 아래 띠(행선지·항해 띠)가 겹치지 않게: 항해 띠가 있으면 그 위, PC에서는 왼쪽 아래 자리만 쓴다 */
+@media (min-width:861px){
+  .feed{bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
+  body.sailing .feed{bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
+}
 @media (prefers-reduced-motion:reduce){.fe.new,.fe.new .fx,.live,.live.ping{animation:none}.feed-list{scroll-behavior:auto}}
 </style>
 
+<div id="boot" aria-hidden="true"><div><b>淸海</b>닻을 올리는 중…</div></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <filter id="inkbleed" x="-10%" y="-10%" width="120%" height="120%">
     <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="3" seed="8" result="n"/>
@@ -920,26 +1074,27 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 <canvas id="map" aria-label="해도"></canvas>
 
 <header class="hud">
-  <div class="cartouche"><span class="brand">淸海</span><span class="capb" id="hCap" aria-hidden="true"></span><div class="when"><b id="hDate" class="num">828년 4월 1일</b><span class="season"><svg class="vane" id="hVane" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 2.5v11M8 2.5l-2.6 3.2M8 2.5l2.6 3.2"/></svg><span id="hSeason">봄 · 변덕</span><i class="dif" id="hDiff" title="난이도"></i></span></div></div>
+  <div class="cartouche"><span class="brand">淸海</span><span class="capb" id="hCap" aria-hidden="true"></span><div class="when"><b id="hDate" class="num">첫해 4월 1일</b><span class="season"><svg class="vane" id="hVane" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 2.5v11M8 2.5l-2.6 3.2M8 2.5l2.6 3.2"/></svg><span id="hSeason">봄 · 변덕</span><i class="dif" id="hDiff" title="난이도"></i></span></div></div>
   <span class="sp"></span>
   <div class="meters">
     <div class="stat gold" id="hGoldBox"><span class="k"><svg viewBox="0 0 14 14" aria-hidden="true"><circle class="coin" cx="7" cy="7" r="6"/><rect class="hole" x="5.2" y="5.2" width="3.6" height="3.6"/></svg>냥</span><b id="hGold">5,000</b></div>
-    <div class="stat quota" id="hQuotaBox" title="계절이 끝나는 날 청해진에 바칠 군자금"><span class="k">상납 · <span id="hDue">90일 뒤</span></span><b id="hQuota">4,000</b></div>
-    <div class="slots" id="hSlots" aria-label="선창"></div>
-    <div class="gauge threat" id="hThreat" title="경계 — 30 감찰, 60 현상금, 85 그림자, 100이면 칼이 온다"><span class="k">경계 <b class="num">0</b></span><i><s></s></i></div>
+    <div class="stat quota" id="hQuotaBox" title="계절이 끝나는 날 낼 상납"><span class="k">상납 · <span id="hDue">90일 뒤</span></span><b id="hQuota">4,000</b></div>
+    <div class="stat fame" id="hFame" title="명성 — 막 목표와 평판. 첫 입항·발견·해전·의뢰로 오르고, 외면·기한 넘김으로 깎인다"><span class="k">명성</span><b id="hFameN" class="num">0</b></div>
+    <div class="slots" id="hSlots" aria-label="선창 0/3"></div>
+    <div class="gauge threat" id="hThreat" title="경계 — 30 감찰, 60 현상금, 85 그림자, 100이면 칼이 온다"><span class="k">경계 <b class="num">0</b></span><i><s></s></i><small class="st" id="hThreatSt">안전</small></div>
     <div class="gauge hull" id="hHull"><span class="k">선체 <b class="num">100</b></span><i><s></s></i></div>
   </div>
   <button class="bookbtn cxbtn" id="bCodex" aria-label="사전 — 바다의 백과" title="사전 (D)"><span>典</span><b>사전</b></button>
   <button class="bookbtn" id="bBook" aria-label="장부 — 시세·이야기·도감" title="장부 (B)"><span>簿</span><b>장부</b></button>
-  <button class="icon" id="bMenu" aria-label="메뉴"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-  <div class="menu" id="menu" hidden><button id="mWide">해도 전체 보기</button><button id="mShip">내 배로</button><button id="mDict">사전 — 바다의 백과</button><button id="mSound">소리 끄기</button><button id="mRetire">항해를 접고 결산</button></div>
+  <button class="icon" id="bMenu" aria-label="메뉴" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   <button class="icon" id="bSound" aria-label="소리 켜고 끄기"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="sndWave" d="M16 8.5c1.4 1 1.4 6 0 7M18.5 6c2.8 2.2 2.8 9.8 0 12"/></svg></button>
 </header>
+<div class="menu" id="menu" role="menu" hidden><button id="mWide" role="menuitem">해도 전체 보기</button><button id="mShip" role="menuitem">내 배로</button><button id="mDict" role="menuitem">사전 — 바다의 백과<kbd>D</kbd></button><button id="mHowto" role="menuitem">조작법</button><div class="sep" role="separator"></div><button id="mCoach" role="menuitem">안내 다시 보기</button><button id="mMotion" role="menuitem">움직임 줄이기<span class="st" id="mMotionSt">끔</span></button><button id="mSound" role="menuitem">소리 끄기</button><div class="sep" role="separator"></div><button id="mRetire" role="menuitem">항해를 접고 결산</button></div>
 
 <div class="crew" id="crew"></div>
 <div class="tracker" id="tracker" hidden role="button" tabindex="0" aria-label="본 이야기 — 장부 열기"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
-<div class="coach" id="coach" hidden><p id="coachText"></p><button id="coachSkip">안내 끄기</button></div>
+<div class="coach" id="coach" hidden role="status"><p id="coachText"></p><div class="cbtns"><button class="btn" id="coachNext">다음</button><button class="linkbtn" id="coachSkip">안내 끄기</button></div></div>
 
 <aside class="panel" id="panel" hidden>
   <div class="p-head" id="pHead"><span class="seal" id="pSeal">淸</span><div><h2 id="pName">청해진</h2><small id="pSub">신라 · 정박 중</small></div><span class="grab" id="pGrab">접기</span></div>
@@ -960,11 +1115,28 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 <div class="modal" id="mReveal" hidden><div class="card reveal" id="rvCard" role="dialog" aria-modal="true"></div></div>
 <div class="modal" id="mBattle" hidden><div class="card battle" id="btCard" role="dialog" aria-modal="true"></div></div>
 <div class="modal" id="mDive" hidden><div class="card dive" id="dvCard" role="dialog" aria-modal="true"></div></div>
-<div class="modal" id="mBook" hidden><div class="card book" role="dialog" aria-modal="true" aria-label="장부"><div class="bk-bind" aria-hidden="true"></div><div class="bk-page"><div class="bk-head"><div><div class="eyebrow">바람의 장부 · 簿</div><h2>帳簿</h2></div><button class="icon" id="bkClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="bk-tabs" id="bkTabs"></div><div class="bk-body" id="bkBody"></div></div></div></div>
+<div class="modal" id="mBook" hidden><div class="card book" role="dialog" aria-modal="true" aria-label="장부"><div class="bk-bind" aria-hidden="true"></div><div class="bk-page"><div class="bk-head"><div><div class="eyebrow">바람의 장부 · 簿</div><h2>帳簿</h2></div><button class="icon" id="bkClose" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="bk-tabs" id="bkTabs" role="tablist" aria-label="장부"></div><div class="bk-body" id="bkBody"></div></div></div></div>
 <div class="modal" id="mCodex" hidden><div class="card book codex" id="cxCard" role="dialog" aria-modal="true" aria-labelledby="cxH" tabindex="-1"><div class="bk-bind" aria-hidden="true"></div><div class="bk-page"><div class="bk-head"><div><div class="eyebrow">바다의 사전 · 典 <span class="num" id="cxCount"></span></div><h2 id="cxH">辭典</h2></div><div class="cx-hbtn"><button class="btn cx-full" id="cxFull" hidden>사전 펼치기</button><button class="icon" id="cxClose" aria-label="사전 닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div><div class="cx-find"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg><input id="cxQ" type="search" placeholder="찾기 — 이름이나 낱말 (열린 항목만)" aria-label="사전에서 찾기" autocomplete="off" spellcheck="false" enterkeyhint="search"></div><div class="bk-tabs" id="cxTabs" role="tablist" aria-label="분류"></div><div class="bk-body" id="cxBody"></div></div></div></div>
 <div class="modal" id="mStory" hidden><div class="card" id="stCard" role="dialog" aria-modal="true"></div></div>
 <div class="modal" id="mQuota" hidden><div class="card quota" id="qCard" role="dialog" aria-modal="true"></div></div>
-<div class="modal" id="mRetire2" hidden><div class="card" role="dialog" aria-modal="true"><div class="eyebrow">결산</div><h2>항해를 접을까</h2><p>지금까지 바친 군자금과 남은 재산으로 점수를 매긴다. 이 항해는 이어서 할 수 없다.</p><div class="start-row" style="justify-content:flex-end"><button class="btn" id="mRetireNo">계속 간다</button><button class="btn main" id="mRetireYes">돛을 내린다</button></div></div></div>
+<div class="modal" id="mRetire2" hidden><div class="card" role="dialog" aria-modal="true"><div class="eyebrow">결산</div><h2>항해를 접을까</h2><p>지금까지 바친 상납과 남은 재산으로 점수를 매긴다. 이 항해는 이어서 할 수 없다.</p><div class="start-row" style="justify-content:flex-end"><button class="btn main" id="mRetireNo">계속 간다</button><button class="btn danger" id="mRetireYes">돛을 내린다</button></div></div></div>
+<div class="modal" id="mNew" hidden><div class="card" role="dialog" aria-modal="true"><div class="eyebrow">새 항해</div><h2>저장된 항해가 있다</h2><p>새로 시작하면 이어하던 항해는 지워진다. 이어서 할 거면 「이어하기」를 누르자.</p><div class="start-row" style="justify-content:flex-end"><button class="btn main" id="mNewNo">그만둔다</button><button class="btn danger" id="mNewYes">지우고 새로 시작</button></div></div></div>
+<div class="modal" id="mHelp" hidden><div class="card" role="dialog" aria-modal="true"><div class="eyebrow">조작법</div><h2>손과 키</h2>
+  <div class="help">
+    <h3>해도</h3>
+    <div><span>해도 옮기기</span><kbd>끌기</kbd></div><div><span>해도 키우고 줄이기</span><kbd>휠 · 두 손가락</kbd></div>
+    <div><span>행선지 고르기</span><kbd>도장 누르기</kbd></div><div><span>빈 바다로 탐험</span><kbd>바다 누르기</kbd></div>
+    <h3>항구</h3>
+    <div><span>상자 가득 사기</span><kbd>Shift+누르기 · 길게 누르기</kbd></div><div><span>장부 열고 닫기</span><kbd>B</kbd></div>
+    <div><span>사전 열고 닫기</span><kbd>D</kbd></div><div><span>선원의 말 보기</span><kbd>초상 누르기</kbd></div>
+    <h3>항해</h3>
+    <div><span>노 저어라</span><kbd>Space</kbd></div><div><span>빠르기 1× · 2× · 4×</span><kbd>1 2 3</kbd></div>
+    <h3>해전 · 잠수</h3>
+    <div><span>해전의 수 고르기</span><kbd>1 ~ 5</kbd></div><div><span>잠수 — 더 깊이 · 올라온다</span><kbd>↓ ↑</kbd></div>
+    <h3>창</h3>
+    <div><span>창 닫기 · 계속</span><kbd>Esc</kbd></div><div><span>초점 옮기기</span><kbd>Tab</kbd></div>
+  </div>
+  <div class="start-row" style="justify-content:flex-end;margin-top:16px"><button class="btn main" id="mHelpOk">알겠다</button></div></div></div>
 
 <section class="screen" id="sTitle">
   <canvas id="tArt" aria-hidden="true"></canvas>
@@ -973,15 +1145,15 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
       <div class="t-head">
         <h1 class="t-mark" aria-label="청해 — 바람의 장부"><span class="t-brush" aria-hidden="true">淸海</span><span class="vseal" aria-hidden="true">바람의 장부</span></h1>
         <p class="t-kicker">八二八年 · 신라 · 당 · 왜 · 발해의 바다</p>
-        <p class="tagline">828년, 배 한 척과 오천 냥. 계절마다 청해진에 군자금을 바쳐라. 액수는 점점 오른다. 얼마나 버티겠는가.</p>
+        <p class="tagline">동포가 팔려 가는 바다를 끊으러 돌아온 무장. 왕이 준 것은 직함뿐이다. 배 한 척과 오천 냥으로 계절마다 상납을 채우고, 바다 끝에서 당신의 결말을 고른다.</p>
       </div>
       <h2 class="t-h">선장</h2>
       <div class="caps" id="caps"></div>
-      <h2 class="t-h">바다의 기세</h2>
+      <h2 class="t-h">바다의 기세 <small>(난이도)</small></h2>
       <div class="diffs" id="diffs" role="radiogroup" aria-label="난이도"></div>
       <p class="fine dif-line" id="diffLine"></p>
       <div class="start-row"><button class="btn main big" id="bStart">닻을 올린다</button><button class="btn" id="bCont" hidden>이어하기</button></div>
-      <p class="fine">스물아홉 항구, 열한 개의 이야기, 스물일곱 곳의 발견. 돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
+      <p class="fine">세 선장, 선장마다 다른 결말. 스물아홉 항구, 열한 개의 이야기, 스물일곱 곳의 발견. 돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
       <p class="fine" id="bestLine"></p>
       <div class="t-codex"><button class="btn" id="bCodexT"><span class="cxs" aria-hidden="true">典</span>사전 <small class="num" id="cxTN"></small></button><p class="fine" id="cxFactT"></p></div>
     </div>

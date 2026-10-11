@@ -4,7 +4,7 @@
 #   python tools/fonts.py
 # 원본 TTF는 google/fonts 저장소에서 받아 .cache/fonts/ 에 둔다(저장소에는 올리지 않는다).
 # 모두 SIL Open Font License 1.1. 고친 글꼴(부분 집합)이므로 예약 글꼴 이름을 피해 'Chunghae …'로 이름을 바꾼다.
-import io, os, sys, urllib.request
+import io, json, os, sys, urllib.request
 from fontTools.ttLib import TTFont
 from fontTools import subset
 
@@ -14,12 +14,17 @@ OUT = os.path.join(ROOT, 'assets', 'fonts')
 GH = 'https://raw.githubusercontent.com/google/fonts/main/ofl/'
 
 # (출력 이름, 원본 경로, 새 이름, 굵기 이름, 어떤 글자를 넣나)
+#   text  — 한자가 아닌 글자(한글·숫자·기호)   hanja — 게임 화면과 사전의 한자
+#   hanja-game — 게임 화면에만 나오는 한자      hanja-codex — 사전 글에만 나오는 한자(화면 글자에는 없는 것)
+# 도장 글꼴은 둘로 나눈다: 첫 화면·해도·머리띠가 쓰는 글자(ch-seal)는 작게, 사전에서만 쓰는 수백 자(ch-seal-x)는 따로.
+# 브라우저는 unicode-range(faces.json → build.js)를 보고 사전을 펴기 전까지 ch-seal-x 를 풀지 않는다.
 FONTS = [
     ('ch-sans-400', 'ibmplexsanskr/IBMPlexSansKR-Regular.ttf', 'Chunghae Sans', 'Regular', 'text'),
     ('ch-sans-600', 'ibmplexsanskr/IBMPlexSansKR-SemiBold.ttf', 'Chunghae Sans', 'SemiBold', 'text'),
     ('ch-myeong', 'songmyung/SongMyung-Regular.ttf', 'Chunghae Myeong', 'Regular', 'text'),
-    ('ch-seal', 'lxgwwenkaitc/LXGWWenKaiTC-Bold.ttf', 'Chunghae Seal', 'Bold', 'hanja'),
-    ('ch-brush', 'yujiboku/YujiBoku-Regular.ttf', 'Chunghae Brush', 'Regular', 'hanja'),
+    ('ch-seal', 'lxgwwenkaitc/LXGWWenKaiTC-Bold.ttf', 'Chunghae Seal', 'Bold', 'hanja-game'),
+    ('ch-seal-x', 'lxgwwenkaitc/LXGWWenKaiTC-Bold.ttf', 'Chunghae Seal', 'Bold', 'hanja-codex'),
+    ('ch-brush', 'yujiboku/YujiBoku-Regular.ttf', 'Chunghae Brush', 'Regular', 'hanja-game'),
 ]
 LICENSES = ['ibmplexsanskr', 'songmyung', 'lxgwwenkaitc', 'yujiboku']
 
@@ -58,17 +63,36 @@ def rename(font, family, style):
     for nid, val in ((1, fam), (2, sub), (3, ps + '-subset'), (4, full), (6, ps), (16, family), (17, style)):
         name.setName(val, nid, 3, 1, 0x409)
 
+def ranges(codes):
+    """정렬된 코드포인트 목록 → CSS unicode-range 문자열 (이어지는 것은 U+A-B 로 묶는다)"""
+    out, cs = [], sorted(set(codes))
+    i = 0
+    while i < len(cs):
+        j = i
+        while j + 1 < len(cs) and cs[j + 1] == cs[j] + 1:
+            j += 1
+        out.append(f'U+{cs[i]:X}' if i == j else f'U+{cs[i]:X}-{cs[j]:X}')
+        i = j + 1
+    return ','.join(out)
+
 def main():
     chars = source_chars()
     game = source_chars(GAME)
     os.makedirs(OUT, exist_ok=True)
     covered = set()
+    faces = {}
     for out, rel, family, style, kind in FONTS:
         f = TTFont(fetch(rel))
         cmap = f.getBestCmap()
-        pool = game if out == 'ch-brush' else chars
-        want = [c for c in pool if (is_hanja(c) if kind == 'hanja' else not is_hanja(c))]
+        if kind == 'text':
+            want = [c for c in chars if not is_hanja(c)]
+        elif kind == 'hanja-game':
+            want = [c for c in game if is_hanja(c)]
+        else:  # hanja-codex: 사전 글에만 있는 한자
+            want = [c for c in chars if is_hanja(c) and c not in game]
         have = [ord(c) for c in want if ord(c) in cmap]
+        if kind != 'text':
+            faces[out] = ranges(have)
         covered |= {chr(u) for u in have}
         o = subset.Options()
         o.flavor = 'woff2'
@@ -88,6 +112,8 @@ def main():
         print(f'{out}.woff2  {len(have)}자  {len(buf.getvalue()) / 1024:.0f} KB')
     with open(os.path.join(OUT, 'charset.txt'), 'w', encoding='utf8') as fh:
         fh.write(''.join(sorted(covered)))
+    with open(os.path.join(OUT, 'faces.json'), 'w', encoding='utf8') as fh:
+        json.dump(faces, fh, indent=1)
     lic = ['이 폴더의 글꼴은 아래 원본을 게임에 쓰는 글자만 남겨 줄이고 이름을 바꾼 것이다(SIL OFL 1.1 §3).',
            'Chunghae Sans = IBM Plex Sans KR · Chunghae Myeong = Song Myung · Chunghae Seal = LXGW WenKai TC Bold · Chunghae Brush = Yuji Boku', '']
     for k in LICENSES:
