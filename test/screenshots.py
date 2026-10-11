@@ -27,6 +27,12 @@ async def run(name, vw, vh, mobile=False):
         await pg.screenshot(path=OUT+name+'-3-tavern.png')
         await pg.evaluate("()=>window.__CHUNGHAE.setTab('work')"); await pg.wait_for_timeout(300)
         await pg.screenshot(path=OUT+name+'-4-work.png')
+        # 메뉴(머리띠 밖, 패널·안내 위에 보여야 한다)와 조작법 창
+        await pg.click('#bMenu'); await pg.wait_for_timeout(300)
+        await pg.screenshot(path=OUT+name+'-4b-menu.png')
+        await pg.evaluate("()=>document.getElementById('mHowto').click()"); await pg.wait_for_timeout(300)
+        await pg.screenshot(path=OUT+name+'-4c-help.png')
+        await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
         await pg.evaluate("()=>{const H=window.__CHUNGHAE;H.openBook('quest')}"); await pg.wait_for_timeout(300)
         await pg.screenshot(path=OUT+name+'-5-bookq.png')
         await pg.evaluate("()=>{const H=window.__CHUNGHAE;H.openBook('log')}"); await pg.wait_for_timeout(300)
@@ -40,4 +46,5 @@ async def run(name, vw, vh, mobile=False):
         await pg.screenshot(path=OUT+name+'-8-ending.png')
         print(name,'오류:',errs[:6] or '없음')
         await b.close()
-asyncio.run(run('pc',1440,900)); asyncio.run(run('mo',390,844,True))
+# PC는 1440×900과 흔한 노트북 1280×800(세로가 짧아 첫 화면 폴드를 본다), 모바일은 390×844
+asyncio.run(run('pc',1440,900)); asyncio.run(run('pc1280',1280,800)); asyncio.run(run('mo',390,844,True))
