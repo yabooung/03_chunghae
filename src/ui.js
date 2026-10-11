@@ -971,11 +971,13 @@ function bookLog(s) { if (!s.log || !s.log.length) return '<p class="fine bk-not
 function paintTracker() { const s = S(), el = $('tracker'); if (!el) return; if (!s || s.ended || !$('sTitle').hidden) { el.hidden = true; return; }
   const A = C.curAct(); if (!A) { el.hidden = true; return; } const n = C.NUM[s.main.act];
   const orders = s.orders.map(o => ({ o, line: `${o.royal ? '왕실 주문' : C.orderText(o).kind} — ${C.PORTS[o.from].name} → ${C.PORTS[o.to].name} · ${o.n}상자`, left: Math.max(0, Math.ceil(o.due - s.t)) })); // 맡은 의뢰: 어디서 → 어디로 · 상자 · 남은 날
-  const key = s.main.act + ':' + s.main.started + ':' + (s.main.started ? C.mainGoals().map(g => g.done + (g.prog ? g.prog() : '')).join('|') : s.quotaN) + Object.keys(s.quests).map(id => C.qStep(id) ? id + s.quests[id].step : '').join() + '|' + orders.map(x => x.o.id + x.left).join();
+  const qids = Object.keys(s.quests).filter(id => C.qStep(id));
+  const key = s.main.act + ':' + s.main.started + ':' + (s.main.started ? C.mainGoals().map(g => g.done + (g.prog ? g.prog() : '')).join('|') : s.quotaN) + qids.map(id => id + s.quests[id].step + C.questProg(id)).join() + '|' + orders.map(x => x.o.id + x.left).join();
   if (last.trk === key) return; last.trk = key; el.hidden = false;
-  const qa = Object.keys(s.quests).filter(id => C.qStep(id)).length;
+  const qa = qids.length;
+  // 맡은 이야기의 지금 단계도 셋까지 — 본 이야기 밑에 書 표시로
   const orderLis = orders.map(x => `<li class="tk-o">${x.o.royal ? '皇' : C.orderText(x.o).ch} ${x.line} · <em class="${x.left <= 10 ? 'dn' : ''}">${x.left}일</em></li>`).join('');
-  el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}${orderLis}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '다음 소식이 오면 막이 열린다'}</li>${orderLis}</ul>`); }
+  el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}${ql}${orderLis}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '다음 소식이 오면 막이 열린다'}</li>${ql}${orderLis}</ul>`); }
 
 
 /* ═══════════ 소식창: 대화창처럼 흘러가는 시세·사건 ═══════════ */

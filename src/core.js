@@ -719,7 +719,8 @@ function useSpecial(k, arg) { k = k || S.at; if (S.mode !== 'port' || S.at !== k
     case 'diver': { S.t += 1; cd(); makeDive({ name: '탐라 앞바다', lv: 1, max: 4, pearl: true }); return { ok: true, dive: true, text: '해녀들이 물질 길을 열어준다. 숨이 닿는 데까지 따라 들어가 본다.', good: true }; }
     case 'temple': { S.gold -= sp.cost; acct('office', sp.cost); S.blessed = 1; cd(); const r = makeRumor('true'); return { ok: true, text: `노승이 염주를 굴린다. "바다가 길을 열어줄 것이오." 그리고 덧붙인다. "${r.line}"`, good: true }; }
     case 'inn': { cd(); const a = makeRumor('true'), b = makeRumor('true'); return { ok: true, text: `객주가 술상을 내온다. "동포끼리 돈은 무슨." — "${a.line}" / "${b.line}"`, good: true }; }
-    case 'deal': { const st = S.special[k] && S.special[k].until > S.t ? S.special[k] : (S.special[k] = { left: sp.n, until: S.t + sp.cd }); const price = dealPrice(sp); S.gold -= price; S.slots.push({ id: sp.good, cost: price }); st.left--; return { ok: true, text: `${G[sp.good].name} 한 상자를 ${price.toLocaleString('ko-KR')}냥에 실었다.`, good: true }; }
+    case 'deal': { const st = S.special[k] && S.special[k].until > S.t ? S.special[k] : (S.special[k] = { left: sp.n, until: S.t + sp.cd }); const price = dealPrice(sp); S.gold -= price; S.slots.push({ id: sp.good, cost: price, from: k }); st.left--;
+      S.stats.dealAt = S.stats.dealAt || {}; S.stats.dealAt[k] = (S.stats.dealAt[k] || 0) + 1; questEval(); return { ok: true, text: `${G[sp.good].name} 한 상자를 ${price.toLocaleString('ko-KR')}냥에 실었다.`, good: true }; }
     case 'bulk': { const res = []; for (let i = S.slots.length - 1; i >= 0; i--) res.push(sellWith(i, 1.15)); S.t += 3; cd(); S.stats.bulk = (S.stats.bulk || 0) + 1; const sum = res.reduce((a, r) => a + r.rev, 0), pf = res.reduce((a, r) => a + r.profit, 0); return { ok: true, text: `홍려관 관리가 장부에 도장을 찍는다. ${res.length}상자, ${sum.toLocaleString('ko-KR')}냥 (이익 ${pf >= 0 ? '+' : ''}${pf.toLocaleString('ko-KR')}).`, good: pf >= 0, sales: res.reverse() }; }
     case 'royalOrder': { const o = { id: 'royal' + Math.floor(S.t), from: k, to: k, good: 'porcelain', n: 2, days: 60, reward: royalReward(), due: S.t + 60, royal: true }; S.orders.push(o); cd(); return { ok: true, text: `궁에서 온 관리가 말한다. "명주의 청자 두 상자. 예순 날 안에." 사례는 ${o.reward.toLocaleString('ko-KR')}냥.`, good: true, order: o }; }
     case 'swap': { if (arg == null || !S.slots[arg]) return { ok: false, text: '바꿀 상자를 고른다' }; if (!inf.can) return { ok: false, text: inf.why }; const s = S.slots.splice(arg, 1)[0]; const c = Math.round(s.cost / 2); S.slots.push({ id: 'shell', cost: c }, { id: 'shell', cost: s.cost - c }); cd(); return { ok: true, text: `${G[s.id].name} 한 상자가 야광패 두 상자가 되었다.`, good: true }; }
@@ -739,7 +740,7 @@ function nextStory() {
     if (id === 'main:start' || id === 'main:final') { const st = mainStory(id.slice(5)); if (st) return st; continue; }
     if (id === 'port:ev') { const st = portEvent(); if (st) return st; continue; }
     if (id.startsWith('scene:')) { const st = sceneStory(id.slice(6)); if (st) return st; continue; }
-    if (id.startsWith('quest:')) { const q = QBY[id.slice(6)]; if (!q || S.quests[q.id]) continue;
+    if (id.startsWith('quest:')) { const q = QBY[id.slice(6)]; if (!q || S.quests[q.id] || questsOpen() >= QUEST_OPEN_MAX) continue;
       return { who: q.who || 'quest', qch: q.ch, title: q.name, text: q.intro, sub: `${q.steps.length}단계 · 첫 목표 — ${q.steps[0].text}`, opts: [{ label: '맡는다', apply: () => { startQuest(q.id); return `이야기 「${q.name}」를 맡았다. 장부의 '이야기'에서 언제든 볼 수 있다.`; } }, { label: '나중에', apply: () => { S.qDecl[q.id] = S.t + 15; return null; } }] }; }
     const st = STORIES[id] && STORIES[id](); if (st) return st; }
   for (const c of S.crew) { const d = CREW.find(x => x.k === c.k);
@@ -1098,7 +1099,7 @@ function gainRelic(id) { if (S.relics[id]) return; S.relics[id] = 1; if (id === 
 function diveFinish(D) { const R = { gold: 0, crates: [], relics: [], sold: 0 };
   for (const h of D.haul) { if (h.gold) { S.gold += h.gold; R.gold += h.gold; } if (h.relic) { gainRelic(h.relic); R.relics.push(h.relic); }
     if (h.crate) { if (freeSlots()) { S.slots.push({ id: h.crate, cost: 0 }); R.crates.push(h.crate); } else { const g = Math.round(G[h.crate].base * LOT * .5); S.gold += g; R.gold += g; R.sold++; } } }
-  acct('dive', R.gold); S.t += .4 + D.depth * .12; S.stats.relics = Object.keys(S.relics).length; return R; }
+  acct('dive', R.gold); S.t += .4 + D.depth * .12; S.stats.relics = Object.keys(S.relics).length; questEval(); return R; }
 function diveClose() { const D = S.dive; S.dive = null; return D && D.result; }
 
 
@@ -1148,20 +1149,102 @@ const QUESTS = [
   { id: 'map2', name: '왕두의 유언', ch: '髥', giver: 'wenzhou', when: () => !!S.beaten.wangdu, intro: '온주 선술집의 외다리 사내가 당신을 알아본다. "붉은수염 왕두를 잡은 배지? 나는 그놈 키잡이였소. 놈이 죽기 전에 한 말이 있소. 세 섬에 나눠 묻었다고. 값은… 나를 배에 태워 주시오."',
     steps: [{ text: '도카라 열도를 찾는다', goal: { type: 'find', id: 'tokara' }, done: '도카라 화산섬 바위틈에서 첫 항아리를 찾았다. 은자다.', reward: { gold: 3000, fame: 40 } },
       { text: '아마미에 닻을 내린다', goal: { type: 'port', k: 'amami' }, done: '아마미 노인이 왕두를 기억했다. "그놈이 묻은 게 아니라 우리에게 맡겼소. 반은 우리가 썼고." 남은 반을 받았다.', reward: { gold: 4000, fame: 40 } },
-      { text: '구름 숲 섬에서 마지막 항아리를 찾는다', goal: { type: 'find', id: 'yaku' }, done: '천 년 삼나무 밑에서 마지막 항아리. 안에는 금이 아니라 해도 한 장. 외다리 키잡이가 웃었다. "그놈다운 유언이오."', reward: { gold: 2000, fame: 80, map: 3, mapName: '왕두의 진짜 보물' } }] }
+      { text: '구름 숲 섬에서 마지막 항아리를 찾는다', goal: { type: 'find', id: 'yaku' }, done: '천 년 삼나무 밑에서 마지막 항아리. 안에는 금이 아니라 해도 한 장. 외다리 키잡이가 웃었다. "그놈다운 유언이오."', reward: { gold: 2000, fame: 80, map: 3, mapName: '왕두의 진짜 보물' } }] },
+  /* ── 지역 이야기(항구마다 하나). 마지막 단계가 깃발(reward.flag)을 남겨 결말 에필로그에 되비친다.
+     goal 종류: port(k, wait) · find · wins · fight · deliver · dives(바다에 n번 든다) · deal(k의 특별 거래를 n번 산다)
+     reward: gold · fame · relic · map · crate · deal(반값) · flag · hull(선체 최대치) · threat(경계) · boon(특권, 이미 있으면 3,000냥) · reveal(숨은 항구 자리) */
+  // 신라 서해 — 회진
+  { id: 'shipwright', name: '회진의 배 목수', ch: '匠', giver: 'hoejin', intro: '회진 나루의 늙은 배 목수 두힐이 당신 배의 이물을 두드려 본다. "영산강 배는 쇠못으로 안 짜오. 나무를 끼워 짜지. 흑산도 곧은 소나무와 좋은 쇠만 있으면 이 배를 폭풍에도 안 갈라지게 해 주겠소."',
+    steps: [{ text: '흑산도에 가서 곧은 소나무를 본다', goal: { type: 'find', id: 'heuksan' }, done: '흑산도 소나무 숲에서 두힐이 일러 준 나무를 골랐다. 곧고 옹이가 없다.', reward: { gold: 800, fame: 30 } },
+      { text: '덩이쇠 2상자를 회진으로 가져간다 (김해·혈구진·이즈모에서 난다)', goal: { type: 'deliver', k: 'hoejin', good: 'iron', n: 2 }, done: '두힐이 쇠를 두드려 못 대신 쓸 쇠 띠를 만든다. 나무못 사이사이에 두를 것이다.', reward: { gold: 2500, fame: 40 } },
+      { text: '스무 날 뒤 회진에 돌아가 손본 배를 받는다', goal: { type: 'port', k: 'hoejin', wait: 20 }, done: '이물에 새 나무가 끼워졌다. 두힐이 손바닥으로 쓸어 본다. "이제 울돌목도 겁내지 마시오."', reward: { hull: 25, fame: 80, flag: 'hoejinShip' } }] },
+  // 탐라·남도 — 아마미 · 유구
+  { id: 'amami', name: '조개를 줍는 노인', ch: '貝', giver: 'amami', who: 'fisher', intro: '아마미 모래밭에서 늙은 섬사람 우케가 야광패를 고른다. "이 조개는 나니와 귀족 집 칠기에 박히지. 우리 섬에서 나니와까지 가 본 사람은 없소. 당신 배라면 가겠소?"',
+    steps: [{ text: '바다에 두 번 들어가 본다 (탐라의 물질이나 보물 지도)', goal: { type: 'dives', n: 2 }, done: '물에 두 번 들어가 본 뒤에야 우케가 조개 고르는 법을 가르쳐 주었다. "빛이 도는 놈만."', reward: { gold: 1000, fame: 30 } },
+      { text: '야광패 2상자를 나니와로 가져간다', goal: { type: 'deliver', k: 'naniwa', good: 'shell', n: 2 }, done: '나니와 칠기 장인이 조개를 햇빛에 비춰 보고 값을 두 배로 쳤다.', reward: { gold: 5000, fame: 60 } },
+      { text: '아마미로 돌아가 노인에게 알린다', goal: { type: 'port', k: 'amami' }, done: () => S.known.ryukyu ? '우케가 남쪽을 가리켰다. "유구 수장은 손님을 좋아하오. 내 이름을 대시오." 조개 한 상자를 배에 실어 주었다.' : '우케가 남쪽을 가리켰다. "더 남쪽에 큰 섬이 있소. 유구라 하오. 수장이 손님을 좋아하지." 해도에 그 섬의 자리를 그려 주었다.', reward: { fame: 100, crate: 'shell', reveal: 'ryukyu', flag: 'amamiElder' } }] },
+  { id: 'ryukyu', name: '수장의 쇠', ch: '琉', giver: 'ryukyu', intro: '유구 섬의 수장이 당신 배의 닻을 오래 본다. "이 섬엔 쇠가 없소. 낚싯바늘도 조개로 만들지. 쇠를 가져오면 섬 남서쪽 끝까지 길을 가르쳐 주겠소."',
+    steps: [{ text: '덩이쇠 2상자를 유구로 가져간다 (김해·혈구진·이즈모에서 난다)', goal: { type: 'deliver', k: 'ryukyu', good: 'iron', n: 2 }, done: '수장이 쇠를 들어 보이자 섬사람들이 둘러섰다. 그날 섬에 처음 대장간 불이 켜졌다.', reward: { gold: 4000, fame: 60 } },
+      { text: '수장이 말한 남서쪽 끝 낮은 섬, 미야코를 찾는다', goal: { type: 'find', id: 'miyako' }, done: '미야코 모래밭에 유구 수장의 표식이 있었다. 산호 바다가 끝없이 맑다.', reward: { gold: 1500, fame: 50 } },
+      { text: '유구로 돌아간다', goal: { type: 'port', k: 'ryukyu' }, done: '수장이 유황 한 상자를 싣게 했다. "이 바다는 이제 당신 바다이기도 하오."', reward: { fame: 100, crate: 'sulfur', flag: 'ryukyuFriend' } }] },
+  // 당 산동 신라방 — 등주 · 내주 · 초주
+  { id: 'jangyeong', name: '압아 장영의 부탁', ch: '押', giver: 'deungju', when: () => S.cap === 'gungbok', intro: '등주 신라관에서 구당신라소 압아 장영이 당신을 맞는다. "대사, 노비 시장에서 풀려난 신라 사람 열둘이 신라관에 있소. 당 관청은 배편을 안 내주오. 대사의 배가 아니면 못 돌아가오."',
+    steps: [{ text: '인삼 2상자를 등주 신라관에 가져간다 (앓는 사람들의 약값)', goal: { type: 'deliver', k: 'deungju', good: 'ginseng', n: 2 }, done: '장영이 인삼을 달여 돌렸다. 열둘 가운데 둘이 일어나 앉았다.', reward: { gold: 2000, fame: 40 } },
+      { text: '풀려난 사람들을 청해진으로 데려간다', goal: { type: 'port', k: 'cheonghae' }, done: '열둘이 청해진 부두에 내렸다. 한 사람이 모래를 한 줌 쥐고 오래 서 있었다.', reward: { fame: 150, flag: 'jangyeong' } },
+      { text: '서른 날 뒤 등주에 돌아가 장영을 만난다', goal: { type: 'port', k: 'deungju', wait: 30 }, done: '장영이 문서 한 장을 내민다. "등주 관아가 대사의 배를 신라관 배로 적었소. 공험은 내가 내주겠소." 당 항구마다 신라방 사람들이 당신 배를 안다.', reward: { gold: 3000, fame: 120, boon: 'tang' } }] },
+  { id: 'unkyeong', name: '김운경의 책', ch: '科', giver: 'laizhou', intro: '내주 서적 거리 책방 뒷방에 신라 사람 김운경이 앉아 있다. 빈공과에 붙은 첫 신라 사람이다. "서라벌로 보낼 책이 있소. 과거 공부하는 아이들 것이오. 회진에 내 벗이 있으니 거기까지만 부탁하오."',
+    steps: [{ text: '서적 2상자를 회진으로 가져간다 (내주·초주에서 난다)', goal: { type: 'deliver', k: 'hoejin', good: 'books', n: 2 }, done: '회진의 벗이 책을 받아 영산강 위로 올려 보냈다.', reward: { gold: 4000, fame: 50 } },
+      { text: '당으로 건너는 길목, 곡도를 찾는다 — 운경이 처음 당으로 갈 때 바람을 기다린 섬', goal: { type: 'find', id: 'baengnyeong' }, done: '곡도 바위에 신라 유학생들이 새긴 이름이 있다. 김운경의 이름도 거기 있었다.', reward: { gold: 1000, fame: 40 } },
+      { text: '내주로 돌아가 운경에게 알린다', goal: { type: 'port', k: 'laizhou' }, done: '운경이 붓을 들어 당신 배 이름을 적었다. "언젠가 당의 사신으로 신라에 갈 때 이 배를 찾겠소." 내주 서적 거리가 당신 배에 책을 반값에 넘긴다.', reward: { gold: 2000, fame: 100, deal: 'laizhou', flag: 'unkyeong' } }] },
+  { id: 'seoljeon', name: '총관 설전의 장부', ch: '惣', giver: 'chuzhou', who: 'seol', when: () => S.cap === 'ara', intro: '초주 신라방 총관 설전이 장부를 덮는다. "객주, 왕씨 상단이 운하 뱃삯을 올렸소. 신라방 배들이 양주에 못 들어가오. 양주 관아에 낼 인삼과, 왕씨 앞에서 짐을 풀 배짱이 필요하오."',
+    steps: [{ text: '인삼 2상자를 초주 신라방에 가져간다', goal: { type: 'deliver', k: 'chuzhou', good: 'ginseng', n: 2 }, done: '설전이 인삼을 양주 관아로 보냈다. 운하 관문이 신라방 배에 다시 열렸다.', reward: { gold: 3500, fame: 50 } },
+      { text: '양주에 닻을 내려 왕씨 상단 부두 앞에서 신라방 짐을 푼다', goal: { type: 'port', k: 'yangzhou' }, done: '왕씨 상단 부두 앞에서 신라방 깃발을 단 배가 짐을 풀었다. 왕씨 사람들이 말이 없다.', reward: { gold: 2000, fame: 80, flag: 'seoljeon' } },
+      { text: '스무 날 뒤 초주로 돌아간다', goal: { type: 'port', k: 'chuzhou', wait: 20 }, done: '역어 유신언이 술상을 냈다. 설전이 말한다. "신라방 배는 앞으로 객주 배를 따라 다니겠소. 분담금은 신라방이 한 번 거들겠소."', reward: { gold: 4000, fame: 120, boon: 'relief' } }] },
+  // 당 강남 — 양주 · 항주
+  { id: 'daesik', name: '대식 상인의 비단', ch: '胡', giver: 'yangzhou', who: 'elder', intro: '양주 파사 상인 거리의 대식 상인 이브라힘이 당신을 불러 세운다. "신라 비단을 광주 배에 실어 고향까지 보내려 하오. 그런데 주산 바다의 붉은수염이 지난 배를 태웠소. 비단과 뱃길, 둘 다 부탁하오."',
+    steps: [{ text: '비단 2상자를 양주로 가져간다 (적산·등주·회진에서 난다)', goal: { type: 'deliver', k: 'yangzhou', good: 'silk', n: 2 }, done: '이브라힘이 비단을 펼쳐 햇빛에 비췄다. "바그다드에서도 이런 건 못 봤소."', reward: { gold: 5000, fame: 50 } },
+      { text: '파사 상인 거리에서 사금을 두 상자 산다 (양주 \'이 항구에서만\')', goal: { type: 'deal', k: 'yangzhou', n: 2 }, done: '상인이 사금 값을 깎아 주며 웃었다. "이제 당신은 우리 거리 사람이오."', reward: { fame: 40 } },
+      { text: '주산 군도에서 붉은수염 왕두를 친다', goal: { type: 'fight', ll: [123.2, 30.15], boss: 'wangdu', name: '왕두의 불배' }, done: '왕두의 배가 가라앉았다. 이브라힘의 비단 꾸러미가 선창에 있었다. 반은 탔다.', reward: { fame: 80 } },
+      { text: '양주로 돌아간다', goal: { type: 'port', k: 'yangzhou' }, done: '이브라힘이 유리잔을 건넨다. "파사 상인 거리는 앞으로 당신 배에 사금을 반값에 넘기오."', reward: { gold: 4000, fame: 120, deal: 'yangzhou', flag: 'ibrahim' } }] },
+  { id: 'qiantang', name: '전당강의 둑', ch: '堤', giver: 'hangzhou', intro: '항주 서호 찻집 주인 육씨가 둑을 가리킨다. "저 둑은 백거이 자사가 쌓았소. 올해 큰물에 한 귀퉁이가 무너졌는데 관아는 돈이 없다 하오. 차를 팔아 메우려 하오. 혈구진 신라 사람들이 햇차를 찾는다 들었소."',
+    steps: [{ text: '차 2상자를 혈구진으로 가져간다', goal: { type: 'deliver', k: 'hyeolgu', good: 'tea', n: 2 }, done: '혈구진 사람들이 햇차 값을 후하게 쳤다. 둑 한 귀퉁이 값이다.', reward: { gold: 4500, fame: 50 } },
+      { text: '장강 하구를 찾는다 — 전당강 조수를 보려면 강 어귀 물때부터 알아야 한다', goal: { type: 'find', id: 'yangtze' }, done: '장강 하구에서 물때를 익혔다. 곽이 모래에 조수 시각을 그렸다.', reward: { gold: 1000, fame: 40 } },
+      { text: '보름 뒤 항주에 돌아가 둑 위에서 조수를 본다', goal: { type: 'port', k: 'hangzhou', wait: 15 }, done: '전당강 조수가 벽처럼 밀려왔다. 둑은 버텼다. 육씨가 찻잔을 내민다. "서호 찻집은 앞으로 당신 배에 반값이오."', reward: { fame: 100, deal: 'hangzhou', flag: 'qiantang' } }] },
+  // 왜 — 하카타 · 이즈모 · 사쓰마, 그리고 발해에서 이어지는 쓰루가 · 나니와
+  { id: 'kourokan', name: '홍려관의 서기', ch: '記', giver: 'hakata', intro: '홍려관 서기 오노 다케모리가 붓을 든 채 당신을 본다. "조정이 당의 책을 찾소. 헤이안쿄까지 가는 배는 나니와에서 뜨오. 책을 하카타에 모아 주고, 나니와까지 같이 가 주시오."',
+    steps: [{ text: '서적 2상자를 하카타로 가져간다 (내주·초주에서 난다)', goal: { type: 'deliver', k: 'hakata', good: 'books', n: 2 }, done: '서기가 책을 한 권씩 펴 보고 장부에 적었다. 홍려관 창고에 당의 책이 쌓였다.', reward: { gold: 4500, fame: 50 } },
+      { text: '서기와 함께 나니와에 닻을 내린다', goal: { type: 'port', k: 'naniwa' }, done: '나니와 나루에서 조정 사람이 책을 받아 갔다. 서기가 처음으로 웃었다.', reward: { gold: 2000, fame: 60, threat: -10 } },
+      { text: '하카타로 돌아간다', goal: { type: 'port', k: 'hakata' }, done: '서기가 홍려관 장부에 당신 배를 「조정의 책을 나른 배」로 적었다. 다자이후가 당신 배를 덜 본다.', reward: { fame: 100, threat: -10, flag: 'kourokan' } }] },
+  { id: 'tatara', name: '사철의 장인', ch: '鍛', giver: 'izumo', intro: '이즈모 강가 대장간의 늙은 장인 오시로가 사철을 한 줌 쥐어 보인다. "강바닥 모래에서 쇠를 뽑소. 탐라에서 쇠를 찾는다 들었소. 내 쇠가 바다 건너 어디까지 가는지 보고 싶소."',
+    steps: [{ text: '이즈모 북쪽 바다의 오키 섬을 찾는다 — 장인의 사철 배가 쉬는 곳', goal: { type: 'find', id: 'oki' }, done: '오키 섬 어부들이 이즈모 쇠로 만든 낚싯바늘을 보여 주었다.', reward: { gold: 1000, fame: 30 } },
+      { text: '덩이쇠 2상자를 탐라로 가져간다 (이즈모·김해·혈구진에서 난다)', goal: { type: 'deliver', k: 'tamna', good: 'iron', n: 2 }, done: '탐라 대장장이가 이즈모 쇠를 두드려 보더니 고개를 끄덕였다.', reward: { gold: 4000, fame: 50 } },
+      { text: '이즈모로 돌아가 장인에게 알린다', goal: { type: 'port', k: 'izumo' }, done: '오시로가 쇠 한 상자를 싣게 했다. "탐라까지 갔다니. 이 쇠는 값을 안 받소."', reward: { crate: 'iron', fame: 100, flag: 'oshiro' } }] },
+  { id: 'bonotsu', name: '보노쓰의 유황', ch: '硫', giver: 'satsuma', when: () => S.cap === 'tomo', intro: '사쓰마 보노쓰 포구에서 늙은 뱃사람 사타가 유황 덩이를 굴린다. "다자이후는 유황이 당으로 가는 걸 모르오. 명주 약방이 이걸 금값에 사지. 당신은 금한 바다에서 장사하는 사람이라 들었소. 길을 트시오."',
+    steps: [{ text: '유황 3상자를 명주로 가져간다 (사쓰마·하카타·유구에서 난다)', goal: { type: 'deliver', k: 'mingzhou', good: 'sulfur', n: 3 }, done: '명주 약방 주인이 유황을 갈아 냄새를 맡더니 값을 세 배로 불렀다.', reward: { gold: 6000, fame: 50 } },
+      { text: '규슈 남쪽 천 년 삼나무의 섬, 구름 숲 섬을 찾는다 — 유황 배가 숨는 곳', goal: { type: 'find', id: 'yaku' }, done: '구름 숲 섬 그늘에 사타의 작은 배들이 숨어 있었다. 다자이후 배는 여기까지 안 온다.', reward: { gold: 1500, fame: 40 } },
+      { text: '사쓰마로 돌아간다', goal: { type: 'port', k: 'satsuma' }, done: '사타가 유황 한 상자를 싣게 했다. "보노쓰는 앞으로 당신 배에 유황을 먼저 내오." 다자이후의 눈이 남쪽 바다까지는 못 미친다.', reward: { crate: 'sulfur', fame: 120, threat: -15, flag: 'bonotsu' } }] },
+  // 발해 — 염주 · 남경. 염주의 부탁이 쓰루가 송원관으로, 다시 나니와 조정으로 이어진다
+  { id: 'yeomju', name: '발해 상인의 가죽', ch: '貂', giver: 'yeomju', who: 'balhae', intro: '염주 모피 시장에서 발해 상인 고을로가 담비가죽을 턴다. "왜 조정이 열두 해에 한 번만 사신을 받겠다 하오. 우리 가죽이 갈 길이 막혔소. 차를 가져오면 가죽을 싸게 주겠소. 그리고 길 하나를 부탁하오."',
+    steps: [{ text: '차 2상자를 염주로 가져간다 (밀주·항주·온주에서 난다)', goal: { type: 'deliver', k: 'yeomju', good: 'tea', n: 2 }, done: '고을로가 차를 받고 모피 시장 사람들을 불러 모았다. 발해 땅에서 차는 귀하다.', reward: { gold: 4000, fame: 50 } },
+      { text: '두만강 하구를 찾는다 — 사냥꾼들이 가죽을 모으는 곳', goal: { type: 'find', id: 'tumen' }, done: '강가에서 발해 사냥꾼들이 가죽 더미를 배에 실어 주었다.', reward: { gold: 1500, fame: 40 } },
+      { text: '염주로 돌아간다', goal: { type: 'port', k: 'yeomju' }, done: '고을로가 가죽 한 상자를 싣게 했다. "쓰루가 송원관에 왕문구 사신이 발이 묶여 있소. 이 가죽을 전해 주시오." 모피 시장이 앞으로 반값이다.', reward: { deal: 'yeomju', crate: 'fur', fame: 100, flag: 'balhaeTrade' } }] },
+  { id: 'wangmungu', name: '송원관의 사신', ch: '敦', giver: 'tsuruga', who: 'balhae', when: () => !!(S.quests.yeomju && S.quests.yeomju.done), intro: '쓰루가 송원관에 발해 사신 왕문구가 앉아 있다. 조정이 열두 해 규정을 들어 서울에 들이지 않았다. "염주의 고을로가 보냈다고? 가죽은 받겠소. 그런데 나니와 조정에 글 한 장은 올려야 돌아갈 낯이 서오. 배가 있소?"',
+    steps: [{ text: '담비가죽 2상자를 쓰루가 송원관에 가져간다 (염주·남경에서 난다)', goal: { type: 'deliver', k: 'tsuruga', good: 'fur', n: 2 }, done: '왕문구가 가죽을 세어 보고 글을 썼다. "이것으로 조정에 올릴 선물이 되오."', reward: { gold: 4000, fame: 50 } },
+      { text: '사신의 글을 나니와 조정에 전한다', goal: { type: 'port', k: 'naniwa' }, done: '나니와 나루의 관리가 글을 받아 올렸다. 답은 한 달 뒤라 한다.', reward: { gold: 1500, fame: 60 } },
+      { text: '서른 날 뒤 쓰루가로 돌아간다', goal: { type: 'port', k: 'tsuruga', wait: 30 }, done: '왕문구가 짐을 꾸린다. "열두 해 뒤에 다시 오겠소. 그때는 당신 배를 찾겠소." 송원관이 담비가죽을 앞으로 반값에 넘긴다.', reward: { gold: 3000, fame: 120, deal: 'tsuruga', flag: 'wangmungu' } }] },
+  { id: 'court', name: '조정의 답', ch: '詔', giver: 'naniwa', when: () => !!(S.quests.wangmungu && S.quests.wangmungu.done), intro: '나니와 나루에 헤이안쿄에서 내려온 관리 아베노 야스히토가 서 있다. "발해 글은 올라갔소. 조정이 답을 쓰려면 비단이 필요하오. 그리고 사신선이 처음 닿는 노토 곶에 객원을 세운다 하니, 그 자리를 봐 주시오."',
+    steps: [{ text: '비단 2상자를 나니와로 가져간다', goal: { type: 'deliver', k: 'naniwa', good: 'silk', n: 2 }, done: '관리가 비단을 조정 창고에 넣었다. 답서가 쓰였다.', reward: { gold: 5000, fame: 60 } },
+      { text: '왜의 북쪽 바다 끝, 노토 곶을 찾는다', goal: { type: 'find', id: 'noto' }, done: '노토 곶 언덕에 객원 자리가 잡혀 있었다. 발해 사신선이 처음 닿는 곳이다.', reward: { gold: 1500, fame: 50 } },
+      { text: '나니와로 돌아가 관리에게 알린다', goal: { type: 'port', k: 'naniwa' }, done: '야스히토가 조정 문서 한 장을 내민다. "이 배는 조정의 글을 나른 배요. 다자이후도 함부로 못 보오."', reward: { fame: 120, threat: -15, boon: 'court', flag: 'courtAnswer' } }] },
+  { id: 'sillado', name: '남해부의 다시마', ch: '昆', giver: 'namgyeong', who: 'balhae', intro: '남경 남해부 포구에서 발해 관원 고정이 다시마 더미 앞에 서 있다. "남해부 다시마는 신라도(新羅道)로 내려가야 하오. 그런데 길을 아는 뱃사람이 죽었소. 실직까지 한 번만 같이 가 주시오. 관아에 올릴 도자기도 필요하오."',
+    steps: [{ text: '도자기 2상자를 남경으로 가져간다 (명주·양주·초주·온주에서 난다)', goal: { type: 'deliver', k: 'namgyeong', good: 'porcelain', n: 2 }, done: '고정이 도자기를 남해부 관아에 올렸다. 관아가 다시마 배를 내주었다.', reward: { gold: 5000, fame: 50 } },
+      { text: '다시마 배를 이끌고 신라도를 따라 실직에 닻을 내린다', goal: { type: 'port', k: 'samcheok' }, done: '실직 포구에 발해 다시마가 내렸다. 어부들이 처음 보는 발해 배를 둘러쌌다.', reward: { gold: 2000, fame: 80, flag: 'sillaRoad' } },
+      { text: '남경으로 돌아간다', goal: { type: 'port', k: 'namgyeong' }, done: '고정이 해도 한 장을 건넨다. "신라도 바다에 가라앉은 사신선이 있소. 당신 배라면 건지겠지."', reward: { gold: 2000, fame: 100, map: 2, mapName: '발해 사신선 잔해' } }] }
 ];
+const QUEST_OPEN_MAX = 3; // 한꺼번에 맡는 이야기는 셋까지 — 넘치면 항구가 새 이야기를 꺼내지 않는다
+const questsOpen = () => Object.keys(S.quests || {}).filter(id => S.quests[id] && !S.quests[id].done).length;
 const QBY = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 const qStep = id => { const st = S.quests[id]; return st && !st.done ? QBY[id].steps[st.step] : null; };
 /* 시작 항구의 이야기는 두 번째 입항(첫 귀항) 뒤에야 꺼낸다 — 시작 직후 모달이 겹치지 않게 */
-function offerQuests(k) { for (const q of QUESTS) if (q.giver === k && !S.quests[q.id] && !(q.when && !q.when()) && !(k === cap().start && !(S.dockN && S.dockN[k])) && !(S.qDecl[q.id] > S.t) && !S.pending.includes('quest:' + q.id)) S.pending.push('quest:' + q.id); }
-function startQuest(id) { const q = QBY[id]; if (!q || S.quests[id]) return; S.quests[id] = { step: 0, base: S.stats.wins || 0, t0: S.t }; questEval(); }
+/* 한 번 입항에 이야기는 하나만 꺼내고, 셋을 맡고 있으면 꺼내지 않는다(다음 입항에 다시) */
+function offerQuests(k) { if (questsOpen() >= QUEST_OPEN_MAX) return;
+  for (const q of QUESTS) { if (q.giver !== k || S.quests[q.id] || (q.when && !q.when()) || (k === cap().start && !(S.dockN && S.dockN[k])) || S.qDecl[q.id] > S.t || S.pending.includes('quest:' + q.id)) continue; S.pending.push('quest:' + q.id); return; } }
+function startQuest(id) { const q = QBY[id]; if (!q || S.quests[id]) return; S.quests[id] = { step: 0, base: S.stats.wins || 0, baseD: S.stats.dives || 0, deal0: Object.assign({}, S.stats.dealAt || {}), t0: S.t }; questEval(); }
 function goalMet(id) { const st = S.quests[id], g = qStep(id).goal;
   if (g.type === 'port') { if (S.mode !== 'port' || S.at !== g.k) return false; if (g.wait) { const st0 = S.quests[id]; return S.t - (st0.tStep || st0.t0 || 0) >= g.wait; } return true; }
   if (g.type === 'find') return !!S.found[g.id];
   if (g.type === 'wins') return (S.stats.wins || 0) - st.base >= g.n;
   if (g.type === 'fight') return !!st.fought;
   if (g.type === 'deliver') { if (S.mode !== 'port' || S.at !== g.k) return false; return S.slots.filter(x => x.id === g.good && x.from !== g.k).length >= g.n; }
+  if (g.type === 'dives') return (S.stats.dives || 0) - (st.baseD || 0) >= g.n;
+  if (g.type === 'deal') return ((S.stats.dealAt || {})[g.k] || 0) - ((st.deal0 || {})[g.k] || 0) >= g.n;
   return false; }
+/* 이야기 목표의 진행(화면의 n/m) — 셀 수 있는 것만 */
+function questProg(id) { const st = S.quests[id], step = qStep(id); if (!st || !step) return ''; const g = step.goal;
+  if (g.type === 'wins') return `${Math.min(g.n, (S.stats.wins || 0) - st.base)}/${g.n}`; if (g.type === 'dives') return `${Math.min(g.n, (S.stats.dives || 0) - (st.baseD || 0))}/${g.n}`;
+  if (g.type === 'deal') return `${Math.min(g.n, ((S.stats.dealAt || {})[g.k] || 0) - ((st.deal0 || {})[g.k] || 0))}/${g.n}`;
+  if (g.type === 'deliver') return `${Math.min(g.n, S.slots.filter(x => x.id === g.good && x.from !== g.k).length)}/${g.n} 실음`;
+  if (g.type === 'port' && g.wait) { const left = Math.ceil(g.wait - (S.t - (st.tStep || st.t0 || 0))); return left > 0 ? `${left}일 뒤` : ''; } return ''; }
 function questEval() { if (!S || !S.quests) return []; const out = [];
   for (const id of Object.keys(S.quests)) { let guard = 0; while (qStep(id) && goalMet(id) && guard++ < 5) { const q = QBY[id], st = S.quests[id], step = q.steps[st.step], g = step.goal;
       if (g.type === 'deliver') { let n = g.n; for (let i = S.slots.length - 1; i >= 0 && n; i--) if (S.slots[i].id === g.good && S.slots[i].from !== g.k) { S.slots.splice(i, 1); n--; } }
@@ -1170,6 +1253,11 @@ function questEval() { if (!S || !S.quests) return []; const out = [];
       if (R.map) { const m = addMap(R.map, { name: R.mapName }); if (m) got.push(`寶 ${m.name}`); }
       if (R.crate) { if (freeSlots()) { S.slots.push({ id: R.crate, cost: 0 }); got.push(`${G[R.crate].name} 한 상자`); } else { S.gold += 2000; got.push('+2,000냥 (선창이 차서)'); } }
       if (R.deal) { S.flags['deal_' + R.deal] = 1; got.push(`${PORTS[R.deal].name}의 특별 거래가 영원히 반값`); }
+      if (R.hull) { S.hullMax += R.hull; S.hull += R.hull; got.push(`선체 최대치 +${R.hull}`); }
+      if (R.threat) { S.threat = clamp(S.threat + R.threat, 0, threatMax()); restage(); got.push(`경계 ${R.threat > 0 ? '+' : ''}${R.threat}`); }
+      if (R.boon) { const b = BOONS.find(x => x.id === R.boon); if (b && (S.boons[R.boon] || 0) < b.max) { S.boons[R.boon] = (S.boons[R.boon] || 0) + 1; if (R.boon === 'relief') S.relief++; if (R.boon === 'hull') { S.hullMax += 40; S.hull += 40; } got.push(`특권 ${b.ch} ${b.name} — ${b.text}`); } else { S.gold += 3000; got.push('+3,000냥 (이미 가진 특권 대신)'); } }
+      if (R.reveal && PORTS[R.reveal] && !S.known[R.reveal]) { S.spotted[R.reveal] = 1; revealCircle(PORTS[R.reveal].x, PORTS[R.reveal].y, 70); got.push(`해도에 ${PORTS[R.reveal].name}의 자리`); }
+      if (R.flag) S.flags[R.flag] = 1;
       st.step++; st.tStep = S.t; const fin = st.step >= q.steps.length; if (fin) { st.done = true; S.stats.quests = (S.stats.quests || 0) + 1; }
       const note = { id, name: q.name, ch: q.ch, text: val(step.done), got, fin, next: fin ? null : q.steps[st.step].text, n: st.step, of: q.steps.length }; S.qNotes.push(note); out.push(note); } }
   return out; }
@@ -1292,43 +1380,65 @@ const ENDINGS = {
       ['woojing', '서라벌은 끝내 혼인을 지키지 않았다. 당신은 더 묻지 않았다. 군사 5천은 바다를 지키는 수군이 되었다.'], ['refused', '서라벌은 청해진을 건드리지 않았다. 왕위 다툼에 끼지 않은 것이 오래도록 방패가 되었다.'],
       ['oath_people', '목책 앞에서 한 맹세는 지켜졌다. 서해에서 사람을 사고파는 배는 사라졌다.'], ['bought_free', '노비 시장에서 값을 치르고 풀어준 사람들이 청해진 부두에서 그물을 짠다.'], ['noted', '등주 뒷골목에서 적어 둔 이름들을 물귀신 장씨의 선창에서 찾았다. 절반은 살아 있었다.'],
       ['ennin_true', '왜의 승려 엔닌은 일기에 당신 이름을 적었다. 천 년 뒤에도 사람들은 그 일기로 당신을 읽는다.'], ['ennin_people', '엔닌의 일기에는 당신 이름 대신 신라방 사람들의 이름이 남았다. 당신은 그편이 낫다고 했다.'],
-      ['named', '김우징이 물었던 딸의 이름은 사서에 남지 않았다. 당신은 끝내 딸을 바다에 데려오지 않았다.'], ['returned', '서라벌이 보낸 비단을 돌려보낸 일은 오래 이야기됐다. 바다는 비단으로 살 수 없다고.'], ['swallowed', '서라벌이 올린 상납은 해마다 냈다. 바다가 그만큼 벌어 주었다.']] },
+      ['named', '김우징이 물었던 딸의 이름은 사서에 남지 않았다. 당신은 끝내 딸을 바다에 데려오지 않았다.'], ['returned', '서라벌이 보낸 비단을 돌려보낸 일은 오래 이야기됐다. 바다는 비단으로 살 수 없다고.'], ['swallowed', '서라벌이 올린 상납은 해마다 냈다. 바다가 그만큼 벌어 주었다.'],
+      // 지역 이야기
+      ['hoejinShip', '회진의 목수 두힐이 쇠못 없이 짠 배가 청해진 수군의 첫 배가 되었다. 울돌목을 가장 많이 지난 배다.'], ['jangyeong', '등주의 압아 장영은 해마다 청해진에 편지를 보냈다. 신라관에서 배를 기다리는 사람이 또 몇인지.'],
+      ['unkyeong', '빈공과에 붙은 김운경이 당의 사신으로 신라에 오던 해, 그의 배는 청해진에 먼저 들렀다.'], ['ibrahim', '양주의 대식 상인 이브라힘은 청해진 깃발을 보면 뱃사람들에게 유리잔을 돌렸다.'], ['qiantang', '항주 서호 찻집의 육씨는 해마다 첫 차를 청해진으로 보냈다. 둑은 그 뒤로 무너지지 않았다.'],
+      ['kourokan', '하카타 홍려관 장부에는 청해진 배가 조정의 책을 날랐다고 적혀 있다. 다자이후도 그 줄은 지우지 않았다.'], ['oshiro', '이즈모의 장인 오시로가 뽑은 쇠로 청해진 수군의 닻을 만들었다.'],
+      ['balhaeTrade', '염주 모피 시장의 고을로는 해마다 청해진으로 담비가죽 배를 보냈다. 신라와 발해 사이에 바닷길이 났다.'], ['wangmungu', '발해 사신 왕문구는 열두 해 뒤 다시 왜로 갔다. 그 배의 키는 청해진 뱃사람이 잡았다.'], ['courtAnswer', '왜 조정은 발해 사신의 글을 나른 청해진 배를 기억했다. 뒷날 회역사가 하카타에 들 때 그 문서를 보였다.'],
+      ['sillaRoad', '발해 남해부의 다시마 배는 해마다 실직을 거쳐 청해진까지 내려왔다. 신라도가 바다로 이어졌다.']] },
   throne: { title: '왕좌의 바다', ch: '王', kind: 'fiction', text: '당신은 염장을 앞세워 군사 5천을 이끌고 서라벌로 올라갔다. 약속은 지켜졌다. 섬사람의 딸이 왕비가 되던 날, 서라벌 귀족들은 바다를 처음으로 두려워했다. — 사서에 없는 길이다.',
     epilogue: [['named', '왕비가 된 딸의 이름을 왕은 이미 알고 있었다. 그날 밤 당신이 김우징에게 말해 준 이름이다.'], ['unnamed', '"왕이 된 뒤에 들으시오." 그 말대로, 왕은 왕이 된 뒤에야 딸의 이름을 들었다.'],
-      ['yeom_inside', '염장은 청해진 안을 본 사람이다. 그가 서라벌에서 어느 편에 설지, 당신은 끝까지 지켜봐야 했다.'], ['bum_guard', '범이는 서라벌까지 당신 방문 앞에서 잤다.'], ['ennin_true', '엔닌의 일기는 바다의 사람이 왕궁에 들어간 날을 적었다. 믿지 않는 이가 많았다.']] },
+      ['yeom_inside', '염장은 청해진 안을 본 사람이다. 그가 서라벌에서 어느 편에 설지, 당신은 끝까지 지켜봐야 했다.'], ['bum_guard', '범이는 서라벌까지 당신 방문 앞에서 잤다.'], ['ennin_true', '엔닌의 일기는 바다의 사람이 왕궁에 들어간 날을 적었다. 믿지 않는 이가 많았다.'],
+      ['jangyeong', '등주의 압아 장영은 왕궁에 든 대사에게 편지를 보냈다. "신라관에 배를 기다리는 사람이 아직 있소."'], ['hoejinShip', '서라벌로 올라가던 날, 회진 목수가 손본 배가 군사 5천의 맨 앞에 섰다.']] },
   yeomjang: { title: '역사의 칼', ch: '刀', kind: 'history', text: '술자리가 무르익었을 때 염장이 칼을 뽑았다. 841년, 청해진대사 장보고는 그렇게 쓰러졌다. 십 년 뒤 청해진은 폐쇄되었다. 사서는 그를 반역자로 적었고, 바다는 그를 잊지 않았다.',
     epilogue: [['bum_away', '범이는 당신 말대로 칼을 치웠다. 새벽에 그는 당신 방문 앞에서 소리 없이 울었다.'], [() => !crewOf('deck').alive, '문 앞에 범이가 있었다면 — 사람들은 오래 그렇게 말했다.'],
       ['woojing', '서라벌은 염장에게 벼슬을 내렸다. 섬사람의 딸은 끝내 왕비가 되지 않았다.'], ['refused', '왕위 다툼에 끼지 않았어도 왕은 두려워했다. 바다를 가진 사람은 그 자체로 위험했다.'],
-      ['ennin_true', '엔닌의 일기만이 당신을 반역자가 아닌 은인으로 적었다.'], ['oath_people', '목책 앞의 맹세는 당신이 죽은 뒤 십 년을 더 버텼다. 그 뒤 서해에는 다시 쇠사슬 소리가 났다.'], ['bought_free', '노비 시장에서 풀어준 사람들이 청해진이 닫히던 날 목책 앞에서 울었다.']] },
+      ['ennin_true', '엔닌의 일기만이 당신을 반역자가 아닌 은인으로 적었다.'], ['oath_people', '목책 앞의 맹세는 당신이 죽은 뒤 십 년을 더 버텼다. 그 뒤 서해에는 다시 쇠사슬 소리가 났다.'], ['bought_free', '노비 시장에서 풀어준 사람들이 청해진이 닫히던 날 목책 앞에서 울었다.'],
+      ['hoejinShip', '회진 목수가 손본 배는 청해진이 닫힌 뒤 영산강으로 돌아가 나룻배가 되었다. 쇠못 없는 배라 오래 떴다.'], ['jangyeong', '압아 장영은 당신이 죽은 뒤에도 등주 신라관에서 신라 사람들의 배편을 챙겼다. 배는 더 적게 왔다.'],
+      ['balhaeTrade', '염주의 고을로는 청해진이 닫혔다는 소식에 담비가죽 배를 돌렸다. 신라와 발해 사이 바닷길은 그걸로 끝났다.'], ['sillaRoad', '신라도를 함께 연 발해 관원 고정은 다시마 배를 실직까지만 보냈다. 그 아래 바다는 다시 비었다.'],
+      ['kourokan', '하카타 홍려관 장부의 「조정의 책을 나른 배」 한 줄은 청해진이 닫힌 뒤에도 지워지지 않았다.']] },
   wander: { title: '바람 따라', ch: '風', kind: 'neutral', text: '당신은 청해진을 동료들에게 맡기고 배 한 척으로 남쪽 바다로 사라졌다. 유구에서 보았다는 이도, 천주에서 보았다는 이도 있다. 염장의 칼은 빈 방을 찔렀다.',
     epilogue: [[() => S.known.ryukyu, '유구의 수장은 해마다 봄에 신라 배 한 척이 들어온다고 했다.'], [() => S.known.quanzhou, '천주의 대식 상인들은 신라 말을 하는 늙은 선장을 기억했다.'], [() => crewOf('deck').alive, '범이는 끝까지 그 배에 탔다.'], [() => perk('helm'), '곽은 그 배의 키를 잡았다. 우산도를 본 눈으로 남쪽 별을 읽었다.'],
-      ['woojing', '서라벌은 주인 없는 청해진을 십 년 뒤에 거두었다.'], ['ennin_true', '엔닌의 일기에는 당신이 떠난 해 뒤로 당신 이름이 없다. 그는 끝까지 당신 소식을 물었다.']] },
+      ['woojing', '서라벌은 주인 없는 청해진을 십 년 뒤에 거두었다.'], ['ennin_true', '엔닌의 일기에는 당신이 떠난 해 뒤로 당신 이름이 없다. 그는 끝까지 당신 소식을 물었다.'],
+      ['amamiElder', '아마미의 우케는 봄마다 조개를 골라 두었다. 신라 배가 오면 주려고.'], ['ryukyuFriend', '유구 수장은 신라 배의 선장에게 섬 남쪽 끝 작은 만을 내주었다. 이름은 묻지 않았다.'], ['ibrahim', '양주의 이브라힘은 광주로 가는 배마다 신라 말을 하는 늙은 선장을 보았는지 물었다.']] },
   ara_true: { title: '바다의 신라방', ch: '坊', kind: 'true', text: '아라의 배들이 황해를 오가는 떠다니는 신라방이 되었다. 청해진 유민과 쫓겨난 승려들이 그 배에 탔다. 땅이 없어도 사람들은 그곳을 고향이라 불렀다.',
     epilogue: [['young_first', '첫 배에 탔던 아이들이 자라 노를 잡았다. 그들은 땅 없는 고향을 바다라 불렀다.'], ['useful_first', '첫 배에 태운 뱃사람과 목수들이 배를 늘렸다. 다음 배를 기다리던 사람들을 그 배가 데려왔다.'],
       ['monks_aboard', '쫓겨난 승려들은 배 위에서 경을 외웠다. 그 배를 사람들은 물 위의 절이라 불렀다.'], ['monks_paid', '뱃삯을 낸 승려들은 신라에 닿자 절을 세우고 아라의 이름을 종에 새겼다.'], ['monks_left', '절이 헐린 자리에 앉아 있던 승려들은 어디로 갔는지 아무도 모른다.'],
       ['wang_ally', '왕씨 큰아들은 끝까지 동업자였다. 등주 뱃길은 두 집이 나눠 다녔다.'], ['wang_rival', '왕씨 큰아들은 아라의 배가 떠난 뒤 양주에서 술잔을 들었다. "다음엔 안 지오." 다음은 없었다.'], ['wang_hid', '왕씨 창고에 맡긴 신라방 짐은 한 상자도 비지 않고 돌아왔다.'],
-      ['debt_torn', '찢어 버린 빚 문서는 끝내 왕씨 상단의 장부에서 지워지지 않았다. 아라는 양주에 두 번 다시 닻을 내리지 않았다.'], ['debt_paid', '아버지의 빚은 첫해에 갚았다. 그 뒤로 아라는 누구에게도 빚을 지지 않았다.'], ['hid_monk', '객주에 숨겼던 승려가 첫 배의 뱃머리에서 경을 읽었다.']] },
+      ['debt_torn', '찢어 버린 빚 문서는 끝내 왕씨 상단의 장부에서 지워지지 않았다. 아라는 양주에 두 번 다시 닻을 내리지 않았다.'], ['debt_paid', '아버지의 빚은 첫해에 갚았다. 그 뒤로 아라는 누구에게도 빚을 지지 않았다.'], ['hid_monk', '객주에 숨겼던 승려가 첫 배의 뱃머리에서 경을 읽었다.'],
+      ['seoljeon', '초주 신라방 총관 설전은 바다로 나간 객주의 배에 해마다 운하 소식을 띄웠다. 유신언이 글을 썼다.'], ['hoejinShip', '회진 목수의 배가 아라의 배들 가운데 가장 오래 바다에 떠 있었다.'], ['unkyeong', '김운경은 당의 사신으로 신라에 가는 길에 아라의 배를 찾았다. 책 두 상자가 또 실렸다.'],
+      ['balhaeTrade', '염주의 고을로는 떠다니는 신라방에도 가죽을 보냈다. 받는 쪽 항구는 해마다 달랐다.'], ['oshiro', '이즈모의 오시로가 뽑은 쇠로 아라의 배들이 닻을 바꾸었다.']] },
   ara_alone: { title: '홀로 남은 객주', ch: '孤', kind: 'neutral', text: '아라는 바다로 나갔지만 따르는 배는 많지 않았다. 문을 닫았던 날을 기억하는 사람들이 있었다. 그래도 아라의 배는 오늘도 황해를 건넌다.',
     epilogue: [['shut', '청해진 사람 삼백이 어디로 갔는지 아라는 끝내 묻지 않았다.'], ['monks_aboard', '승려 스물만은 아라의 배를 따랐다. 그들이 아라의 선원이 되었다.'], ['monks_left', '승려들마저 외면한 뒤, 아라의 배에는 아라의 사람들만 남았다.'],
-      ['wang_ally', '왕씨 큰아들이 가끔 양주에서 짐을 보냈다. 받는 사람 이름은 없었다.'], ['wang_ledger', '왕씨에게 넘긴 장부 한 장이 아라의 뱃길을 오래 따라다녔다.'], ['debt_torn', '찢은 빚 문서는 바다에서도 아라를 따라왔다. 왕씨 배가 보이면 뱃머리를 돌렸다.'], ['kept_boat', '배는 끝까지 팔지 않았다. 그 배 하나가 아라의 전부였다.']] },
+      ['wang_ally', '왕씨 큰아들이 가끔 양주에서 짐을 보냈다. 받는 사람 이름은 없었다.'], ['wang_ledger', '왕씨에게 넘긴 장부 한 장이 아라의 뱃길을 오래 따라다녔다.'], ['debt_torn', '찢은 빚 문서는 바다에서도 아라를 따라왔다. 왕씨 배가 보이면 뱃머리를 돌렸다.'], ['kept_boat', '배는 끝까지 팔지 않았다. 그 배 하나가 아라의 전부였다.'],
+      ['seoljeon', '초주 신라방의 설전만은 아라의 배를 기다렸다. 운하 끝 마을에 닻을 내리면 술상이 나왔다.'], ['ibrahim', '양주의 이브라힘은 아라의 배가 양주를 피해 다니는 것을 알고 비단을 초주로 보냈다.']] },
   ara_merchant: { title: '당의 거상', ch: '商', kind: 'history', text: '돈은 관리의 눈을 감겼다. 아라는 당의 거상으로 남았다. 양주 시장에서 그녀의 이름을 모르는 이는 없다. 다만 신라 말은 점점 덜 쓰게 되었다.',
     epilogue: [['refuge', '적산에 내렸던 청해진 사람 삼백은 아라의 객주 밑에서 당 사람으로 살았다. 신라 말은 아이들에게 가르치지 않았다.'], ['shut', '문을 닫았던 날을 기억하는 사람들은 양주에서 아라를 보면 길을 건넜다.'],
-      ['monks_aboard', '태워 준 승려들은 신라로 갔다. 아라는 남았다.'], ['wang_ally', '왕씨 상단과 아라의 객주는 끝내 하나가 되었다. 간판에는 왕씨 이름이 먼저 올랐다.'], ['wang_rival', '왕씨 큰아들과는 죽을 때까지 양주 시장에서 값을 겨뤘다. 둘 다 지지 않았다.'], ['sent_monk', '배로 보낸 승려는 신라에서 아라에게 해마다 편지를 보냈다. 답장은 없었다.']] },
+      ['monks_aboard', '태워 준 승려들은 신라로 갔다. 아라는 남았다.'], ['wang_ally', '왕씨 상단과 아라의 객주는 끝내 하나가 되었다. 간판에는 왕씨 이름이 먼저 올랐다.'], ['wang_rival', '왕씨 큰아들과는 죽을 때까지 양주 시장에서 값을 겨뤘다. 둘 다 지지 않았다.'], ['sent_monk', '배로 보낸 승려는 신라에서 아라에게 해마다 편지를 보냈다. 답장은 없었다.'],
+      ['seoljeon', '설전의 뒤를 이은 초주 총관 유신언은 양주의 아라를 「신라방의 어른」이라 불렀다. 신라 말로.'], ['unkyeong', '김운경은 841년 당의 사신으로 신라에 갔다. 양주를 떠나기 전 아라의 객주에 들러 차를 마셨다.'],
+      ['ibrahim', '이브라힘의 비단 배와 아라의 배는 양주 부두에서 나란히 짐을 풀었다. 바그다드와 서라벌이 한 부두에 있었다.'], ['qiantang', '항주 둑을 메운 차 장사 이야기는 양주 시장에서 아라의 이름과 함께 돌았다.']] },
   tomo_true: { title: '바다 건너 다리', ch: '橋', kind: 'true', text: '도모의 상단은 신라·당·왜를 잇는 다리가 되었다. 다자이후의 관리도 그의 배에 세금을 매기는 대신 인사를 한다. 그림자 상인은 이제 해가 뜬 곳을 걷는다.',
     epilogue: [['freed_four', '다자이후 옥에서 빼낸 청해진 뱃사람 넷이 도모 상단의 첫 선장들이 되었다.'], ['honest', '청해진 수군장은 "돈 앞에서는 믿을 만하다"던 말을 기억했다. 도모의 배는 청해진 창고에 늘 한 칸을 더 얻었다.'],
       ['defied', '"안경을 사시오." 그 말을 다자이후 관리는 평생 잊지 않았다. 그는 도모의 배가 들어올 때마다 눈을 감는 대신 인사를 했다.'], ['bribed', '첫 계절에 손바닥에 올려 준 돈은 끝까지 비밀로 남았다.'], ['gifted', '첫 계절에 쥐여 준 비단 한 필은 다자이후 관리의 아내가 입었다. 그 뒤로 왜 항구 어디서든 도모의 배를 먼저 들여보냈다.'],
-      ['erased', '미야타마로에게 치른 만 냥은 돌아오지 않았다. 그는 명단에서 도모의 이름을 지우고 자기 이름을 지켰다.'], ['defiant', '"넘기시오." 그날 미야타마로는 넘기지 못했다. 바다에 있는 사람은 잡히지 않았다.'], [() => F('cheonghaeDock') && perk('tongue'), '아사의 동생은 청해진에서 도모 상단의 신라 쪽 장부를 맡았다.'], ['bridge_honest', '물건을 보고 값을 받겠다던 첫 거래가 청해진 쪽의 믿음이 되었다.']] },
+      ['erased', '미야타마로에게 치른 만 냥은 돌아오지 않았다. 그는 명단에서 도모의 이름을 지우고 자기 이름을 지켰다.'], ['defiant', '"넘기시오." 그날 미야타마로는 넘기지 못했다. 바다에 있는 사람은 잡히지 않았다.'], [() => F('cheonghaeDock') && perk('tongue'), '아사의 동생은 청해진에서 도모 상단의 신라 쪽 장부를 맡았다.'], ['bridge_honest', '물건을 보고 값을 받겠다던 첫 거래가 청해진 쪽의 믿음이 되었다.'],
+      ['kourokan', '홍려관 서기 오노 다케모리는 도모 상단의 배가 들어올 때마다 장부 맨 앞에 적었다. 「조정의 책을 나른 배」.'], ['courtAnswer', '조정의 답서를 나른 배라는 문서 한 장이 도모 상단을 다자이후의 명단에서 지켜 주었다.'],
+      ['bonotsu', '보노쓰의 유황은 도모 상단의 배로 명주까지 갔다. 다자이후는 끝내 그 길을 몰랐고, 알았을 때는 세금을 매겼다.'], ['wangmungu', '왕문구가 열두 해 뒤 다시 온 해, 송원관은 도모 상단의 배를 먼저 들였다.'],
+      ['oshiro', '이즈모의 쇠는 도모 상단의 배로 탐라와 청해진까지 갔다. 오시로는 끝내 바다를 건너지 않았다.'], ['ibrahim', '양주의 대식 상인은 도모 상단의 배로 비단을 실어 보냈다. 하카타에서 바그다드까지.']] },
   tomo_shadow: { title: '그림자 거상', ch: '影', kind: 'neutral', text: '도모의 상단은 커졌지만 늘 그림자 속에 있었다. 돈은 넘치고 친구는 없다. 하카타 부두의 신라 뱃사람들은 여전히 그를 보면 고개를 돌린다.',
     epilogue: [['buy', '몰수품을 헐값에 사들인 그해를 하카타의 신라 뱃사람들은 잊지 않았다.'], ['goods_only', '"물건까지만이오." 그 말이 도모의 상단을 지켰고, 친구를 잃게 했다.'], ['erased', '만 냥으로 지운 이름은 다른 명단에 다시 올랐다. 돈으로 지운 이름은 돈으로 되살아난다.'],
-      ['gifted', '첫 계절에 쥐여 준 비단 한 필 덕에 왜 항구는 늘 열려 있었다. 신라 항구는 아니었다.'], ['paid_eyes', '미야타마로의 눈은 끝까지 나빴다. 값은 해마다 올랐다.'], ['bridge_paid', '미리 받은 비단 값은 청해진 쪽에 오래 기억됐다. 좋은 쪽으로는 아니었다.']] },
+      ['gifted', '첫 계절에 쥐여 준 비단 한 필 덕에 왜 항구는 늘 열려 있었다. 신라 항구는 아니었다.'], ['paid_eyes', '미야타마로의 눈은 끝까지 나빴다. 값은 해마다 올랐다.'], ['bridge_paid', '미리 받은 비단 값은 청해진 쪽에 오래 기억됐다. 좋은 쪽으로는 아니었다.'],
+      ['kourokan', '홍려관 장부에 남은 「조정의 책을 나른 배」 한 줄이 명단보다 오래 갔다. 서기는 그 줄을 지우라는 말을 듣지 않았다.'], ['courtAnswer', '조정의 문서는 창고 깊이 넣어 두었다. 꺼내 보일 사람이 없었다.'], ['bonotsu', '보노쓰의 사타는 유황을 계속 보냈다. 값은 오르고, 말은 줄었다.']] },
   tomo_exile: { title: '남쪽 섬의 이름 없는 상인', ch: '島', kind: 'neutral', text: () => `도모라는 이름은 사라졌다. ${S.known.ryukyu ? '유구의 작은 포구에' : '아마미 너머 어느 섬 포구에'} 말수 적은 왜인 상인이 산다. 그의 배는 작지만, 누구에게도 고개를 숙이지 않는다.`,
     epilogue: [[() => S.known.ryukyu, '유구 수장은 말수 적은 왜인 상인을 연회에 앉히고 이름을 묻지 않았다.'], [() => !S.known.ryukyu, '그 섬이 어디인지 하카타 사람들은 끝내 알아내지 못했다.'], ['help', '이충은 신라에서 해마다 남쪽으로 배를 보냈다. 받는 사람 이름이 없는 짐이었다.'], ['freed_four', '옥에서 빼낸 넷 가운데 하나가 그 섬까지 따라왔다.'],
-      ['defiant', '바다에 있겠다던 말은 지켜졌다. 다자이후의 명단은 바다까지 오지 못했다.'], ['buy', '몰수품으로 번 돈은 섬에 닿기 전에 바다에 버렸다고 한다. 믿는 이는 적다.']] },
+      ['defiant', '바다에 있겠다던 말은 지켜졌다. 다자이후의 명단은 바다까지 오지 못했다.'], ['buy', '몰수품으로 번 돈은 섬에 닿기 전에 바다에 버렸다고 한다. 믿는 이는 적다.'],
+      ['amamiElder', '아마미의 우케는 왜인 상인이 남쪽으로 내려가던 날 조개 한 줌을 배에 던져 주었다. "빛이 도는 놈만."'], ['ryukyuFriend', '유구 수장은 쇠를 가져온 사람을 잊지 않았다. 그 섬 남쪽 끝 작은 만이 말수 적은 상인의 것이 되었다.'], ['bonotsu', '남쪽 섬으로 내려가던 날, 보노쓰의 사타가 마지막 유황을 실어 주었다. 값은 받지 않았다.']] },
   three_years: { title: '세 해의 장부', ch: '簿', kind: 'neutral', text: () => `열두 번째 ${cap().quotaName}을 바치고 당신은 장부를 덮었다. 세 해 동안 바다는 당신을 삼키지 못했다. 이야기는 끝을 보지 못했지만, 장부에 적힌 숫자와 항구마다 남은 이름은 지워지지 않는다. 다음 배는 더 멀리 간다.`,
     epilogue: [[() => !!curAct(), () => `본 이야기는 第${NUM[Math.min(S.main.act, NUM.length - 1)]}幕 「${curAct().title}」에서 멈췄다. ${S.main.started ? '남은 목표를 다음 배가 잇는다.' : '다음 소식은 다음 배가 듣는다.'}`],
       [() => S.cap === 'gungbok', '서라벌은 세 해 동안 군자금을 한 번도 거르지 않은 청해진을 끝내 건드리지 못했다.'], [() => S.cap === 'ara', '왕씨 상단은 세 해 동안 분담금을 거르지 않은 객주를 끝내 삼키지 못했다.'], [() => S.cap === 'tomo', '다자이후 관리는 세 해 동안 값을 거르지 않은 배를 눈 감은 채 보내 주었다.'],
       [() => S.crew.every(c => c.alive), '곽·범이·아사는 셋 다 살아서 세 해를 넘겼다. 이 바다에서 흔한 일이 아니다.'], [() => S.crew.some(c => !c.alive), '세 해 사이에 잃은 사람의 이름을 당신은 장부 맨 뒤에 적어 두었다.'],
-      [() => S.tier >= 3, '누선 한 척이 포구에 남았다. 다음 선장이 탈 배다.'], [() => Object.keys(S.relics || {}).length > 0, '바다에서 건져 올린 유물은 다음 항해에 하나를 물려준다.']] }
+      [() => S.tier >= 3, '누선 한 척이 포구에 남았다. 다음 선장이 탈 배다.'], [() => Object.keys(S.relics || {}).length > 0, '바다에서 건져 올린 유물은 다음 항해에 하나를 물려준다.'],
+      [() => (S.stats.quests || 0) >= 3, () => `항구마다 맡은 이야기 ${S.stats.quests}개를 끝까지 들었다. 그 사람들은 다음 배가 들어와도 당신 이름을 먼저 물을 것이다.`], ['balhaeTrade', '염주 모피 시장은 세 해가 지난 뒤에도 당신 배에만 반값이었다.'], ['courtAnswer', '왜 조정의 문서는 세 해 뒤에도 창고에 있었다. 다음 선장이 꺼내 쓸 것이다.']] }
 };
 const END_KIND = { true: '바다의 길 · 진 결말', history: '역사의 길', fiction: '다른 길', neutral: '다른 길' };
 /* 결말 나무(메타 화면용): 선장마다 어떤 결말이 있고 어떻게 가는지. 본 결말만 제목이 보이고, 못 본 것은 가는 길만 보인다 */
@@ -1600,7 +1710,7 @@ return { WORLD, VIEW, CELL, GW, GH, YEAR, LOT, LAND, LABELS, GOODS, G, PORTS, PO
   acceptOffer, makeOffer, draftOrder, deliverOrders, orderText, orderQuote, orderCrates, commission, ORDER_KINDS, ORDER_DISC, ORDER_MAX, quotaNow, quotaFor, quotaCurve, quotaCap, quotaFloor, quotaForecast, seasonReport, debtsAllowed, takeBoon, redrawBoons, REDRAW_COST, daysToDue, inZone, pirateOdds, zoneR, NEWS, SPECIALS, STORE_MAX, storeMax, wealth,
   OFFICE, officeInfo, buyOffice, escortCost, QUOTA_END, endingTree, ENDING_TREE, bossRec, BOSS_TIER, tavernReroll, REROLL_COST, mateValue, threatMax,
   ARCS, ENDINGS, END_KIND, NUM, MATES, MBY, arcOf, curAct, mainGoals, mainTick, mainPay, mainDeliver, mainSpots, mainStory, endingEpilogue, failEpilogue, storyFates, cap, crewText, drainFame, yearWord, BLACK, hasMate, mateCap, wages, tavern, hireMate, fireMate, rollDice, portEvent,
-  QUESTS, QBY, FIND_META, REGIONS, qStep, startQuest, questEval, questSpots, regionCheck,
+  QUESTS, QBY, QUEST_OPEN_MAX, questsOpen, questProg, offerQuests, FIND_META, REGIONS, qStep, startQuest, questEval, questSpots, regionCheck,
   BOSSES, RELICS, GIMMICK, battleOpts, battleAct, battleClose, makeBattle, acceptBounty, makeBounty, addMap, diveAct, diveClose, diveCost, makeDive, GASP, arrowDmg, boardDmg,
   SCENES, VOICES, MATE_LINES, mateLine, rivalLine, sceneTick, sceneStory,
   wireTick, setRow, racers, specialInfo, useSpecial, storePut, storeTake, shipPrice, isClosed, liveNews,

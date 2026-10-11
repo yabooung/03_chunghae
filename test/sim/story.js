@@ -27,6 +27,12 @@ function play(cap, diff, plan) {
       if (g.deliver) { const have = S.slots.filter(x => x.id === g.deliver.good && x.from !== g.deliver.k).length; if (have >= g.deliver.n) return g.deliver.k; const src = PORT_IDS.find(k => S.known[k] && PORTS[k].prod.includes(g.deliver.good) && k !== g.deliver.k && k !== S.at); if (src) return src; }
       if (g.text.includes('홍려관') && S.at !== 'hakata' && S.slots.length >= 2) return 'hakata'; }
     return null; };
+  /* 맡은 이야기(지역 퀘스트)는 틈틈이: 갈 수 있는 항구 목표나 실은 납품 물건이 있으면 그 항구로, 납품 물건이 아는 산지에 있으면 가끔 그리로 */
+  const questGoal = () => { for (const id of Object.keys(S.quests)) { const st = C.qStep(id); if (!st) continue; const g = st.goal, q = S.quests[id];
+      if (g.type === 'port' && S.known[g.k] && !(g.wait && S.t - (q.tStep || q.t0 || 0) < g.wait)) return g.k;
+      if (g.type === 'deliver' && S.known[g.k]) { const have = S.slots.filter(x => x.id === g.good && x.from !== g.k).length; if (have >= g.n) return g.k; const src = PORT_IDS.find(k => S.known[k] && PORTS[k].prod.includes(g.good) && k !== g.k && k !== S.at); if (src && Math.random() < .4) return src; } }
+    return null; };
+  const questKeep = keep => { for (const id of Object.keys(S.quests)) { const st = C.qStep(id); if (!st || st.goal.type !== 'deliver') continue; let n = 0; S.slots.forEach((x, i) => { if (x.id === st.goal.good && x.from !== st.goal.k && n < st.goal.n && !keep.includes(i)) { keep.push(i); n++; } }); } };
   for (let g = 0; g < GUARD && !S.ended; g++) {
     if (S.draft) { const d = S.draft; C.takeBoon(d.includes('hold') ? 'hold' : d.includes('haggle') ? 'haggle' : d[Math.floor(Math.random() * d.length)]); }
     if (S.mode === 'port') {
@@ -50,13 +56,16 @@ function play(cap, diff, plan) {
       for (const o of S.orders) if (o.from === here) { const have = S.slots.filter(x => x.id === o.good && x.from === o.from).length; for (let i = have; i < o.n; i++) if (!C.buy(o.good).ok) break; }
       // 본 이야기 납품 물건(비단 3상자)
       for (const gl of C.mainGoals()) if (gl.deliver && !gl.done && S.markets[here].stock.includes(gl.deliver.good) && here !== gl.deliver.k) { const have = S.slots.filter(x => x.id === gl.deliver.good).length; for (let i = have; i < gl.deliver.n; i++) if (!C.buy(gl.deliver.good).ok) break; }
+      // 맡은 이야기의 납품 물건이 여기서 나면 싣는다(상납이 급하지 않을 때)
+      if (!quotaSoon() && S.quotaN >= 2 && S.gold > C.quotaNow() * 2) for (const id of Object.keys(S.quests)) { const st = C.qStep(id); if (!st || st.goal.type !== 'deliver' || st.goal.k === here || !S.markets[here].stock.includes(st.goal.good)) continue; const have = S.slots.filter(x => x.id === st.goal.good && x.from !== st.goal.k).length; for (let i = have; i < st.goal.n; i++) if (C.freeSlots() < 2 || S.gold < C.cratePrice(here, st.goal.good) + C.quotaNow() || !C.buy(st.goal.good).ok) break; }
       // 해전 스팟(노예선 무리·관군 수군)
       const sp = C.mainSpots()[0]; if (sp && S.tier >= (S.cap === 'gungbok' ? 0 : 1) && S.hull > S.hullMax * .7 && !quotaSoon()) { const p = C.plan({ x: sp.x, y: sp.y }); if (p) { C.depart(p); continue; } }
       // 1막 해적 만남: 범이 장면(bumHunt)이 없으면 해적 해역을 지나는 길을 고른다
       const wantPirate = C.mainGoals().some(gl => !gl.done && gl.text.includes('해적을 한 번'));
       const court = S.cap !== 'tomo' && (S.threat >= 60 || (calmGoal && S.threat >= 40)) && !C.canTribute() ? ['cheonghae', 'ulsan'].filter(k => S.known[k] && k !== here).sort((a, b) => Math.hypot(PORTS[a].x - S.x, PORTS[a].y - S.y) - Math.hypot(PORTS[b].x - S.x, PORTS[b].y - S.y))[0] : null;
       const tk = court || goalPort(); const ready = S.orders.find(o => S.slots.filter(x => x.id === o.good && x.from === o.from).length >= o.n);
-      let dest = tk && tk !== here ? tk : ready ? ready.to : (best && best.g > 0 ? best.d : null);
+      const qg = !tk && !quotaSoon() && S.quotaN >= 2 && S.gold > C.quotaNow() * 2 && Math.random() < .35 ? questGoal() : null; // 이야기 심부름은 둘째 계절부터, 상납 걱정이 없을 때만 틈틈이
+      let dest = tk && tk !== here ? tk : qg && qg !== here ? qg : ready ? ready.to : (best && best.g > 0 ? best.d : null);
       if (!dest) { const fameNeed = C.mainGoals().some(gl => !gl.done && gl.text.startsWith('명성')); const und = PORT_IDS.filter(k => S.known[k] && !S.docked[k] && k !== here); dest = (fameNeed && und.length) ? und[0] : pick(PORT_IDS.filter(k => k !== here && S.known[k])); }
       if (best && best.g > 0 && best.d === dest) while (C.freeSlots() && S.gold >= C.cratePrice(here, best.id) + (quotaSoon() ? C.quotaNow() * .3 : 0)) if (!C.buy(best.id).ok) break;
       else if (best && best.g > 0 && S.slots.length < 2) while (C.freeSlots() && S.gold >= C.cratePrice(here, best.id) + C.quotaNow() * .5) if (!C.buy(best.id).ok) break;
@@ -70,10 +79,11 @@ function play(cap, diff, plan) {
         if (o.type === 'quota') onQuota(o.res); if (o.type === 'battle' || o.type === 'dive') resolve(st);
         if (o.type === 'arrive') { const keep = o.info.items.filter(x => x.profit < 0 && x.cost > 0).map(x => x.i); for (const od of S.orders) { let n = 0; S.slots.forEach((s, i) => { if (s.id === od.good && s.from === od.from && n < od.n && !keep.includes(i)) { keep.push(i); n++; } }); }
           for (const gl of C.mainGoals()) if (gl.deliver && !gl.done) S.slots.forEach((s, i) => { if (s.id === gl.deliver.good && !keep.includes(i)) keep.push(i); });
+          questKeep(keep);
           if (C.mainGoals().some(gl => !gl.done && gl.text.includes('홍려관')) && S.at === 'hakata') S.slots.forEach((s, i) => { if (!keep.includes(i)) keep.push(i); });
           C.sellAll(keep); } } }
   }
-  return { cap, diff, ended: S.ended, ending: S.ending, act: S.main.act, maxAct: st.maxAct, quotaN: S.quotaN, t: Math.round(S.t), gold: Math.round(S.gold), fame: Math.round(S.fame), tier: S.tier, flags: Object.keys(S.main.flags).join(','), q: st.quotaLog.join(''), bt: st.bt, assist: st.assist, epilogue: S.ending ? C.endingEpilogue(S.ending).length : 0, finalSeen: st.finalSeen };
+  return { cap, diff, ended: S.ended, ending: S.ending, act: S.main.act, maxAct: st.maxAct, quotaN: S.quotaN, t: Math.round(S.t), gold: Math.round(S.gold), fame: Math.round(S.fame), tier: S.tier, flags: Object.keys(S.main.flags).join(','), q: st.quotaLog.join(''), bt: st.bt, assist: st.assist, epilogue: S.ending ? C.endingEpilogue(S.ending).length : 0, finalSeen: st.finalSeen, quests: S.stats.quests || 0, qOpen: Object.values(S.quests).filter(q => !q.done).length };
 }
 /* 계획: 궁복은 역사의 길·바다의 길·왕좌·바람 모두 닿는지, 아라·도모는 두 갈래 */
 const PLANS = {
@@ -82,9 +92,9 @@ const PLANS = {
   ara: [{ name: '바다의 신라방', pickMain: ['유민을 받아들인다'], pickScene: ['아이들과'], final: 0 }, { name: '홀로 남은 객주', pickMain: ['문을 닫는다'], final: 0 }, { name: '당의 거상', pickMain: ['유민을 받아들인다'], final: 1 }],
   tomo: [{ name: '바다 건너 다리', pickMain: ['이충을 돕는다'], pickScene: ['내 이름으로'], final: 0 }, { name: '그림자 거상', pickMain: ['몰수품을'], final: 0 }, { name: '남쪽 섬', pickMain: ['이충을 돕는다'], final: 1 }]
 };
-const TOT = { runs: 0, end: 0 }; const byEnd = {};
+const TOT = { runs: 0, end: 0, quests: 0 }; const byEnd = {};
 for (const cap of CAPS) { for (const diff of DIFFS) { const R = []; for (let i = 0; i < N; i++) { const plan = PLANS[cap][i % PLANS[cap].length]; const r = play(cap, diff, plan); r.plan = plan.name; R.push(r); }
-  const ok = R.filter(r => r.ended === 'ending').length; TOT.runs += N; TOT.end += ok;
+  const ok = R.filter(r => r.ended === 'ending').length; TOT.runs += N; TOT.end += ok; TOT.quests += R.reduce((a, r) => a + r.quests, 0);
   console.log(`\n══ ${cap} · ${C.DIFFS[diff].name}${ASSIST ? ' (assist)' : ''} — 결말 ${ok}/${N}`);
-  for (const r of R) { if (r.ending) byEnd[r.ending] = (byEnd[r.ending] || 0) + 1; console.log(`  ${r.plan.padEnd(16)} ${r.ended === 'ending' ? '◎ ' + r.ending : '✗ ' + r.ended + ' (第' + C.NUM[Math.min(r.act, 4)] + '幕)'}  상납 ${r.q} · ${r.t}일 · 명성 ${r.fame} · 배 ${r.tier} · 해전 ${JSON.stringify(r.bt)}${r.assist ? ' · 도움 ' + r.assist : ''}${r.epilogue ? ' · 에필로그 ' + r.epilogue + '줄' : ''}`); } } }
+  for (const r of R) { if (r.ending) byEnd[r.ending] = (byEnd[r.ending] || 0) + 1; console.log(`  ${r.plan.padEnd(16)} ${r.ended === 'ending' ? '◎ ' + r.ending : '✗ ' + r.ended + ' (第' + C.NUM[Math.min(r.act, 4)] + '幕)'}  상납 ${r.q} · ${r.t}일 · 명성 ${r.fame} · 배 ${r.tier} · 해전 ${JSON.stringify(r.bt)}${r.assist ? ' · 도움 ' + r.assist : ''}${r.epilogue ? ' · 에필로그 ' + r.epilogue + '줄' : ''} · 이야기 ${r.quests}끝/${r.qOpen}진행`); } } }
 console.log(`\n결말 도달 ${TOT.end}/${TOT.runs} (${Math.round(TOT.end / TOT.runs * 100)}%)`, byEnd);
