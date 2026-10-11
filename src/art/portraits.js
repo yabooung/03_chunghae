@@ -356,7 +356,7 @@ function svg(id, o = {}) { const c = C_[id]; if (!c) return ''; const size = o.s
   return `<svg class="portrait" viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true" focusable="false"><defs>${F.defs}</defs>${F.back}${F.clip ? `<g clip-path="${F.clip}">${body_}</g>` : body_}${F.front}</svg>`; }
 
 /* 이야기 장면에서 누가 말하는가 — 핵심 규칙의 'who'와 막 번호를 그림 하나로 */
-const QUEST_WHO = { '圖': 'helm', '僧': 'monk', '軍': 'navy', '使': 'balhae', '南': 'elder', '簿': 'seol', '鯨': 'fisher' };
+const QUEST_WHO = { '圖': 'helm', '僧': 'monk', '軍': 'navy', '使': 'balhae', '南': 'elder', '簿': 'seol', '鯨': 'fisher', '兄': 'carpenter', '燈': 'diver', '信': 'elder', '髥': 'fisher' };
 const ACT_WHO = { gungbok: [null, null, null, 'prince', 'yeomjang'], ara: [null, 'wangheir', null, null], tomo: [null, 'miyata', 'lichung', null] };
 const ACT_MOOD = { gungbok: ['determined', 'grim', 'neutral', 'grim', 'grim'], ara: ['neutral', 'determined', 'grim', 'grim'], tomo: ['neutral', 'determined', 'grim', 'grim'] };
 function speaker(st, cap, act) { if (!st) return null; const w = st.who;

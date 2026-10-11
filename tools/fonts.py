@@ -11,7 +11,7 @@ from fontTools import subset
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, '.cache', 'fonts')
 OUT = os.path.join(ROOT, 'assets', 'fonts')
-GH = 'https://github.com/google/fonts/raw/main/ofl/'
+GH = 'https://raw.githubusercontent.com/google/fonts/main/ofl/'
 
 # (출력 이름, 원본 경로, 새 이름, 굵기 이름, 어떤 글자를 넣나)
 FONTS = [

@@ -159,7 +159,7 @@ const cam = { x: 1000, y: 1000, z: 1, fit: 1, touched: 0, wide: false };
 function relayout(recenter) {
   W = innerWidth; H = innerHeight; const dpr = Math.min(2, devicePixelRatio || 1); if (dpr !== DPR) sealCache.clear(); DPR = dpr; cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const top = NARROW() ? 110 : 76, pan = $('panel'); let a = { x: 12, y: top, w: W - 24, h: H - top - 12 };
-  if (!pan.hidden) { if (NARROW()) a.h = H - top - pan.getBoundingClientRect().height - 8; else a.w = W - 24 - 396; }
+  if (!pan.hidden) { if (NARROW()) a.h = H - top - pan.getBoundingClientRect().height - 8; else if (!pan.classList.contains('min')) a.w = W - 24 - 396; }
   AREA = a; cam.fit = Math.min(a.w / C.WORLD.w, a.h / C.WORLD.h);
   if (recenter) { cam.z = cam.wide ? cam.fit : defaultZoom(); const s = S(); if (s) { cam.x = s.x; cam.y = s.y; } }
   clampCam();
@@ -357,7 +357,7 @@ function goldDelta(d) { d = Math.round(d); if (!d) return; const box = $('hGoldB
   box.querySelectorAll('.delta').forEach(x => x.remove()); const sp = document.createElement('span'); sp.className = 'delta ' + (d > 0 ? 'up' : 'dn'); sp.textContent = (d > 0 ? '+' : '') + fmt(d); box.appendChild(sp); setTimeout(() => sp.remove(), 1700); }
 
 /* ─────────── 알림 · 팝 · 띠 ─────────── */
-function toast(msg, kind) { if (kind !== 'cx') journal(msg, kind); const el = document.createElement('div'); el.className = 'toast ' + (kind || ''); el.innerHTML = msg; $('toasts').appendChild(el); setTimeout(() => el.remove(), 3600); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); return el; }
+function toast(msg, kind, noLog) { if (!noLog && kind !== 'cx') journal(msg, kind); if (!noLog && !kind && feedVisible()) return null; const el = document.createElement('div'); el.className = 'toast ' + (kind || ''); el.innerHTML = msg; $('toasts').appendChild(el); setTimeout(() => el.remove(), 3600); while ($('toasts').children.length > 3) $('toasts').firstChild.remove(); return el; }
 function pop(txt, x, y, kind) { const el = document.createElement('div'); el.className = 'pop ' + (kind || ''); el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 1400); }
 const popAt = (el, txt, kind) => { const r = el.getBoundingClientRect(); pop(txt, r.left + r.width / 2, r.top + r.height / 2, kind); };
 function banner(big, small) { $('bnBig').textContent = big; $('bnSmall').textContent = small; const b = $('banner'); b.hidden = false; const d = b.firstElementChild; d.style.animation = 'none'; void d.offsetWidth; d.style.animation = ''; clearTimeout(banner.t); banner.t = setTimeout(() => b.hidden = true, 2800); }
@@ -384,7 +384,7 @@ $('coachSkip').onclick = () => { showCoach(false); coachStep = -2; META.tut = tr
 let lastQuote = null, panelMin = false;
 function openPanel() { const p = $('panel'); p.hidden = false; panelMin = false; p.classList.remove('min'); $('pGrab').textContent = '접기'; paintPanel(); relayout(false); }
 function closePanel() { $('panel').hidden = true; relayout(false); }
-$('pHead').onclick = () => { if (!NARROW()) return; panelMin = !panelMin; $('panel').classList.toggle('min', panelMin); $('pGrab').textContent = panelMin ? '펼치기' : '접기'; relayout(false); };
+$('pHead').onclick = () => { panelMin = !panelMin; $('panel').classList.toggle('min', panelMin); $('pGrab').textContent = panelMin ? '펼치기' : '접기'; relayout(false); };
 function tagFor(pct) { return pct <= 80 ? ['cheap', '싸다'] : pct >= 130 ? ['dear', '비싸다'] : ['mid', '보통']; }
 function gl(g, cls) { return `<span class="glyph ${cls || ''}" style="background:${g.col}">${g.ch}</span>`; }
 /* 물건 그림 — 32칸, 1.7 굵기 둥근 선 하나로 통일. 모서리에 한자 도장 */
@@ -469,8 +469,8 @@ $('pBody').addEventListener('click', e => {
     if (r.order) rumorPulse[r.order.to] = performance.now(); if (r.dive) { after(); openDive(); return; } after(); runStories(); return; }
   const a = b.dataset.act;
   if (a === 'accept') { const o = C.acceptOffer(s.at); if (o) { AU.chime(); toast(`의뢰를 맡았다 — ${C.PORTS[o.to].name}까지 ${C.G[o.good].name} ${o.n}상자, ${o.days}일 안에.`, 'good'); } after(); return; }
-  if (a === 'rumor') { const r = C.buyRumor(); if (!r.ok) { toast(r.msg); return; } AU.chime(); lastQuote = `“${r.text.line}”`; if (r.map) { mapAppear[r.map.id] = performance.now(); toast(`寶 보물 지도 — <b>${r.map.name}</b>`, 'good'); } if (r.text.k) rumorPulse[r.text.k] = performance.now(); after(); return; }
-  if (a === 'repair') { const c = C.repair(); if (c) { AU.tok(); toast(`배를 손봤다. ${fmt(c)}냥`); } after(); return; }
+  if (a === 'rumor') { const r = C.buyRumor(); if (!r.ok) { toast(r.msg); return; } AU.chime(); lastQuote = `“${r.text.line}”`; { const ml = C.mateLine('rumor'); if (ml) lastQuote += `<br><i>${ml.line}</i>`; } if (r.text.k && r.text.id) { const inf = C.infoFor(r.text.k, r.text.id); feedMarket(r.text.k, r.text.id, inf && inf.price > C.G[r.text.id].base * 1.1 ? 'up' : 'down', null, `— ${r.text.line.replace(/^.*?(에선|에|에서) /, '')}`, '선술집 소문'); } else journal(r.text.line, ''); if (r.map) { mapAppear[r.map.id] = performance.now(); toast(`寶 보물 지도 — <b>${r.map.name}</b>`, 'good'); } if (r.text.k) rumorPulse[r.text.k] = performance.now(); after(); return; }
+  if (a === 'repair') { const c = C.repair(); if (c) { AU.tok(); const ml = C.mateLine('repair'); toast(ml ? `${ml.line} — ${fmt(c)}냥` : `배를 손봤다. ${fmt(c)}냥`); } after(); return; }
   if (a === 'ship') { const n = C.upgrade(); if (n) { AU.gong(); banner('船', `${n.name} — 상자 ${C.capacity()}칸`); } after(); return; }
   if (a === 'tribute') { const c = C.tribute(); if (c) { AU.chime(); toast(`조정에 ${fmt(c)}냥을 바쳤다. 경계가 가라앉는다.`, 'good'); } after(); return; }
 });
@@ -514,7 +514,7 @@ function showDest(p, keepPick) {
     <div class="routes">${routes}</div>${warn ? `<div class="chips">${warn}</div>` : ''}<ul>${rows}</ul><div class="row"><button class="btn" id="dCancel">그만둔다</button><button class="btn main" id="dGo">출항</button></div>`;
   $('dest').hidden = false; $('dCancel').onclick = hideDest; $('dGo').onclick = () => go(p);
   $('dest').querySelectorAll('[data-route]').forEach(b => b.onclick = () => { routePick = b.dataset.route; showDest(p, true); });
-  if (NARROW() && !$('panel').hidden) { panelMin = true; $('panel').classList.add('min'); $('pGrab').textContent = '펼치기'; relayout(false); }
+  if (!$('panel').hidden) { panelMin = true; $('panel').classList.add('min'); $('pGrab').textContent = '펼치기'; relayout(false); }
   if (!keepPick) { const end = p.main.path[p.main.path.length - 1]; const mx = (s.x + end[0]) / 2, my = (s.y + end[1]) / 2, span = Math.max(Math.abs(end[0] - s.x) / (AREA.w * .75), Math.abs(end[1] - s.y) / (AREA.h * .65));
     lookAt(mx, my, Math.max(cam.fit, Math.min(cam.z, 1 / Math.max(span, 1e-3)))); }
   if (coachStep === 1 && p.port === 'jeoksan') coach(2);
@@ -528,7 +528,7 @@ function showSailbar() { const s = S(); const el = $('sailbar'); el.hidden = fal
   last.st = null; last.ch = null; el.innerHTML = `<span class="to">${s.dest ? '→ ' + C.PORTS[s.dest].name : '탐험'}<small id="sbRem"></small></span><button class="row" id="sbRow" title="노 저어라 (Space) — 기력을 써서 바람과 상관없이 빨라진다"><em>노 저어라</em><s></s></button><div class="speed" role="group" aria-label="빠르기">${SPEEDS.map((v, i) => `<button data-sp="${i}" class="${i === speedIdx ? 'on' : ''}">${v}×</button>`).join('')}</div>`;
   $('sbRow').onclick = () => toggleRow(); el.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speedIdx = +b.dataset.sp; el.querySelectorAll('[data-sp]').forEach(x => x.classList.toggle('on', +x.dataset.sp === speedIdx)); }); }
 const hideSailbar = () => { $('sailbar').hidden = true; $('sailbar').classList.remove('chased'); };
-function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.init(); const on = C.setRow(!s.rowing); if (on) { AU.noise(.25, { freq: 500, q: 2, gain: .25 }); AU.tone(160, { dur: .2, gain: .1 }); } else if (s.stamina <= 3) toast('선원들이 지쳤다. 기력은 쉬면서 천천히 찬다.'); paintHud(); }
+function toggleRow() { const s = S(); if (!s || s.mode !== 'sail') return; AU.init(); const on = C.setRow(!s.rowing); if (on) { const ml = C.mateLine('row'); if (ml) toast(ml.line, '', true); AU.noise(.25, { freq: 500, q: 2, gain: .25 }); AU.tone(160, { dur: .2, gain: .1 }); } else if (s.stamina <= 3) toast('선원들이 지쳤다. 기력은 쉬면서 천천히 찬다.'); paintHud(); }
 
 /* ─────────── 사건 ─────────── */
 const EV_CH = { storm: '風', calm: '靜', wreck: '破', sail: '帆', castaway: '漂', reef: '礁', fairwind: '順', monk: '僧', captives: '奴', ghost: '鬼', spout: '龍', whale: '鯨', fog: '霧', fever: '病', grumble: '怨', smuggler: '密', stars: '星', envoy: '使', drift: '流', pirate: '賊', rival: '商' };
@@ -541,13 +541,13 @@ function openEvent(ev) { const s = S(); AU[['storm', 'pirate'].includes(ev.id) ?
     $('evOk').onclick = () => { $('mEvent').hidden = true; paintHud(); if (r.wreck) { hideSailbar(); trail = []; toast(`배가 부서졌다. 상자 ${r.wreck.lost}개를 잃고 ${C.PORTS[r.wreck.port].name}${JO(C.PORTS[r.wreck.port].name,'으로','로')} 실려 왔다.`, 'bad'); openPanel(); lookAt(S().x, S().y); saveGame(); } }; }); }
 
 /* ─────────── 입항 개봉 ─────────── */
-function openReveal(info) { panelTab = 'market';
+function openReveal(info) { panelTab = 'market'; for (const mv of (info.moves || []).slice().reverse()) feedMarket(info.k, mv.id, mv.pct > 0 ? 'up' : 'down', mv.pct, `— ${mv.days}일 전 본 값보다 (직접 봄)`, '본 값');
   const s = S(), P = C.PORTS[info.k]; hideSailbar(); trail.push([s.x, s.y]);
   const sell = info.items.map(it => it.profit >= 0);
   const fresh = info.fresh ? `<div class="fresh"><b>처음 보는 시세표</b> — 아무도 이 항구 값을 모른다.<br>${C.GOODS.slice().sort((a, b) => s.markets[info.k].idx[b.id] - s.markets[info.k].idx[a.id]).map(g => `${g.name} <b class="num">${fmt(C.sellPrice(info.k, g.id) * C.LOT)}</b>`).join(' · ')}</div>` : '';
   const sub = [`${s.voyage.from && C.PORTS[s.voyage.from] ? C.PORTS[s.voyage.from].name + '에서 ' : ''}${info.days.toFixed(1)}일`, info.storms ? `폭풍 ${info.storms}번` : '', info.first ? '첫 입항 · 명성 +60' : ''].filter(Boolean).join(' · ');
   const deliv = info.delivered.length ? `<div class="fresh" style="border-color:var(--rok)">${info.delivered.map(o => `<b style="color:var(--rok)">의뢰 완수</b> — ${C.G[o.good].name} ${o.n}상자 · 보수 <b class="num">${fmt(o.reward)}냥</b>`).join('<br>')}</div>` : '';
-  const extra = [info.passenger ? `<b style="color:var(--rok)">${info.passenger.who}를 내려줬다</b> — 사례 ${fmt(info.passenger.gold)}냥 · 명성 +80<br>“${info.passenger.line}”` : '', ...(info.race || []).map(r => r.won ? `<b style="color:var(--rok)">${r.ch} ${r.name}보다 먼저 닿았다!</b> 명성 +25 — 값이 아직 성하다.` : `<b style="color:var(--ju)">${r.ch} ${r.name}${JO(r.name,'이','가')} 먼저 닿았다.</b>`)].filter(Boolean);
+  const extra = [info.passenger ? `<b style="color:var(--rok)">${info.passenger.who}를 내려줬다</b> — 사례 ${fmt(info.passenger.gold)}냥 · 명성 +80<br>“${info.passenger.line}”` : '', ...(info.race || []).map(r => { const vl = C.rivalLine(r.id, r.won ? 'beaten' : 'won'); return r.won ? `<b style="color:var(--rok)">${r.ch} ${r.name}보다 먼저 닿았다!</b> 명성 +25 — 값이 아직 성하다.${vl ? ` <i>${vl}</i>` : ''}` : `<b style="color:var(--ju)">${r.ch} ${r.name}${JO(r.name,'이','가')} 먼저 닿았다.</b>${vl ? ` <i>${vl}</i>` : ''}`; })].filter(Boolean);
   const extraHtml = extra.length ? `<div class="fresh" style="border-color:var(--rok)">${extra.join('<br>')}</div>` : '';
   const rivals = info.rivalHere.length ? `<p class="letter" style="color:var(--ju)">${info.rivalHere.map(r => `${r.rival.name}${JO(r.rival.name,'이','가')} 며칠 전 ${C.G[r.id].name}${JO(C.G[r.id].name,'을','를')} 풀고 갔다`).join(' · ')} — 값이 눌려 있다.</p>` : '';
   const cards = info.items.map((it, n) => { const g = C.G[it.id];
@@ -590,11 +590,11 @@ function openQuota(res) {
 
 /* ─────────── 이야기 ─────────── */
 function runStories() { const s = S(); if (!s || anyModal()) return; if (s.ended) { finish(); return; } if (s.qNotes && s.qNotes.length) { drainQuests(); return; } const st = C.nextStory(); if (!st) return; openStory(st); }
-function openStory(st) { if (st.who === 'main' && !st.title.includes('마지막')) { AU.gong(); } const ch = st.who === 'main' ? '幕' : st.who === 'port' ? '港' : st.qch && st.who === 'quest' ? st.qch : st.who === 'inspector' ? '監' : CREW_CH[st.who] || st.qch || '話'; AU[st.who === 'inspector' ? 'drum' : 'chime']();
-  const sp = PORTRAIT.speaker(Object.assign({ fin: /막이 내린다$/.test(st.title) }, st), S().cap, C.NUM.indexOf(st.act)); // 말하는 사람 초상, 없으면 글자 도장
+function openStory(st) { if (st.who === 'main' && !st.title.includes('마지막')) { AU.gong(); } const ch = st.who === 'main' || st.who === 'scene' ? '幕' : st.who === 'port' ? '港' : st.qch && st.who === 'quest' ? st.qch : st.who === 'inspector' ? '監' : CREW_CH[st.who] || st.qch || '話'; AU[st.who === 'inspector' ? 'drum' : 'chime']();
+  const sp = st.who === 'scene' ? (PORTRAIT.has(st.spk) ? { id: st.spk, expr: PORTRAIT.exprs(st.spk)[0] } : null) : PORTRAIT.speaker(Object.assign({ fin: /막이 내린다$/.test(st.title) }, st), S().cap, C.NUM.indexOf(st.act)); // 말하는 사람 초상, 없으면 글자 도장
   $('stCard').innerHTML = `${sp ? `<span class="who pt">${PORTRAIT.svg(sp.id, { size: 84, expr: sp.expr, frame: st.who === 'main' ? 'card' : 'round' })}</span>` : `<span class="who ${st.who === 'inspector' ? 'inspector' : ''}">${ch}</span>`}<div class="eyebrow">이야기</div><h2 style="padding-right:${sp ? 92 : 64}px">${st.title}</h2><p>${st.text}</p>${st.sub ? `<p class="sub">${st.sub}</p>` : ''}
-    <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-i="${i}"><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
-  cxMark('story:' + st.who); cxLink($('stCard'), { sel: ':scope > p', max: 3 }); $('stCard').classList.toggle('chapter', st.who === 'main'); if (st.who === 'port' && ART.PE_BY_TITLE[st.title]) ART.cardArt($('stCard'), 'ev', ART.PE_BY_TITLE[st.title]); else ART.clearArt($('stCard')); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
+    <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-i="${i}" ${o.off ? 'disabled' : ''}><b>${o.label}</b>${o.sub ? `<small>${o.sub}</small>` : ''}</button>`).join('')}</div>`;
+  cxMark('story:' + st.who); cxLink($('stCard'), { sel: ':scope > p', max: 3 }); $('stCard').classList.toggle('chapter', st.who === 'main' || st.who === 'scene'); if (st.who === 'port' && ART.PE_BY_TITLE[st.title]) ART.cardArt($('stCard'), 'ev', ART.PE_BY_TITLE[st.title]); else ART.clearArt($('stCard')); $('mStory').hidden = false; $('stCard').querySelector('.choice').focus({ preventScroll: true });
   $('stCard').querySelectorAll('.choice').forEach(b => b.onclick = () => { const r = st.opts[+b.dataset.i].apply(); $('mStory').hidden = true; if (r) toast(r); if (S().mode === 'port') after(); else paintHud(); setTimeout(runStories, 250); }); }
 
 
@@ -673,7 +673,8 @@ function paintBattle() { const s = S(), B = s.battle; if (!B) return; const pct 
 function battleDo(a) { const s = S(), B = s.battle; if (!B || B.over) return; AU.init(); const I = B.intent, hull0 = s.hull, hp0 = B.e.hp; const r = C.battleAct(a); if (!r) return;
   const dealt = hp0 - B.e.hp, took = Math.round(hull0 - s.hull), cv = () => { const c = $('btCv'); return c ? c.getBoundingClientRect() : null; };
   if (a === 'shoot') { btVolley('me', 'foe', 6); AU.noise(.25, { freq: 2400, q: 1, gain: .12, type: 'highpass' }); }
-  if (a === 'board') { BT.me.lunge = BT.w * .1; AU.drum(); }
+  if (a === 'board') { BT.me.lunge = BT.w * .1; AU.drum(); const ml = C.mateLine('board'); if (ml) r.log.push(`<i>${ml.line}</i>`); }
+  if (a === 'shoot') { const ml = C.mateLine('shoot'); if (ml && Math.random() < .4) r.log.push(`<i>${ml.line}</i>`); }
   if (a === 'guard') AU.tok();
   if (a === 'move' || a === 'flee') AU.noise(.4, { freq: 500, q: 2, gain: .2 });
   setTimeout(() => { if (dealt > 0) { btHit('foe', a === 'board'); const r0 = cv(); if (r0) pop(`-${dealt}`, r0.left + BT.foe.x, r0.top + BT.h * .32, 'hit' + (dealt >= 25 ? ' crit' : '')); AU.coin(1); } }, a === 'shoot' ? 460 : 180);
@@ -695,7 +696,7 @@ function battleEnd() { const s = S(), B = s.battle, R = B.result || {}; const T 
 
 /* ═══════════ 잠수 화면 — 빛살 드는 물기둥, 바닥의 난파선, 줄에 매달린 잠수부 ═══════════ */
 const DV = { open: false, y: 0, bubbles: [], motes: [], flash: 0, flashCol: '' };
-function openDive() { const s = S(), D = s.dive; if (!D) return; hideDest(); AU.chime();
+function openDive() { const s = S(), D = s.dive; if (!D) return; hideDest(); AU.chime(); { const ml = C.mateLine('dive'); if (ml) setTimeout(() => toast(ml.line, '', true), 400); }
   const stars = '★'.repeat(D.site.lv) + '☆'.repeat(3 - D.site.lv);
   $('dvCard').innerHTML = `<div class="eyebrow">잠수 · ${C.dateStr(s.t)}</div><h2>${D.site.name} <span class="stars">${stars}</span></h2><p class="sub" style="margin:0 0 10px">${D.site.pearl ? '해녀들이 앞서 내려간다. 얕지만 진주가 많다.' : D.site.lv >= 3 ? `두목이 숨긴 보물. <b>맨 밑(${D.max}길)</b>에는 반드시 유물이 있다.` : '깊이 갈수록 값진 것이 있다.'} 숨이 끊기면 이번에 건진 것을 <b>모두</b> 놓치고 며칠을 앓는다.</p>
     <div class="dv"><div class="dv-col" id="dvCol"><canvas id="dvCv" aria-label="물속 깊이"></canvas></div>
@@ -834,7 +835,8 @@ function tavernHtml(k) { const s = S(), t = C.tavern(k), cap = C.mateCap();
   return `<div class="sec"><h3>소문</h3><div class="acts"><button class="act" data-act="rumor" ${s.gold < C.rumorCost() ? 'disabled' : ''}><b>소문 듣기</b><small>${fmt(C.rumorCost())}냥 · 다른 항구 값${s.boons.clerk || C.hasMate('seer') || s.cap === 'ara' ? ' · 정확' : ''}</small></button></div>${lastQuote ? `<div class="quote">${lastQuote}</div>` : ''}</div>
     <div class="sec"><h3>뱃사람 구함<span>내 선원 ${s.mates.length}/${cap}</span></h3><div class="hold">${offer}</div>${mine ? `<div class="hold" style="margin-top:8px">${mine}</div>` : ''}</div>
     <div class="sec"><h3>홀짝<span>오늘 ${dl}판 남음</span></h3><div class="dice" id="dice"><div class="dcup" id="dcup">${die(1)}${die(1)}</div><div class="dbtns">${[500, 2000].map(b => `<div class="drow"><small>${fmt(b)}냥</small><button class="btn" data-dice="${b}:odd" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>홀</button><button class="btn" data-dice="${b}:even" ${dl <= 0 || s.gold < b ? 'disabled' : ''}>짝</button></div>`).join('')}</div><p class="fine dres" id="dres">두 주사위의 합이 홀일까 짝일까. 맞히면 건 돈의 0.9배를 번다.</p></div></div>`; }
-function journal(text, kind) { const s = S(); if (!s || !s.log || s.ended) return; const t = String(text).replace(/<br\s*\/?>/g, ' — ').replace(/<[^>]+>/g, ''); s.log.push({ t: Math.floor(s.t), x: t, k: kind || '' }); if (s.log.length > 160) s.log.splice(0, s.log.length - 160); }
+function journal(text, kind, ext) { const s = S(); if (!s || !s.log || s.ended) return; const t = String(text).replace(/<br\s*\/?>/g, ' — ').replace(/<[^>]+>/g, ''); const e = Object.assign({ t: Math.floor(s.t), x: t, k: kind || '' }, ext || {}); if (!ext) e.h = String(text).replace(/<br\s*\/?>/g, ' — '); const pv = s.log[s.log.length - 1]; if (pv && pv.x === e.x && pv.t === e.t) return; s.log.push(e); if (s.log.length > 200) s.log.splice(0, s.log.length - 200); if ($('sTitle').hidden) feedAdd(e); }
+const feedVisible = () => !FEED.min && !$('feed').hidden && getComputedStyle($('feed')).display !== 'none';
 function bookLog(s) { if (!s.log || !s.log.length) return '<p class="fine bk-note">아직 적은 것이 없다.</p>'; let day = null, h = '';
   for (const e of s.log.slice().reverse()) { if (e.t !== day) { day = e.t; h += `<h4 class="bk-nat">${C.dateStr(e.t)}</h4>`; } h += `<div class="logl ${e.k}">${e.x}</div>`; } return h; }
 function paintTracker() { const s = S(), el = $('tracker'); if (!el) return; if (!s || s.ended || !$('sTitle').hidden) { el.hidden = true; return; }
@@ -844,6 +846,38 @@ function paintTracker() { const s = S(), el = $('tracker'); if (!el) return; if 
   const qa = Object.keys(s.quests).filter(id => C.qStep(id)).length;
   el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '상납을 더 바치면 다음 막이 열린다'}</li></ul>`); }
 
+
+/* ═══════════ 소식창: 대화창처럼 흘러가는 시세·사건 ═══════════ */
+const FEED = { filter: 'all', min: META.feedMin != null ? !!META.feedMin : NARROW(), unread: 0, max: 60 };
+const mdy = t => { const d = (90 + t) % 360; return `${Math.floor(d / 30) + 1}/${d % 30 + 1}`; };
+const feedOk = e => FEED.filter === 'all' || (FEED.filter === 'mkt' ? (e.c === 'mkt' || e.c === 'news') : (e.c !== 'mkt'));
+function feedHtml(e, fresh) { const s = S();
+  if (e.c === 'mkt') { const P = C.PORTS[e.p], g = C.G[e.g], up = e.dir === 'up';
+    return `<button class="fe mkt ${e.dir} ${e.mine ? 'mine' : ''} ${fresh ? 'new' : ''}" data-port="${e.p}"><span class="fd num">${mdy(e.t)}</span><span class="fseal">${P.ch}</span>${gl(g)}<span class="fx"><b>${P.name} ${g.name}</b> <em class="${up ? 'up' : 'dn'}">${up ? '▲' : '▼'}${e.pct != null ? ` ${e.pct > 0 ? '+' : ''}${e.pct}%` : ''}</em><span class="fw">${e.x2 || ''}</span>${e.mine ? '<span class="ftag">실은 짐</span>' : ''}<small class="fsrc">${e.src ? ' · ' + e.src : ''}</small></span></button>`; }
+  const ico = e.c === 'news' ? '報' : e.k === 'good' ? '○' : e.k === 'bad' ? '!' : '·';
+  return `<div class="fe ${e.c || 'ev'} ${e.k || ''} ${fresh ? 'new' : ''}"><span class="fd num">${mdy(e.t)}</span><span class="fic">${ico}</span><span class="fx">${e.h || e.x}</span></div>`; }
+function feedRender() { const s = S(), el = $('feedList'); if (!el || !s || !s.log) return; const list = s.log.filter(feedOk).slice(-FEED.max);
+  el.innerHTML = list.length ? list.map(e => feedHtml(e)).join('') : '<p class="fempty">아직 들어온 소식이 없다. 바다에 나가면 지나는 배들이 값 소식을 물어 온다.</p>';
+  el.scrollTop = el.scrollHeight; paintFeedHead(); }
+function paintFeedHead() { $('feed').classList.toggle('min', FEED.min); $('feedUnread').textContent = FEED.unread ? FEED.unread : ''; $('feedUnread').hidden = !FEED.unread;
+  $('feedTabs').querySelectorAll('[data-ff]').forEach(b => b.classList.toggle('on', b.dataset.ff === FEED.filter));
+  const s = S(), lastE = s && s.log && s.log.length ? s.log[s.log.length - 1] : null; $('feedPeek').innerHTML = lastE ? feedHtml(lastE) : ''; }
+function feedAdd(e) { const el = $('feedList'); if (!el || !feedOk(e)) return; const near = el.scrollHeight - el.scrollTop - el.clientHeight < 40; const emp = el.querySelector('.fempty'); if (emp) emp.remove();
+  el.insertAdjacentHTML('beforeend', feedHtml(e, !RM)); while (el.children.length > FEED.max) el.firstElementChild.remove(); if (near || e.c === 'mkt') el.scrollTop = el.scrollHeight;
+  if (FEED.min) FEED.unread++; paintFeedHead(); const lv = $('feedLive'); if (lv && !RM) { lv.classList.remove('ping'); void lv.offsetWidth; lv.classList.add('ping'); } const pk = $('feedPeek').firstElementChild; if (pk && !RM) { pk.classList.add('new'); } }
+function feedWire(w) { const P = C.PORTS[w.k], g = C.G[w.id]; const up = w.kind === 'up';
+  const x2 = w.end ? (up ? '— 남아돌던 값이 돌아왔다' : '— 바람이 잦아들었다') : up ? `— 바람이 분다 · 약 ${fmt(w.price)}냥` : `— 남아돈다 · 약 ${fmt(w.price)}냥`;
+  const e = { c: 'mkt', p: w.k, g: w.id, dir: w.kind, pct: w.end ? null : w.pct, x2, src: `${w.src} · 소문`, mine: w.hold || w.dest };
+  journal(`${up ? '▲' : '▼'} ${P.name} ${g.name} ${x2.replace('— ', '')} (${w.src})`, up ? 'good' : 'bad', e); rumorPulse[w.k] = performance.now();
+  if (e.mine && (FEED.min || NARROW())) toast(`${up ? '▲' : '▼'} <b>${P.name} ${g.name}</b> ${x2} <small>(${w.src})</small>`, up ? 'good' : 'bad', true); }
+function feedMarket(k, id, dir, pct, x2, src) { journal(`${dir === 'up' ? '▲' : '▼'} ${C.PORTS[k].name} ${C.G[id].name} ${x2.replace('— ', '')}`, dir === 'up' ? 'good' : 'bad', { c: 'mkt', p: k, g: id, dir, pct, x2, src, mine: S().slots.some(x => x.id === id) }); }
+$('feedTabs').addEventListener('click', e => { const b = e.target.closest('[data-ff]'); if (!b) return; e.stopPropagation(); FEED.filter = b.dataset.ff; feedRender(); });
+$('feedToggle').onclick = e => { e.stopPropagation(); FEED.min = !FEED.min; META.feedMin = FEED.min; saveMeta(); if (!FEED.min) FEED.unread = 0; feedRender(); };
+$('feedPeek').onclick = () => { if (FEED.min) { FEED.min = false; META.feedMin = false; saveMeta(); FEED.unread = 0; feedRender(); } };
+$('feedList').addEventListener('click', e => { const b = e.target.closest('[data-port]'); if (!b) return; const s = S(), k = b.dataset.port; AU.init(); if (!s || anyModal()) return;
+  if (s.mode === 'sail') { cam.wide = false; lookAt(C.PORTS[k].x, C.PORTS[k].y, Math.max(cam.z, cam.fit * 1.4)); rumorPulse[k] = performance.now(); return; }
+  if (s.mode === 'port' && s.at === k) { openPanel(); return; } const p = C.plan(k); if (!p) return; if (p.closedPort) { toast(`${C.PORTS[k].name}은 포구를 닫았다.`, 'bad'); return; } showDest(p); });
+
 /* ─────────── 흐름 ─────────── */
 function handle(out) {
   const s = S(); CODEX.feedOut(CX.st, out);
@@ -851,13 +885,14 @@ function handle(out) {
     if (o.type === 'find') { findAppear[o.find.id] = performance.now(); AU.gong(); toast(`<b>${o.find.name}</b> — ${o.find.text}${o.find.gold ? ` +${fmt(o.find.gold)}냥` : ''}`, 'good'); const [x, y] = toS(o.find.x, o.find.y); pop('발견', x, y - 20, 'big'); }
     if (o.type === 'port') { portAppear[o.port] = performance.now(); AU.gong(); toast(`새 항구 — <b>${C.PORTS[o.port].name}</b>. 해도에 도장을 찍었다. 아무도 이곳 값을 모른다.`, 'good'); }
     if (o.type === 'season') { AU.season(); banner(...SEASON_BANNER[o.season]); setTimeout(cxFact, 3200); }
-    if (o.type === 'rival') { rivalMark[o.k] = { t: s.t, ch: o.rival.ch, col: o.rival.col, id: o.id }; if (s.slots.some(x => x.id === o.id) || s.dest === o.k) toast(`<b>${o.rival.name}</b>이 ${C.PORTS[o.k].name}에 ${C.G[o.id].name}${JO(C.G[o.id].name,'을','를')} 풀었다. 값이 눌린다.`, 'bad'); }
+    if (o.type === 'wire') feedWire(o.w);
+    if (o.type === 'rival') { rivalMark[o.k] = { t: s.t, ch: o.rival.ch, col: o.rival.col, id: o.id }; feedMarket(o.k, o.id, 'down', null, `— ${o.rival.ch} ${o.rival.name}${JO(o.rival.name, '이', '가')} 풀었다`, '경쟁 상단'); if (s.slots.some(x => x.id === o.id) || s.dest === o.k) toast(`<b>${o.rival.name}</b>이 ${C.PORTS[o.k].name}에 ${C.G[o.id].name}${JO(C.G[o.id].name,'을','를')} 풀었다. 값이 눌린다.`, 'bad'); }
     if (o.type === 'orderLost') toast(`의뢰 기한이 지났다 — ${C.PORTS[o.order.to].name}의 ${C.G[o.order.good].name}. 명성 -20`, 'bad');
     if (o.type === 'event') openEvent(o.ev);
     if (o.type === 'arrive') openReveal(o.info);
     if (o.type === 'explored') { showSailbar(); toast('바다 한가운데 닻을 내렸다. 지도를 눌러 다음 행선지를 고르자.'); saveGame(); }
     if (o.type === 'quota') openQuota(o.res);
-    if (o.type === 'news') { const n = o.news; AU.chime(); banner('報', n.title); toast(`<b>${n.title}</b><br>${n.text}`, n.closed || n.zone || n.storm || n.tax ? 'bad' : 'good'); if (n.k) rumorPulse[n.k] = performance.now(); if (n.closed) rumorPulse[n.closed] = performance.now(); if (s.mode === 'port') paintPanel(); }
+    if (o.type === 'news') { const n = o.news; AU.chime(); banner('報', n.title); journal(n.title + ' — ' + n.text, n.closed || n.zone || n.storm || n.tax ? 'bad' : 'good', { c: 'news', h: `<b>${n.title}</b> — ${n.text}` }); if (FEED.min || NARROW()) toast(`<b>${n.title}</b><br>${n.text}`, n.closed || n.zone || n.storm || n.tax ? 'bad' : 'good', true); if (n.k) rumorPulse[n.k] = performance.now(); if (n.closed) rumorPulse[n.closed] = performance.now(); if (s.mode === 'port') paintPanel(); }
     if (o.type === 'region') { AU.pay(); banner('圖', `${o.region}를 다 그렸다`); toast(`<b>${o.region}</b>의 발견을 모두 찾았다 — +${fmt(o.gold)}냥 · 명성 +100${o.map ? ` · 寶 ${o.map.name}` : ''}`, 'good'); if (o.map) mapAppear[o.map.id] = performance.now(); }
     if (o.type === 'battle') openBattle();
     if (o.type === 'dive') openDive();
@@ -865,7 +900,7 @@ function handle(out) {
     if (o.type === 'bountyLost') toast(`현상 수배 기한이 지났다 — ${o.bounty.name}. 명성 -10`, 'bad');
     if (o.type === 'chase') { AU.drum(); toast('<b>흑기 해적선</b>이 쫓아온다! 노를 저어 따돌려라 <small>(Space)</small>', 'bad'); }
     if (o.type === 'escaped') { AU.good(); toast('흑기를 따돌렸다. 명성 +10', 'good'); }
-    if (o.type === 'tired') toast('선원들이 지쳤다. 노를 거둔다.');
+    if (o.type === 'tired') { const ml = C.mateLine('tired'); toast(ml ? ml.line : '선원들이 지쳤다. 노를 거둔다.'); }
     if (o.type === 'bounced') { AU.bad(); toast(`<b>${C.PORTS[o.k].name}</b> 포구가 닫혀 있다${o.news ? ` — ${o.news.title}` : ''}. 뱃머리를 돌려야 한다.`, 'bad'); showSailbar(); }
     if (o.type === 'passengerLost') toast(`${o.passenger.who}가 기다리다 지쳐 다른 배로 옮겨 탔다. 명성 -15`, 'bad');
   }
@@ -873,7 +908,7 @@ function handle(out) {
   if (s.mode === 'sail' && Math.floor(s.t * 2) !== Math.floor((trail.t || 0) * 2)) { trail.t = s.t; trail.push([s.x, s.y]); if (trail.length > 500) trail.shift(); }
 }
 function finish(retire) {
-  const s = S(); if (!s || !$('sEnd').hidden) return; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); showCoach(false);
+  const s = S(); if (!s || !$('sEnd').hidden) return; $('feed').hidden = true; ['mEvent', 'mReveal', 'mStory', 'mQuota', 'mRetire2', 'mBattle', 'mDive', 'mBook', 'mCodex'].forEach(id => $(id).hidden = true); hideDest(); hideSailbar(); closePanel(); hideMenu(); showCoach(false);
   if (retire && !s.ended) s.ended = 'retire';
   const sc = C.score(), rank = C.rankOf(sc), why = s.ended;
   const wasAra = META.unlocked.ara, wasTomo = META.unlocked.tomo; META.runs++; META.best = Math.max(META.best, sc);
@@ -1007,7 +1042,7 @@ $('mRetireNo').onclick = () => { $('mRetire2').hidden = true; };
 
 /* ─────────── 첫 화면 ─────────── */
 let capSel = 'gungbok', diffSel = C.DIFFS[META.diff] ? META.diff : C.DIFF_NEW;
-function showTitle() { const t = $('sTitle'); t.classList.remove('out'); t.hidden = false; $('bCont').hidden = !hasSave(); taLayout();
+function showTitle() { $('feed').hidden = true; const t = $('sTitle'); t.classList.remove('out'); t.hidden = false; $('bCont').hidden = !hasSave(); taLayout();
   $('diffs').innerHTML = Object.entries(C.DIFFS).map(([id, d]) => `<button class="dif-b ${diffSel === id ? 'on' : ''}" data-diff="${id}" role="radio" aria-checked="${diffSel === id}"><span class="dch">${d.ch}</span><b>${d.name}</b><small>${d.sub}</small></button>`).join('');
   $('diffs').querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diffSel = b.dataset.diff; META.diff = diffSel; saveMeta(); showTitle(); $('diffs').querySelector(`[data-diff="${diffSel}"]`).focus({ preventScroll: true }); });
   $('diffLine').textContent = `${C.DIFFS[diffSel].name} — ${C.DIFFS[diffSel].text}`;
@@ -1017,7 +1052,7 @@ function showTitle() { const t = $('sTitle'); t.classList.remove('out'); t.hidde
   paintTitleCodex(); $('bestLine').textContent = META.best ? `최고 기록 ${fmt(META.best)} · ${META.runs}번 항해 · 엔딩 ${Object.keys(META.endings || {}).length}/${Object.keys(C.ENDINGS).length}` : ''; }
 /* 첫 화면에서 바다로: 종이가 걷히듯 사라진다 */
 function leaveTitle() { const t = $('sTitle'); if (RM) { t.hidden = true; return; } t.classList.add('out'); setTimeout(() => { t.hidden = true; t.classList.remove('out'); }, 480); }
-function resetView() { GT.v = null; spNote = null; mapAppear = {}; BT.open = false; DV.open = false; trail = []; portAppear = {}; findAppear = {}; rumorPulse = {}; rivalMark = {}; lastQuote = null; speedIdx = 0; for (const k of Object.keys(last)) delete last[k]; camGoal = null; }
+function resetView() { FEED.unread = 0; $('feed').hidden = false; setTimeout(feedRender, 0); GT.v = null; spNote = null; mapAppear = {}; BT.open = false; DV.open = false; trail = []; portAppear = {}; findAppear = {}; rumorPulse = {}; rivalMark = {}; lastQuote = null; speedIdx = 0; for (const k of Object.keys(last)) delete last[k]; camGoal = null; }
 function startGame(cap, diff) {
   AU.init(); C.newGame(cap, diff || diffSel); fogReset(); resetView();
   leaveTitle(); cam.touched = 0; cam.wide = false; openPanel(); relayout(true); paintHud(); saveGame();
