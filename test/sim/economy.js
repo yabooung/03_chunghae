@@ -8,7 +8,7 @@ function resolve(){const S=C.S;let g=0;while(S.battle&&g++<60){if(S.battle.over)
   g=0;while(S.dive&&g++<20){const D=S.dive;if(D.over){const r=C.diveClose();DV.n++;DV.gold+=r.gold;DV.rel+=r.relics.length;break;}C.diveAct(D.depth>=D.max||D.breath<C.diveCost(D)+12?'up':'down');}}
 function play(style,diff){
   const S=C.newGame(CAP,diff);const wantOrders=()=>C.mainGoals().some(g=>!g.done&&g.text.includes('의뢰'));
-  const onQuota=res=>{quotaLog.push(res.ok?'○':'×');const n=res.ok?S.quotaN:S.quotaN+1;(RAT[n]=RAT[n]||[]).push(res.ok?(C.assets()+res.amount)/res.amount:0);};let ev=0,quotaLog=[],end=null,ambush=0,rivalHits=0,orders=0,alts=0,zoneTrips=0;
+  const onQuota=res=>{quotaLog.push(!res.ok?'×':res.debt?'債':'○');const n=res.ok?S.quotaN:S.quotaN+1;(RAT[n]=RAT[n]||[]).push(res.ok?(C.assets()+res.amount)/res.amount:0);};let ev=0,quotaLog=[],end=null,ambush=0,rivalHits=0,orders=0,alts=0,zoneTrips=0;
   const drain=()=>{let st,g=0;while((st=C.nextStory())&&g++<20){const live=st.opts.filter(o=>!o.off);const o=st.title&&st.title.includes('마지막')?live[Math.floor(Math.random()*live.length)]:(live[0]||st.opts[0]);o.apply();if(S.ended)break;}};
   for(let g=0;g<GUARD&&!S.ended;g++){
     if(S.draft){C.takeBoon(S.draft[Math.floor(Math.random()*S.draft.length)]);}

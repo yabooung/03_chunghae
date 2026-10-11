@@ -21,7 +21,7 @@ function drain(S, plan, st) { let s, g = 0; while ((s = C.nextStory()) && g++ < 
 function play(cap, diff, plan) {
   const S = C.newGame(cap, diff), st = { stories: 0, msgs: [], bt: {}, quotaLog: [], assist: 0, maxAct: 0, finalSeen: null };
   const quotaSoon = () => C.daysToDue() < 25;
-  const onQuota = res => st.quotaLog.push(res.ok ? '○' : '×');
+  const onQuota = res => st.quotaLog.push(!res.ok ? '×' : res.debt ? '債' : '○'); // 債 = 못 내고 빚으로 넘긴 계절
   const goalPort = () => { const gs = C.mainGoals().filter(g => !g.done); for (const g of gs) { if (g.k && S.known[g.k]) return g.k; if (g.pay && S.gold >= g.pay.n + C.quotaNow() * .5) return g.pay.k;
       if (g.text.includes('에 들른다') || g.text.includes('권선문')) { const ks = ['mizhou', 'chuzhou', 'deungju'].filter(k => !S.main.visits[k]); if (ks.length) return ks[0]; }
       if (g.deliver) { const have = S.slots.filter(x => x.id === g.deliver.good && x.from !== g.deliver.k).length; if (have >= g.deliver.n) return g.deliver.k; const src = PORT_IDS.find(k => S.known[k] && PORTS[k].prod.includes(g.deliver.good) && k !== g.deliver.k && k !== S.at); if (src) return src; }
