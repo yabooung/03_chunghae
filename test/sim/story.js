@@ -1,10 +1,10 @@
 // 이야기 완주 시뮬: 선장 × 난이도마다 "이야기를 끝까지 보려는" 봇이 막을 따라가 결말에 닿는 비율.
 // 봇은 장사로 상납을 메우면서 막 목표(상납·방문·시주·납품·해전 스팟·해적 만남·홍려관)를 좇고, 장면·마지막 선택은 plan대로 고른다.
-// 사용: node test/sim/story.js [판 수=6] [걸음 한도=1400] [선장 gungbok|ara|tomo|all=all] [난이도 baram|pungrang|taepung|all=all] [--assist]
+// 사용: node test/sim/story.js [판 수=6] [걸음 한도=2600] [선장 gungbok|ara|tomo|all=all] [난이도 baram|pungrang|taepung|all=all] [--assist]
 //   --assist : 경제가 막히는지 이야기 논리가 막히는지 가르려고, 상납 직전 돈이 모자라면 채워 준다(이야기 논리만 검사)
 const C = require('../../src/core.js'); const { PORTS, PORT_IDS } = C;
 const argv = process.argv.slice(2), ASSIST = argv.includes('--assist'), A = argv.filter(a => !a.startsWith('--'));
-const N = +A[0] || 6, GUARD = +A[1] || 1400, CAPS = (A[2] && A[2] !== 'all') ? [A[2]] : ['gungbok', 'ara', 'tomo'], DIFFS = (A[3] && A[3] !== 'all') ? [A[3]] : Object.keys(C.DIFFS);
+const N = +A[0] || 6, GUARD = +A[1] || 2600, CAPS = (A[2] && A[2] !== 'all') ? [A[2]] : ['gungbok', 'ara', 'tomo'], DIFFS = (A[3] && A[3] !== 'all') ? [A[3]] : Object.keys(C.DIFFS);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 function smartB(B) { const I = B.intent, near = B.dist === 'near', S = C.S, mv = S.stamina >= 15; if (S.hull < S.hullMax * .2 && !near && !B.e.boss && Math.random() < .5) return 'flee';
   if (I.k === 'volley') return near || !mv ? 'guard' : 'move'; if (I.k === 'aim') return near ? 'board' : (mv ? 'move' : 'shoot');

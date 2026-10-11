@@ -63,7 +63,7 @@ const PORTS_LL = {
   naniwa:    ['나니와', '難', '왜', 135.3, 34.5, ['gold'], ['porcelain', 'silk', 'spice'], { hidden: true }],
   quanzhou:  ['천주', '泉', '당', 118.85, 24.75, ['spice'], ['gold', 'ginseng', 'fur'], { hidden: true }],
   amami:     ['아마미', '奄', '남도', 129.25, 28.3, ['shell'], ['ginseng', 'porcelain'], { hidden: true }],
-  ryukyu:    ['유구', '流', '남도', 127.55, 26.35, ['shell', 'sulfur'], ['silk', 'iron'], { hidden: true }],
+  ryukyu:    ['유구', '琉', '남도', 127.55, 26.35, ['shell', 'sulfur'], ['silk', 'iron'], { hidden: true }],
   yeomju:    ['염주', '鹽', '발해', 130.95, 42.45, ['fur'], ['silk', 'tea'], { hidden: true }],
   hyeolgu:   ['혈구진', '穴', '신라', 126.1, 37.65, ['iron'], ['tea', 'spice']],
   hoejin:    ['회진', '會', '신라', 126.35, 34.9, ['ginseng', 'silk'], ['books', 'porcelain']],
