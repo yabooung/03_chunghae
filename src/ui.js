@@ -963,10 +963,13 @@ function bookLog(s) { if (!s.log || !s.log.length) return '<p class="fine bk-not
   for (const e of s.log.slice().reverse()) { if (e.t !== day) { day = e.t; h += `<h4 class="bk-nat">${C.dateStr(e.t)}</h4>`; } h += `<div class="logl ${e.k}">${e.x}</div>`; } return h; }
 function paintTracker() { const s = S(), el = $('tracker'); if (!el) return; if (!s || s.ended || !$('sTitle').hidden) { el.hidden = true; return; }
   const A = C.curAct(); if (!A) { el.hidden = true; return; } const n = C.NUM[s.main.act];
-  const key = s.main.act + ':' + s.main.started + ':' + (s.main.started ? C.mainGoals().map(g => g.done + (g.prog ? g.prog() : '')).join('|') : s.quotaN) + Object.keys(s.quests).map(id => C.qStep(id) ? id + s.quests[id].step : '').join();
+  const qids = Object.keys(s.quests).filter(id => C.qStep(id));
+  const key = s.main.act + ':' + s.main.started + ':' + (s.main.started ? C.mainGoals().map(g => g.done + (g.prog ? g.prog() : '')).join('|') : s.quotaN) + qids.map(id => id + s.quests[id].step + C.questProg(id)).join();
   if (last.trk === key) return; last.trk = key; el.hidden = false;
-  const qa = Object.keys(s.quests).filter(id => C.qStep(id)).length;
-  el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '다음 소식이 오면 막이 열린다'}</li></ul>`); }
+  const qa = qids.length;
+  // 맡은 이야기의 지금 단계도 셋까지 — 본 이야기 밑에 書 표시로
+  const ql = qids.slice(0, 3).map(id => { const st = C.qStep(id), p = C.questProg(id); return `<li class="tk-qs">書 ${st.text}${p ? ` <em>${p}</em>` : ''}</li>`; }).join('');
+  el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}${ql}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '다음 소식이 오면 막이 열린다'}</li>${ql}</ul>`); }
 
 
 /* ═══════════ 소식창: 대화창처럼 흘러가는 시세·사건 ═══════════ */

@@ -84,6 +84,48 @@ const endIds = new Set(Object.keys(C.ENDINGS)); ok(endIds.size >= 10, `결말 ${
     `저장→불러오기·메타 왕복에도 사전 ${got.length}항목 그대로 · 옛 메타는 빈 사전`);
   const one = E.find(e => st.u[e.id] && e.terms.length); ok(one && X.search(st, one.terms[0].slice(0, 2)).includes(one) && !X.search(st, '없는낱말qq').length, `찾기(한글 부분 일치) — 「${one && one.terms[0].slice(0, 2)}」`);
   const T = X.terms(st); ok(T.every(([t], i) => i === 0 || T[i - 1][0].length >= t.length), `글 속 낱말 ${T.length}개 (긴 것부터)`); }
+// 8. 이야기 퀘스트: 항구마다 하나, 목표·보상이 게임에 있는 것을 가리키고, 납품 물건은 그 항구에서 나지 않고, when이 선장마다 풀리고, 단계 글이 추적기에 들어가고(90자 미만),
+//    결말 에필로그의 깃발이 어디선가 세워지고, 한꺼번에 맡는 이야기는 QUEST_OPEN_MAX까지, 사슬 이야기는 앞 이야기를 끝내면 열린다
+{ const fs = require('fs'), path = require('path'), Q = C.QUESTS, bad = [], givers = {};
+  const src = fs.readFileSync(path.join(__dirname, '../src/core.js'), 'utf8');
+  const flagsSet = new Set([...src.matchAll(/flag: '(\w+)'/g)].map(m => m[1]).concat(['cheonghaeDock', 'naniwa', 'usan', 'kuroshio', 'pirateWin', 'quotaUp', 'allyBonus', 'extraMate', 'cheonghaeTrust', 'official', 'wangEnemy', 'debt']));
+  for (const q of Q) { const why = [];
+    if (!/^[a-z0-9]+$/.test(q.id) || !q.name || !q.ch || !q.intro) why.push('형식'); if (!C.PORTS[q.giver]) why.push('항구'); givers[q.giver] = (givers[q.giver] || 0) + 1;
+    if (!Array.isArray(q.steps) || q.steps.length < 2 || q.steps.length > 4) why.push('단계 수');
+    for (const [i, s] of (q.steps || []).entries()) { const g = s.goal || {}, R = s.reward || {};
+      if (typeof s.text !== 'string' || s.text.length >= 90) why.push(`${i + 1}단계 글 ${s.text && s.text.length}자`); if (!s.done) why.push(`${i + 1}단계 done`);
+      if (g.type === 'port' && !C.PORTS[g.k]) why.push(`${i + 1} port`); if (g.type === 'find' && !C.FINDS.some(f => f.id === g.id)) why.push(`${i + 1} find`);
+      if (g.type === 'fight' && !C.BOSSES.some(b => b.id === g.boss)) why.push(`${i + 1} fight`); if (g.type === 'deal' && !(C.SPECIALS[g.k] && C.SPECIALS[g.k].kind === 'deal')) why.push(`${i + 1} deal`);
+      if (g.type === 'deliver') { if (!C.PORTS[g.k] || !C.G[g.good] || !(g.n > 0)) why.push(`${i + 1} deliver`); else if (C.PORTS[g.k].prod.includes(g.good)) why.push(`${i + 1} ${g.good}는 ${g.k}에서 난다`); }
+      if (!['port', 'find', 'wins', 'fight', 'deliver', 'dives', 'deal'].includes(g.type)) why.push(`${i + 1} goal ${g.type}`);
+      if (R.deal && !(C.SPECIALS[R.deal] && C.SPECIALS[R.deal].kind === 'deal')) why.push(`${i + 1} reward.deal`); if (R.boon && !C.BOONS.some(b => b.id === R.boon)) why.push(`${i + 1} reward.boon`);
+      if (R.relic && !C.RELICS.some(r => r.id === R.relic)) why.push(`${i + 1} reward.relic`); if (R.crate && !C.G[R.crate]) why.push(`${i + 1} reward.crate`); if (R.reveal && !(C.PORTS[R.reveal] && C.PORTS[R.reveal].hidden)) why.push(`${i + 1} reward.reveal`); }
+    if (q.when) for (const cap of Object.keys(C.CAPTAINS)) { try { C.newGame(cap); if (typeof q.when() !== 'boolean') why.push(`when(${cap}) 불리언 아님`); } catch (e) { why.push(`when(${cap}) 예외`); } }
+    if (why.length) bad.push(`${q.id}(${why.join(',')})`); }
+  const dup = Object.entries(givers).filter(([, n]) => n > 1).map(([k]) => k); if (dup.length) bad.push('한 항구에 둘: ' + dup.join(','));
+  if (new Set(Q.map(q => q.id)).size !== Q.length) bad.push('id 겹침');
+  const nations = new Set(Q.map(q => C.PORTS[q.giver].nation)); for (const n of ['신라', '탐라', '남도', '당', '왜', '발해']) if (!nations.has(n)) bad.push('없는 나라 ' + n);
+  ok(!bad.length, `이야기 ${Q.length}줄기 — 항구마다 하나, 목표·보상·납품·when·글 길이${bad.length ? ' — ' + bad.join(' ') : ''}`);
+  const noFlag = []; for (const [id, E] of Object.entries(C.ENDINGS)) for (const [c] of E.epilogue || []) if (typeof c === 'string' && !flagsSet.has(c)) noFlag.push(`${id}:${c}`);
+  ok(!noFlag.length, `결말 에필로그의 깃발 ${Object.values(C.ENDINGS).reduce((a, E) => a + E.epilogue.filter(([c]) => typeof c === 'string').length, 0)}개가 모두 어디선가 세워진다${noFlag.length ? ' — ' + noFlag.join(' ') : ''}`);
+  const qFlags = Q.map(q => q.steps.map(s => s.reward && s.reward.flag).filter(Boolean)); const used = new Set(Object.values(C.ENDINGS).flatMap(E => E.epilogue.map(([c]) => c).filter(c => typeof c === 'string')));
+  const noEp = Q.filter((q, i) => !qFlags[i].length || !qFlags[i].some(f => used.has(f))).map(q => q.id).filter(id => !['chart', 'monk', 'navy', 'balhae', 'south', 'books', 'whale', 'brothers', 'widow', 'letter', 'map2'].includes(id));
+  ok(!noEp.length, `지역 이야기마다 깃발이 결말 에필로그에 닿는다${noEp.length ? ' — ' + noEp.join(',') : ''}`);
+  // 한꺼번에 셋까지: 넷째는 꺼내지 않고, 사슬 이야기는 앞 이야기를 끝내면 when이 참이 된다
+  { const S = C.newGame('gungbok'); S.pending = []; for (const id of ['shipwright', 'tatara', 'qiantang']) C.startQuest(id); C.offerQuests('yangzhou'); const held = S.pending.some(p => p.startsWith('quest:'));
+    S.quests.shipwright.done = true; C.offerQuests('yangzhou'); const again = S.pending.includes('quest:daesik');
+    const w0 = C.QBY.wangmungu.when(); S.quests.yeomju = { step: 3, done: true }; const w1 = C.QBY.wangmungu.when(); S.quests.wangmungu = { step: 3, done: true }; const w2 = C.QBY.court.when();
+    ok(C.QUEST_OPEN_MAX === 3 && !held && again && !w0 && w1 && w2, `이야기는 ${C.QUEST_OPEN_MAX}개까지(넷째 ${held ? '꺼냄' : '안 꺼냄'}, 하나 끝내면 ${again ? '꺼냄' : '안 꺼냄'}) · 사슬 염주→쓰루가→나니와 ${!w0 && w1 && w2 ? '순서대로' : '어긋남'}`); }
+  // 새 목표·보상이 실제로 돈다: 잠수 목표(dives) · 특별 거래 목표(deal) · 선체·경계·특권·깃발·숨은 항구 보상
+  { const S = C.newGame('tomo', 'baram'); S.pending = []; S.gold = 60000; C.startQuest('amami'); S.stats.dives = 2; C.questEval(); const d1 = S.quests.amami.step === 1;
+    S.mode = 'port'; S.at = 'yangzhou'; C.startQuest('daesik'); S.slots = [{ id: 'silk', cost: 0, from: 'jeoksan' }, { id: 'silk', cost: 0, from: 'deungju' }]; C.questEval(); const s1 = S.quests.daesik.step === 1 && !S.slots.length;
+    C.useSpecial('yangzhou'); C.useSpecial('yangzhou'); const s2 = S.quests.daesik.step === 2;
+    const h0 = S.hullMax, t0 = S.threat = 40; C.startQuest('shipwright'); S.quests.shipwright.step = 2; S.quests.shipwright.tStep = S.t - 30; S.at = 'hoejin'; C.questEval();
+    const hull = S.hullMax === h0 + 25 && S.flags.hoejinShip === 1 && S.quests.shipwright.done;
+    S.known.ryukyu = false; C.startQuest('ryukyu'); S.quests.amami.step = 2; S.at = 'amami'; C.questEval(); const rev = S.spotted.ryukyu === 1 && S.flags.amamiElder === 1;
+    S.at = 'naniwa'; S.quests.yeomju = { step: 3, done: true }; S.quests.wangmungu = { step: 3, done: true }; C.startQuest('court'); S.quests.court.step = 2; C.questEval(); const ct = S.boons.court === 1 && S.threat === t0 - 15 && S.flags.courtAnswer === 1;
+    ok(d1 && s1 && s2 && hull && rev && ct, `새 목표·보상 — 잠수 ${d1 ? '○' : '×'} 납품 ${s1 ? '○' : '×'} 특별 거래 ${s2 ? '○' : '×'} 선체·깃발 ${hull ? '○' : '×'} 숨은 항구 ${rev ? '○' : '×'} 특권·경계 ${ct ? '○' : '×'}`); } }
+
 // 6. 한 파일 빌드에 넣는 글꼴이 게임 글자를 모두 덮는다 (글을 고치면 python tools/fonts.py)
 { const fs = require('fs'), path = require('path'), root = path.join(__dirname, '..');
   const have = new Set([...fs.readFileSync(path.join(root, 'assets/fonts/charset.txt'), 'utf8')]), SYS = new Set([...'≈═✓']);
