@@ -650,7 +650,7 @@ const STORIES = {
 /* 재산 = 돈 + 짐(산 값) + 배 값의 절반. 창고는 빼준다(압류도 손대지 못한다). 태풍의 상납 하한은 이것의 3할, 다만 곡선의 두 배는 넘지 않는다 */
 const cargoCost = () => S.slots.reduce((a, s) => a + s.cost, 0);
 const wealth = () => S.gold + cargoCost() + Math.round(ship().price * .5);
-const quotaFloor = () => Math.min(dif().share * wealth(), quotaFor(S.quotaN) * 2);
+const quotaFloor = () => S.quotaN === 0 ? 0 : Math.min(dif().share * wealth(), quotaFor(S.quotaN) * 2); // 첫 계절은 유예 — 하한이 없다
 const quotaNow = () => Math.round((Math.max(quotaFor(S.quotaN), quotaFloor()) * (1 - .25 * S.relief) * (S.relics && S.relics.crown ? .9 : 1) * (S.main && S.main.flags.quotaUp ? 1.1 : 1) + (S.debt || 0) + ((S.main && S.main.flags.debt) || 0)) / 100) * 100;
 const debtsAllowed = () => dif().debts;
 
