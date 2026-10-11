@@ -158,6 +158,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .stat.quota.ok b{color:var(--rok)}
 .stat.quota.urgent b{animation:urgent 1s ease-in-out infinite}
 @keyframes urgent{50%{opacity:.4}}
+/* 상납 칸 밑줄: "지금 속도면 N냥" 예측(ui.js paintHud). 모자라면 붉게. 좁은 화면에서는 숨기고 title로만 */
+.qhint{display:block;font-size:var(--fs-xs);line-height:1.2;color:var(--ink-3);white-space:nowrap;letter-spacing:0;margin-top:1px}
+.qhint.short{color:var(--ju)}
+.stat.fame .k{letter-spacing:.06em}
+.stat.fame b{font-size:15px}
 .bookbtn{display:flex;align-items:center;gap:8px;height:var(--tap);padding:0 14px 0 6px;border:1px solid var(--ink);background-color:var(--hanji-2);background-image:var(--grain);box-shadow:var(--shadow);font-size:var(--fs-s);font-weight:600;transition:background-color .15s,color .15s}
 .bookbtn span{width:28px;height:28px;display:grid;place-items:center;background:var(--jok);color:var(--hanji-2);font-family:var(--seal);font-size:16px;box-shadow:inset 0 0 0 1px rgba(245,240,227,.3)}
 .bookbtn:hover{background-color:var(--ink);color:var(--hanji-2)}
@@ -432,6 +437,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   transform:rotate(-12deg);opacity:.85;mix-blend-mode:multiply;animation:stampin .5s var(--ease-back) .25s both;box-shadow:inset 0 0 0 2px var(--hanji-2),inset 0 0 0 4px var(--ju)}
 @keyframes stampin{from{opacity:0;transform:rotate(-12deg) scale(2.2)}60%{opacity:.95;transform:rotate(-12deg) scale(.94)}to{opacity:.85;transform:rotate(-12deg) scale(1)}}
 .card.quota h2,.card.quota>p{padding-right:84px}
+.card.quota .sub{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 .boons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .boon{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:14px;min-height:150px;border:1px solid var(--rule-3);background:var(--hanji);text-align:left;min-width:0;transition:transform .15s var(--ease),border-color .15s,box-shadow .15s;
   animation:deal .45s var(--ease-back) both}
@@ -691,6 +697,35 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 .endtag span{width:32px;height:32px;display:grid;place-items:center;background:var(--ink);color:var(--hanji-2);font-family:var(--seal);font-size:18px}
 .endtag.true{border-color:var(--hwang)} .endtag.true span{background:var(--hwang)} .endtag.history span{background:var(--ju)}
 
+/* ═══ 장부 표 — 계절 결산(.report)·앞으로 네 번의 상납(.curve)은 상납 창과 결산 두루마리에, 결말 나무(.etrees)는 결산에 ═══ */
+.report,.curve{margin-top:14px}
+.report h3,.curve h3,.etrees h3{margin:0 0 6px;font-size:var(--fs-xs);letter-spacing:.14em;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:8px}
+.report h3::before,.curve h3::before,.etrees h3::before{content:"";width:7px;height:7px;background:var(--ju);transform:rotate(45deg);flex:none}
+.report h3 small,.curve h3 small,.etrees h3 small{font-size:var(--fs-xs);letter-spacing:0;font-weight:500;color:var(--ink-3)}
+.report .ledger,.curve .ledger{padding:6px 0;margin:0}
+.ledger .in dd{color:var(--rok)} .ledger .out dd{color:var(--ju)}
+.ledger .sum{grid-column:1/-1;border-bottom:0;border-top:1.5px solid rgba(176,58,38,.6);margin-top:4px;padding-top:8px} .ledger .sum dt{color:var(--ink);font-weight:600} .ledger .sum dd{font-family:var(--display);font-weight:400;font-size:20px}
+.curve .ledger .now dt,.curve .ledger .now dd{color:var(--ju);font-weight:600}
+.curve .fine{margin-top:6px}
+/* 값 압력: "최근 풀린 상자 N(나·왕씨) · 회복 ~N일" — 찾는 물건 표와 내 짐 줄 아래 한 줄 */
+.hint{font-size:var(--fs-xs);color:var(--ink-3);line-height:1.4} .hint.dn{color:var(--ju)} .hint.up{color:var(--rok)}
+.want{flex-wrap:wrap} .want .press{flex-basis:100%;margin:2px 0 0 -4px;font-weight:400;white-space:normal}
+.crate .press{color:var(--ink-3)}
+/* 입항 카드: 손해 보고 파는 단추는 붉게 */
+.keep.sell.loss{background:var(--ju);border-color:var(--ju)}
+/* 결말 나무 — 선장마다 결말 묶음. 본 결말만 제목이 보이고 내 결말은 붉은 테 */
+.etrees{margin-top:20px;padding-top:14px;border-top:1.5px solid rgba(176,58,38,.6)}
+.etree{margin-top:10px;padding:8px 10px;border:1px solid var(--rule);background:rgba(245,240,227,.5)}
+.etree.mine{border-color:var(--rule-3)}
+.etree>b{display:block;font-family:var(--display);font-weight:400;font-size:16px;margin-bottom:4px}
+.etree span{display:grid;grid-template-columns:26px 1fr;gap:0 8px;align-items:center;padding:4px 0;border-top:1px solid var(--rule);font-size:var(--fs-s)}
+.etree span i{grid-row:span 2;width:26px;height:26px;display:grid;place-items:center;font-style:normal;font-family:var(--seal);font-size:15px;background:var(--hanji-4);color:var(--hanji-2)}
+.etree span.seen i{background:var(--ink)} .etree span.now i{background:var(--ju)}
+.etree span em{font-style:normal;font-weight:600;color:var(--ink-3)} .etree span.seen em{color:var(--ink)} .etree span.now em{color:var(--ju)}
+.etree span small{font-size:var(--fs-xs);color:var(--ink-3);line-height:1.4}
+/* 선술집 — 다른 사람 알아본다 */
+.reroll{width:100%}
+
 /* 메뉴 — 머리띠 밖(body 바로 아래)에 둔다. 머리띠의 쌓임 맥락 안에 있으면 패널(12) 뒤로 들어간다 */
 .menu{position:fixed;top:calc(env(safe-area-inset-top,0px) + 66px);right:16px;z-index:35;background-color:var(--hanji-2);background-image:var(--paper);border:1px solid var(--rule-3);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;min-width:220px;animation:fade .15s}
 .menu button{min-height:var(--tap);padding:10px 16px;text-align:left;font-size:var(--fs-s);border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:10px}
@@ -726,7 +761,6 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 @keyframes vsealin{from{opacity:0;transform:scale(1.8)}60%{opacity:1;transform:scale(.95)}to{transform:none}}
 .t-kicker{margin:0;font-size:var(--fs-xs);letter-spacing:.22em;color:var(--ju);font-weight:600}
 .tagline{font-family:var(--display);font-size:20px;line-height:1.6;text-align:left;text-wrap:pretty;margin:0;word-break:keep-all}
-.stat.fame b{font-size:15px}
 .stat.quota.point{box-shadow:0 0 0 2px var(--ju),0 0 14px rgba(176,58,38,.45);border-radius:6px}
 .cap .hook{display:block;font-style:normal;font-family:var(--display);font-size:12.5px;line-height:1.45;color:var(--ink-2);margin:4px 0 2px;word-break:keep-all}
 .epilogue{margin:10px 0 4px;padding:10px 14px;border-left:3px solid var(--ju);background:rgba(27,35,36,.04)}
@@ -848,9 +882,11 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
   .coach{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + var(--sheet-h,0px) + 8px);left:10px;right:10px;width:auto;transform:none;padding:8px 10px;gap:8px;border-top-width:3px;animation:none}
   .coach::before{width:26px;height:26px;font-size:14px}
   .coach p{font-size:var(--fs-xs);line-height:1.4}
-  .coach .cbtns{flex-direction:row;gap:0}
-  .coach .cbtns .btn{min-height:var(--tap);padding:4px 10px}
-  .coach .linkbtn{padding:0 4px}
+  /* 단추 둘을 세로로 세워 글 자리를 넓힌다 — 석 줄까지 깔끔히 들어간다 */
+  .coach .cbtns{flex-direction:column;gap:0;align-items:stretch}
+  .coach .cbtns .btn{min-height:var(--tap);padding:2px 10px}
+  .coach .linkbtn{padding:0 4px;min-height:var(--tap)}
+  .qhint{display:none}
   .toast{font-size:13px;padding:7px 12px 7px 10px}
   #toasts .toast:nth-last-child(n+3){display:none}
   .sailbar{left:10px;right:10px;transform:none;width:auto;padding:8px 8px 8px 12px;gap:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);animation:none}
@@ -905,8 +941,11 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
   .when b{font-size:13px}
   .season{gap:3px;letter-spacing:0}
   .dif{margin-left:2px;padding:0 3px;letter-spacing:0}
-  .meters{gap:6px;padding:4px 7px}
+  .capb{display:none}  /* 390px: 선장 초상을 숨겨 계기판에 자리를 준다(초상은 정박 장부·이야기 창에 있다) */
+  .meters{gap:5px;padding:4px 6px}
+  .k{letter-spacing:0;gap:3px}
   .stat b{font-size:14px}
+  .stat.fame .k{letter-spacing:0}
   .stat.quota{padding-left:6px}
   .gauge.threat{width:auto;gap:1px}
   .gauge.threat i{display:none}
@@ -944,6 +983,13 @@ body.rm *,body.rm *::before,body.rm *::after{animation-duration:.01ms!important;
   .capb{width:40px;height:40px}
 }
 @media (max-width:520px){
+  /* 폰: 선장 카드를 한 줄에 하나씩, 초상은 왼쪽 — 세 칸으로 나누면 소개 글이 다섯 줄로 갈라진다 */
+  .caps{grid-template-columns:1fr;gap:6px}
+  .cap,.cap.on{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;gap:0 10px;align-items:center;padding:8px 10px}
+  .cap .cs.pt,.cap.on .cs.pt{grid-row:span 3;width:56px;height:56px;margin:0}
+  .cap .nm{font-size:18px;line-height:1.15}
+  .cap .hook,.cap p,.cap .lock{grid-column:2;margin:2px 0 0}
+  .cap.on::after{right:6px;top:6px}
   .cartouche .brand{display:none}
   .capb{width:36px;height:36px;margin-left:0}
   .cap .cs.pt{width:60px;height:60px}
@@ -971,10 +1017,10 @@ body.rm *,body.rm *::before,body.rm *::after{animation-duration:.01ms!important;
 .feed:hover .feed-h,.feed.min .feed-h{opacity:1}
 .feed-h>b{font-family:var(--display);font-weight:400;font-size:16px}
 .feed-tabs{display:flex;gap:2px;flex:1}
-.feed-tabs button{padding:2px 8px;min-height:36px;min-width:40px;font-size:var(--fs-xs);color:var(--ink-3);border:1px solid transparent}
+.feed-tabs button{padding:2px 8px;min-height:var(--tap);min-width:40px;font-size:var(--fs-xs);color:var(--ink-3);border:1px solid transparent}
 .feed-tabs button.on{color:var(--ink);border-color:var(--rule-2);background:var(--hanji)}
 .feed-unread{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--ju);color:var(--hanji-2);font-size:var(--fs-xs);line-height:18px;text-align:center}
-.feed-tg{width:var(--tap);height:36px;display:grid;place-items:center;color:var(--ink-2);font-size:14px;border:1px solid var(--rule);background:rgba(245,240,227,.6)}
+.feed-tg{width:var(--tap);height:var(--tap);display:grid;place-items:center;color:var(--ink-2);font-size:14px;border:1px solid var(--rule);background:rgba(245,240,227,.6)}
 .feed-tg:hover{border-color:var(--ink);color:var(--ink)}
 .feed-list{overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:4px 0 6px;scroll-behavior:smooth}
 .feed-peek{display:none}

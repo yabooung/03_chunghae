@@ -340,7 +340,7 @@ function paintHud() {
     const f = C.quotaForecast(), fk = `${f.value}:${f.span}:${q}:${s.debt || 0}:${dd}`; if (last.fc !== fk) { last.fc = fk;
       const txt = s.debt ? `빚 ${fmt(s.debt)} 포함` : f.span < 5 ? '' : `지금 속도면 ${fmt(f.value)}`; h.textContent = txt; h.classList.toggle('short', f.span >= 5 && f.value < q); h.hidden = !txt;
       const fl = C.dif().share ? (C.quotaFloor() > 0 ? ` · 하한 재산 ${Math.round(C.dif().share * 10)}할 (${fmt(C.quotaFloor())})` : ' · 첫 계절은 재산 하한 없음') : '';
-      $('hQuotaBox').title = `계절이 끝나는 날 바칠 군자금 ${fmt(q)}냥${s.debt ? ` (지난 계절 빚 ${fmt(s.debt)} 포함)` : ''}${fl}. ${f.span >= 5 ? `최근 ${f.span}일 하루 ${f.perDay >= 0 ? '+' : ''}${fmt(f.perDay)}냥 — 이대로면 ${dd}일 뒤 ${fmt(f.value)}냥.` : '며칠 더 지나면 예측이 뜬다.'} 못 내면 짐을 7할에 넘기고, 그래도 모자라면 빚으로 넘어간다(${C.debtsAllowed()}번까지).`; } }
+      $('hQuotaBox').title = `계절이 끝나는 날 ${C.cap().quotaTo}에 낼 ${C.cap().quotaName} ${fmt(q)}냥${s.debt ? ` (지난 계절 빚 ${fmt(s.debt)} 포함)` : ''}${fl}. ${f.span >= 5 ? `최근 ${f.span}일 하루 ${f.perDay >= 0 ? '+' : ''}${fmt(f.perDay)}냥 — 이대로면 ${dd}일 뒤 ${fmt(f.value)}냥.` : '며칠 더 지나면 예측이 뜬다.'} 못 내면 짐을 7할에 넘기고, 그래도 모자라면 빚으로 넘어간다(${C.debtsAllowed()}번까지).`; } }
   const slotKey = C.capacity() + ':' + s.slots.map(x => x.id).join(',');
   if (last.slots !== slotKey) { last.slots = slotKey; $('hSlots').innerHTML = Array.from({ length: C.capacity() }, (_, i) => { const it = s.slots[i]; return it ? `<span class="slot full" style="background:${C.G[it.id].col}">${C.G[it.id].ch}</span>` : '<span class="slot"></span>'; }).join(''); $('hSlots').setAttribute('aria-label', `선창 ${s.slots.length}/${C.capacity()}`); $('hSlots').title = `선창 ${s.slots.length}/${C.capacity()}`; }
   if (last.mode !== s.mode) { last.mode = s.mode; document.body.classList.toggle('sailing', s.mode === 'sail'); placeToasts(); }
@@ -396,6 +396,7 @@ const MST = { stack: [], opener: new Map() };
 const topModal = () => MST.stack[MST.stack.length - 1] || null;
 const focusables = el => [...el.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && !x.closest('[hidden]') && !x.closest('[inert]') && x.getClientRects().length);
 function applyModals() { const top = topModal();
+  if (top) for (const el of [...$('toasts').children]) { if (TQ.length < 4) TQ.push({ msg: el.innerHTML, kind: [...el.classList].filter(c => c !== 'toast').join(' '), opt: el.onclick ? { onclick: el.onclick } : undefined }); el.remove(); }  // 떠 있던 알림은 창 뒤에 깔리지 않게 거두어 두었다가 창이 닫히면 다시 보여 준다
   for (const el of document.querySelectorAll(BG_SEL)) el.inert = !!top;
   for (const id of MODALS) { const m = $(id); m.inert = !!top && m !== top && !m.hidden; }
   if (!top) return; const card = top.querySelector('[role="dialog"]') || top;
@@ -423,19 +424,20 @@ function confirmTap(b, label) { if (b.dataset.sure) { delete b.dataset.sure; ret
 
 /* ─────────── 첫 판 안내 ─────────── */
 let coachStep = -1;
+/* 좁은 화면(390px)에서 안내 띠가 석 줄을 넘지 않게 줄여 쓴다 — 상납이 무엇인지는 프롤로그가 이미 말했다 */
 const COACH_CAP = {
-  gungbok: { port: 'jeoksan', s0: '여기는 청해진. 위의 <b>상납</b>(청해진 군자금)이 목표다 — 계절이 끝나는 날까지 그만큼 모아야 한다. 적산까지 두어 번 왕복이면 된다. 먼저 싼 <b>인삼</b> 상자를 싣자.', s1: '적산에서 인삼을 비싸게 산다는 소문이 있다. 지도에서 <b>적산(赤)</b> 도장을 눌러보자.', s5: '그리고 — <b>곽·범이·아사</b>가 저마다 부탁을 들고 온다. 범이는 해적을 노린다. 지금은 해적 해역을 피하고, 돈과 배가 모이면 함께 가자. 본 이야기는 항구의 <b>이야기·일거리</b> 탭에서 본다.' },
-  ara: { port: 'cheonghae', s0: '여기는 적산 신라방. 위의 <b>상납</b>(신라방 분담금)이 목표다 — 계절이 끝나는 날까지 그만큼 모아야 한다. 청해진까지 두어 번 왕복이면 된다. 먼저 싼 <b>비단</b> 상자를 싣자.', s1: '청해진에서 비단을 비싸게 산다는 소문이 있다. 소문은 당신에게 반값이고 헛소문이 없다. 지도에서 <b>청해진(淸)</b> 도장을 눌러보자.', s5: '그리고 — <b>곽·범이·아사</b>가 저마다 부탁을 들고 온다. 범이는 해적을 노리지만 지금은 피하자. 왕씨 상단이 같은 뱃길을 노린다 — 먼저 닿으면 값이 성하다. 본 이야기는 항구의 <b>이야기·일거리</b> 탭에서 본다.' },
-  tomo: { port: 'mingzhou', s0: '여기는 하카타. 위의 <b>상납</b>(다자이후 입막음값)이 목표다 — 계절이 끝나는 날까지 그만큼 모아야 한다. 명주까지 두어 번 왕복이면 된다. 먼저 싼 <b>유황</b> 상자를 싣자.', s1: '명주에서 유황을 비싸게 산다는 소문이 있다. 지도에서 <b>명주(明)</b> 도장을 눌러보자. 경계는 당신에게 절반만 오른다.', s5: '그리고 — <b>곽·범이·아사</b>가 저마다 부탁을 들고 온다. 범이는 해적을 노리지만 지금은 피하자. 하카타의 <b>홍려관</b>은 짐을 한꺼번에 사들인다 — 본 이야기의 첫 목표다. 본 이야기는 항구의 <b>이야기·일거리</b> 탭에서 본다.' }
+  gungbok: { port: 'jeoksan', s0: '위의 <b>상납</b>이 목표다. 적산까지 두어 번 왕복이면 채운다. 먼저 싼 <b>인삼</b>을 싣자.', s1: '적산이 인삼을 비싸게 산다는 소문이다. 해도의 <b>적산(赤)</b> 도장을 눌러보자.', s5: '<b>곽·범이·아사</b>가 저마다 부탁을 들고 온다. 범이는 해적을 노린다 — 지금은 피하고 돈과 배가 모이면 함께 가자. 본 이야기는 <b>이야기·일거리</b> 탭에.' },
+  ara: { port: 'cheonghae', s0: '위의 <b>상납</b>이 목표다. 청해진까지 두어 번 왕복이면 채운다. 먼저 싼 <b>비단</b>을 싣자.', s1: '청해진이 비단을 비싸게 산다는 소문이다 — 당신에겐 헛소문이 없다. 해도의 <b>청해진(淸)</b> 도장을 눌러보자.', s5: '<b>곽·범이·아사</b>가 저마다 부탁을 들고 온다. 범이는 해적을 노리지만 지금은 피하자. 왕씨 상단과 같은 뱃길이면 먼저 닿아야 값이 성하다. 본 이야기는 <b>이야기·일거리</b> 탭에.' },
+  tomo: { port: 'mingzhou', s0: '위의 <b>상납</b>이 목표다. 명주까지 두어 번 왕복이면 채운다. 먼저 싼 <b>유황</b>을 싣자.', s1: '명주가 유황을 비싸게 산다는 소문이다. 해도의 <b>명주(明)</b> 도장을 눌러보자. 경계는 당신에게 절반만 오른다.', s5: '<b>곽·범이·아사</b>가 저마다 부탁을 들고 온다. 범이는 해적을 노리지만 지금은 피하자. 하카타 <b>홍려관</b>은 짐을 한꺼번에 사들인다 — 본 이야기의 첫 목표다. 본 이야기는 <b>이야기·일거리</b> 탭에.' }
 };
 const coachCap = () => COACH_CAP[(S() && S().cap) || 'gungbok'] || COACH_CAP.gungbok;
 const COACH = [
   () => coachCap().s0,
-  () => `${coachCap().s1} 지도는 끌어서 옮기고 휠이나 두 손가락으로 키운다.`,
+  () => `${coachCap().s1} 해도는 끌어서 옮기고 ${COARSE ? '두 손가락으로' : '휠로'} 키운다.`,
   '빨간 점선이 지름길이다. 붉은 빗금(<b>海賊</b>)을 지나면 해적을 만나기 쉽다. 파란 길은 돌아가는 길. 골라서 <b>출항</b>.',
-  '배는 알아서 간다. 역풍이거나 해적이 쫓아오면 <b>노 저어라</b>(Space). 해도의 금빛 <b>寶</b> 원은 보물 자리 — 원 안으로 몰면 잠수한다.',
+  `배는 알아서 간다. 역풍이거나 해적이 쫓아오면 <b>노 저어라</b>${COARSE ? '' : '(Space)'}. 해도의 금빛 <b>寶</b> 원은 보물 자리 — 원 안으로 몰면 잠수한다.`,
   '소문이 맞았을까? 상자가 하나씩 열린다. <b>팔고 내린다</b>.',
-  () => `잘했다. 항구마다 <b>그곳에서만</b> 할 수 있는 일이 있고, 위의 <b>장부</b>(B)에는 항구별 시세·이야기·탐험 도감이 있다. 상납을 내면 <b>특권</b>을 고른다. <b>흰 종이</b>는 아직 아무도 그리지 않은 바다 — 숨은 항구는 값이 두 배다. ${coachCap().s5}`
+  () => `잘했다. 항구마다 <b>그곳에서만</b> 할 수 있는 일이 있고, <b>장부</b>${COARSE ? '' : '(B)'}에는 항구별 시세·이야기·탐험 도감이 있다. 상납을 내면 <b>특권</b>을 고른다. <b>흰 종이</b>는 아직 아무도 그리지 않은 바다 — 처음 닿은 숨은 항구는 그날만 값이 뛴다. ${coachCap().s5}`
 ];
 let coachPending = false;
 /* 안내가 떠 있으면 알림은 안내 아래로 내려간다 — 안내 길이가 화면마다 달라 실제 높이로 잰다.
@@ -679,8 +681,8 @@ function openQuota(res) {
   const common = `${res.wages ? ` 선원 급료 ${fmt(res.wages)}냥을 치렀다.` : ''}${res.left && res.left.length ? ` <b class="dn">급료를 못 받은 ${res.left.join(', ')}이 배를 떠났다.</b>` : ''}`;
   if (res.debt) { /* 못 냈다 — 빚으로 넘어간다 */
     AU.drum(); const lb = res.lostBoon && C.BOONS.find(x => x.id === res.lostBoon);
-    $('qCard').innerHTML = `<span class="q-stamp" aria-hidden="true">債</span><div class="eyebrow">${season} 상납 · ${C.dateStr(s.t)}</div><h2>군자금 <span class="num">${fmt(res.amount)}</span>냥을 못 냈다</h2>
-      <p>${res.seized ? `짐을 7할 값(${fmt(res.seized)}냥)에 넘기고도 ` : ''}<b class="dn">${fmt(res.short)}냥이 모자랐다.</b> 가진 돈은 다 거두어 갔다. 모자란 돈의 1.3배, <b class="num">${fmt(res.debt)}냥</b>이 다음 상납에 얹힌다.${lb ? ` 특권 <b>${lb.name}</b>을 빼앗겼다.` : ''} 경계 +15.${common}</p>
+    $('qCard').innerHTML = `<span class="q-stamp" aria-hidden="true">債</span><div class="eyebrow">${season} 상납 · ${C.dateStr(s.t)}</div><h2>${C.cap().quotaName} <span class="num">${fmt(res.amount)}</span>냥을 못 냈다</h2>
+      <p>${res.seized ? `짐을 7할 값(${fmt(res.seized)}냥)에 넘기고도 ` : ''}<b class="dn">${fmt(res.short)}냥이 모자랐다.</b> ${res.keep ? `뱃삯 ${fmt(res.keep)}냥만 남기고 가진 돈을 다 거두어 갔다.` : '가진 돈은 다 거두어 갔다.'} 모자란 돈의 1.3배, <b class="num">${fmt(res.debt)}냥</b>이 다음 상납에 얹힌다.${lb ? ` 특권 <b>${lb.name}</b>${JO(lb.name, '을', '를')} 빼앗겼다.` : ''} 경계 +15.${common}</p>
       <p class="dn"><b>${res.debtsLeft > 0 ? `한 번 더 못 내면 끝이다.` : `다음 상납을 못 내면 끝이다.`}</b> 다음 상납은 <b class="num">${fmt(res.next)}냥</b>, ${Math.round(C.daysToDue())}일 뒤.</p>
       ${reportHtml(res.report)}${curveHtml()}<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn main" id="qOk">알겠다</button></div>`;
     $('mQuota').hidden = false; $('qOk').focus({ preventScroll: true });
@@ -949,7 +951,7 @@ function mainBox(k) { const s = S(), A = C.curAct(), arc = C.arcOf(); if (!A) re
   return `<div class="mainbox"><span class="mch">${n}<small>幕</small></span><div class="gr"><b>第${n}幕 ${A.title}</b><small>${arc.name}</small><ul>${gs.map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}</ul>${A.final && gs.every(g => g.done) ? '<p class="fine" style="text-align:left;margin:4px 0 0">마지막 선택이 기다린다.</p>' : ''}${pay ? `<button class="btn main" data-act="mainpay" ${s.gold < pay.pay.n ? 'disabled' : ''}>${fmt(pay.pay.n)}냥을 낸다</button>` : ''}</div></div>`; }
 function tavernHtml(k) { const s = S(), t = C.tavern(k), cap = C.mateCap();
   const offer = t.offer.length ? t.offer.map(id => { const m = C.MBY[id], mv = C.mateValue(id), locked = s.fame < (m.fame || 0); return `<div class="mate-card"><span class="mc pt">${PORTRAIT.svg(id, { size: 56 })}</span><div class="gr"><b>${m.name}</b> <small>${m.role} · ${m.from}</small><br>${m.text}<br><small>영입 ${fmt(m.hire)}냥 · 계절마다 급료 ${fmt(m.wage)}냥${mv != null ? ` · <b class="${mv >= m.wage ? 'up' : ''}">지난 계절 기준 +${fmt(mv)}냥</b>` : ''}${m.fame ? ` · 명성 ${m.fame} 필요` : ''}</small></div><button class="btn blue" data-hire="${id}" ${s.gold < m.hire || s.mates.length >= cap || locked ? 'disabled' : ''}>${s.mates.length >= cap ? '자리 없음' : locked ? '명성 모자람' : '데려간다'}</button></div>`; }).join('') : '<p class="fine" style="text-align:left;margin:0">오늘은 일거리를 찾는 뱃사람이 없다.</p>';
-  const reroll = `<button class="btn" data-act="reroll" ${s.gold < C.REROLL_COST ? 'disabled' : ''}>다른 사람 알아본다 · ${fmt(C.REROLL_COST)}냥</button>`;
+  const reroll = `<button class="btn reroll" data-act="reroll" ${s.gold < C.REROLL_COST ? 'disabled' : ''}>다른 사람 알아본다 · ${fmt(C.REROLL_COST)}냥</button>`;
   const mine = s.mates.length ? s.mates.map(id => { const m = C.MBY[id]; return `<div class="mate-card mine"><span class="mc pt">${PORTRAIT.svg(id, { size: 56, expr: PORTRAIT.exprs(id)[1] })}</span><div class="gr"><b>${m.name}</b> <small>${m.role}</small><br><small>${m.text} · 급료 ${fmt(m.wage)}</small></div><button class="btn" data-fire="${id}">내린다</button></div>`; }).join('') : '';
   const dl = 3 - t.dice;
   return `<div class="sec"><h3>소문<span>오늘 ${C.rumorsLeft()}번 남음</span></h3><div class="acts"><button class="act" data-act="rumor" ${s.gold < C.rumorCost() || !C.rumorsLeft() ? 'disabled' : ''}><b>소문 듣기</b><small>${C.rumorsLeft() ? `${fmt(C.rumorCost())}냥 · 다른 항구 값${s.boons.clerk || C.hasMate('seer') || s.cap === 'ara' ? ' · 정확' : ''}` : '오늘은 들을 만큼 들었다'}</small></button></div>${lastQuote ? `<div class="quote">${lastQuote}</div>` : ''}</div>
@@ -1042,10 +1044,9 @@ function finish(retire) {
   const T = E ? [E.title, typeof E.text === 'function' ? E.text() : E.text] : { quota: ['곳간이 비었다', `${C.dateStr(s.t)}, ${cp.quotaTo}에 낼 ${cp.quotaName} ${fmt(C.quotaNow())}냥을 다시 채우지 못했다. 빚이 빚을 불렀다.`], assassin: ['칼이 온 밤', '너무 잘 나갔다. 어느 밤, 숙소 문이 소리 없이 열렸다.'], retire: ['돛을 내리다', `${C.dateStr(s.t)}, 스스로 항해를 접었다.`] }[why] || ['항해의 끝', ''];
   const epi = E ? (s.epilogue || C.endingEpilogue(s.ending)) : (fail && fail.line ? [fail.line] : []);
   const endTag = E ? `<div class="endtag ${E.kind}"><span>${E.ch}</span>${C.END_KIND[E.kind] || '결말'} · 모은 결말 ${Object.keys(META.endings || {}).length}/${Object.keys(C.ENDINGS).length}</div>` : '';
-  const tree = C.endingTree(META.endings || {}).map(c => `<div class="etree"><b>${c.name} — ${c.arc}</b>${c.endings.map(e => `<span class="${e.seen ? 'seen' : ''}">${e.ch} ${e.seen ? e.title : '?'} <small>${e.how}</small></span>`).join('')}</div>`).join('');
-  const fate = c => { const d = C.CREW.find(x => x.k === c.k); return !c.alive ? '당신 대신 칼을 받았다.' : c.done ? { helm: '우산도를 본 뒤로 폭풍을 먼저 읽었다.', deck: '원수를 갚고 당신 등 뒤를 지켰다.', tongue: '동생을 만나고 소식을 날랐다.' }[c.k] : c.asked ? `끝내 부탁을 이루지 못했다 — ${d.hint}` : '그저 묵묵히 일했다.'; };
+  const tree = C.endingTree(META.endings || {}).map(c => `<div class="etree ${c.cap === s.cap || (c.cap === 'any' && s.ending === 'three_years') ? 'mine' : ''}"><b>${c.name} — ${c.arc}</b>${c.endings.map(e => `<span class="${e.seen ? 'seen' : ''} ${e.id === s.ending ? 'now' : ''}"><i>${e.ch}</i><em>${e.seen ? e.title : '?'}</em><small>${e.how}</small></span>`).join('')}</div>`).join('');
   const hit = s.stats.hits + s.stats.misses ? Math.round(s.stats.hits / (s.stats.hits + s.stats.misses) * 100) : 0;
-  const arc = C.arcOf(), actLine = E ? `${arc.name} — 끝까지` : `${arc.name} — ${fail.upTo}`;
+  const arc = C.arcOf(), storyDone = E && s.ending !== 'three_years', actLine = storyDone ? `${arc.name} — 끝까지` : `${arc.name} — ${(fail || C.failEpilogue(why)).upTo}`; // 세 해의 장부는 이야기를 못 끝낸 결말이라 몇 막까지 왔는지 적는다
   $('endScroll').innerHTML = `<div class="rank">${rank.replace('(大商)', '<br>大商')}</div>
     ${endTag}<h2>${T[0]}</h2><p class="lead">${T[1]}</p>${epi.length ? `<div class="epilogue">${epi.map(t => `<p>${t}</p>`).join('')}</div>` : ''}
     <dl class="ledger">${[['점수', fmt(sc), 'score'], ['이야기', actLine], ['버틴 상납', `${s.quotaN}번 · ${Math.floor(s.quotaN / 4)}년 ${s.quotaN % 4}계절`], [`바친 ${cp.quotaName}`, fmt(s.paid) + '냥'], ['남긴 재산', fmt(C.assets()) + '냥'], ['난이도', `${C.dif().name} (${C.dif().sub})`],
@@ -1055,7 +1056,7 @@ function finish(retire) {
     ${reportHtml(C.seasonReport(s.stats.life), '항해 전체 장부')}
     <ul class="fates">${C.storyFates().map(f => `<li><b>${f.name}</b><span>${f.line}</span></li>`).join('')}</ul>
     ${unl.length ? `<div class="unlock">${unl.join('<br>')}</div>` : ''}
-    <div class="etrees"><h3>결말 나무</h3>${tree}</div>
+    <div class="etrees"><h3>결말 나무 <small>본 결말만 이름이 보인다</small></h3>${tree}</div>
     <div class="start-row" style="margin-top:20px;justify-content:flex-start"><button class="btn main" id="eAgain">다시 바다로</button><button class="btn" id="eTitle">선장 고르기</button></div>`;
   ART.endArt($('endScroll'), E ? s.ending : why); $('sEnd').hidden = false; AU[why === 'retire' ? 'gong' : 'drum']();
   $('eAgain').onclick = () => { $('sEnd').hidden = true; startGame(s.cap, s.diff); };
