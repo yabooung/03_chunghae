@@ -9,6 +9,7 @@
     "sim:economy": "node test/sim/economy.js 6 2500 gungbok all",
     "sim:battle": "node test/sim/battle.js",
     "sim:dive": "node test/sim/dive.js",
+    "sim:story": "node test/sim/story.js 6 1400 all all",
     "shots": "npm run build && python3 test/screenshots.py"
   },
   "engines": { "node": ">=18" }
