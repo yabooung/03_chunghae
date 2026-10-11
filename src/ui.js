@@ -11,7 +11,7 @@ const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).
 const COL = { hanji: css('--hanji'), hanji2: css('--hanji-2'), hanji3: css('--hanji-3'), ink: css('--ink'), ink2: css('--ink-2'), ink3: css('--ink-3'), cheong: css('--cheong'), rok: css('--rok'), rok2: css('--rok-2'), ju: css('--ju'), hwang: css('--hwang'), gold: css('--gold'), jok: css('--jok') };
 /* 움직임 줄이기 — 켜져 있으면 물결·흔들림·숫자 굴리기를 멈춘다 */
 const RMQ = matchMedia('(prefers-reduced-motion: reduce)'); let RM = RMQ.matches; RMQ.addEventListener && RMQ.addEventListener('change', e => { if (META.rm == null) RM = e.matches; });
-const KEY = 'chunghae.v7.save', MKEY = 'chunghae.v2.meta';
+const KEY = 'chunghae.v8.save', MKEY = 'chunghae.v2.meta';
 const SEC_PER_DAY = .5, SPEEDS = [1, 2, 4];
 const SEASON_BANNER = [
   ['冬', '겨울 · 북풍이 내려온다 — 당과 왜에서 신라로 돌아오기 좋다'],
@@ -31,7 +31,7 @@ const saveMeta = () => { try { localStorage.setItem(MKEY, JSON.stringify(META));
 function setRM(v, keep) { if (!keep) { META.rm = v; saveMeta(); } RM = v; document.body.classList.toggle('rm', v); document.body.classList.toggle('rm-off', META.rm === false); const st = $('mMotionSt'); if (st) st.textContent = v ? '켬' : '끔'; }
 if (META.rm != null) setRM(!!META.rm, true);
 function saveGame() { const s = S(); if (!s || s.ended || s.mode !== 'port' || s.draft) return; try { localStorage.setItem(KEY, C.saveData()); } catch (e) {} }
-function hasSave() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(d && d.v === 7 && !d.ended); } catch (e) { return false; } }
+function hasSave() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(d && d.v === 8 && !d.ended); } catch (e) { return false; } }
 function loadGame() { try { return !!C.loadData(localStorage.getItem(KEY)); } catch (e) { return false; } } // 난이도가 없던 옛 저장은 바람으로 읽힌다
 const dropSave = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
 
@@ -492,14 +492,18 @@ function paintPanel() {
   const tiles = m.stock.map(id => { const g = C.G[id], pr = C.cratePrice(k, id), pct = C.pctOf(k, id), [tc, tl] = tagFor(pct), b = C.activeBoom(k, id, d);
     return `<button class="good" data-buy="${id}" ${!free || s.gold < pr ? 'disabled' : ''}>${gi(g)}<span class="tagl ${tc}">${tl}</span><span class="nm">${g.name}</span><span class="pr">${fmt(pr)}<small>냥</small></span>${b ? `<span class="boom">${b.slump ? '남아돈다' : '유행'}</span>` : ''}</button>`; }).join('');
   const wants = C.topDemand(k, 3).map(id => `<span class="want">${gl(C.G[id])}${C.G[id].name} <b>${fmt(C.sellPrice(k, id) * C.LOT)}</b>${pressHtml(id)}</span>`).join('');
+  const oc = C.orderCrates(); // 아직 안 끝난 의뢰의 짐 — 팔면 의뢰가 깨진다
   const hold = s.slots.length ? s.slots.map((it, i) => { const g = C.G[it.id], now = C.sellPrice(k, it.id) * C.LOT, pl = now - it.cost;
       const be = bestElsewhere(it.id);
-      return `<div class="crate">${gl(g)}<div class="gr">${g.name} · 산 값 <b>${fmt(it.cost)}</b><br>여기서 <b>${fmt(now)}</b> <span class="${pl >= 0 ? 'up' : 'dn'}">${pl >= 0 ? '+' : ''}${fmt(pl)}</span>${be ? `<br><small class="hint ${be.price * C.LOT > now ? 'up' : ''}">▲ ${C.PORTS[be.k].name} ${fmt(be.price * C.LOT)} <span>(${C.ago(be.day)})</span></small>` : ''}${pressHtml(it.id) ? '<br>' + pressHtml(it.id) : ''}</div><button class="btn ${pl < 0 ? 'danger' : ''}" data-sell="${i}">${pl < 0 ? `손해 보고 판다 ${fmt(pl)}` : '판다'}</button></div>`; }).join('')
+      return `<div class="crate">${gl(g)}<div class="gr">${g.name} · 산 값 <b>${fmt(it.cost)}</b><br>여기서 <b>${fmt(now)}</b> <span class="${pl >= 0 ? 'up' : 'dn'}">${pl >= 0 ? '+' : ''}${fmt(pl)}</span>${be ? `<br><small class="hint ${be.price * C.LOT > now ? 'up' : ''}">▲ ${C.PORTS[be.k].name} ${fmt(be.price * C.LOT)} <span>(${C.ago(be.day)})</span></small>` : ''}${pressHtml(it.id) ? '<br>' + pressHtml(it.id) : ''}${oc[i] ? '<br><span class="chip head">의뢰 짐 — 팔면 의뢰가 깨진다</span>' : ''}</div><button class="btn ${pl < 0 ? 'danger' : ''}" data-sell="${i}">${pl < 0 ? `손해 보고 판다 ${fmt(pl)}` : '판다'}</button></div>`; }).join('')
     : '<p class="fine" style="text-align:left;margin:0">선창이 비었다.</p>';
   const off = s.offers[k], ords = s.orders;
-  const offerHtml = off && !off.none ? `<div class="order">${gl(C.G[off.good])}<span class="gr"><b>${C.PORTS[off.to].name}</b>까지 ${C.G[off.good].name} <b>${off.n}상자</b> · ${off.days}일 안에<br><span class="up">보수 ${fmt(off.reward)}냥</span></span><button class="btn blue" data-act="accept" ${ords.length >= 2 ? 'disabled' : ''}>${ords.length >= 2 ? '두 건까지' : '맡는다'}</button></div>` : '<p class="fine" style="text-align:left;margin:0">지금 이 항구엔 맡길 일이 없다.</p>';
-  const ordHtml = ords.map(o => { const have = s.slots.filter(x => x.id === o.good).length, left = Math.ceil(o.due - s.t);
-    return `<div class="order mine">${gl(C.G[o.good])}<span class="gr"><b>${C.PORTS[o.to].name}</b>로 ${C.G[o.good].name} ${o.n}상자 <span class="${have >= o.n ? 'up' : 'dn'}">(${have}/${o.n})</span> · <span class="${left <= 10 ? 'dn' : ''}">${left}일 남음</span> · ${fmt(o.reward)}냥</span></div>`; }).join('');
+  /* 의뢰 카드: 여기서 나는 물건을 사서 다른 항구에 가져다준다. 종류(지역)·소개·덤·여기서 살 값(할인가)·맡고 싣는다/맡는다 */
+  const offerHtml = (() => { if (!off || off.none) return '<p class="fine" style="text-align:left;margin:0">지금 이 항구엔 맡길 일이 없다.</p>';
+    const T = C.orderText(off), q = C.orderQuote(off), full = ords.length >= C.ORDER_MAX, g = C.G[off.good];
+    return `<div class="order"><span class="glyph" style="background:var(--ink-2)">${T.ch}</span><span class="gr"><span class="eyebrow">${T.eyebrow}</span><br>${T.intro}<br>${gl(g)}<b>${C.PORTS[off.from].name} → ${C.PORTS[off.to].name}</b> · ${g.name} <b>${off.n}상자</b> · ${off.days}일 안에 · <span class="up">보수 ${fmt(off.reward)}냥</span> · 명성 +${T.fame}<br><small class="hint">${T.twist}</small><br><small>여기서 ${off.n}상자 사면 <b>${fmt(q.cost)}냥</b> (할인가 ×${C.ORDER_DISC})${q.can ? '' : ` — ${s.gold < q.cost ? '돈이' : '자리가'} 모자란다`}</small></span><span style="display:flex;flex-direction:column;gap:4px"><button class="btn blue" data-act="acceptLoad" ${full || !q.can ? 'disabled' : ''}>${full ? '두 건까지' : '맡고 싣는다'}</button><button class="btn" data-act="accept" ${full ? 'disabled' : ''}>맡는다</button></span></div>`; })();
+  const ordHtml = ords.map(o => { const T = C.orderText(o), have = s.slots.filter(x => x.id === o.good && (o.royal ? x.from !== o.to : x.from === o.from)).length, left = Math.ceil(o.due - s.t), more = !o.royal && o.from === k && (o.bought || 0) < o.n ? o.n - (o.bought || 0) : 0;
+    return `<div class="order mine">${gl(C.G[o.good])}<span class="gr"><span class="eyebrow">${o.royal ? '왕실 주문' : T.kind}</span><br><b>${C.PORTS[o.from].name} → ${C.PORTS[o.to].name}</b> · ${C.G[o.good].name} ${o.n}상자 <span class="${have >= o.n ? 'up' : 'dn'}">(${have}/${o.n})</span> · <span class="${left <= 10 ? 'dn' : ''}">${left}일 남음</span> · ${fmt(o.reward)}냥${more ? `<br><small class="hint up">여기서 ${more}상자 더 사면 할인가 ×${C.ORDER_DISC}</small>` : ''}</span></div>`; }).join('');
   const pas = s.passenger ? `<div class="order mine"><span class="glyph" style="background:var(--ink-2)">客</span><span class="gr">승객 — ${s.passenger.who}를 <b>${C.PORTS[s.passenger.to].name}</b>까지 · <span class="${s.passenger.due - s.t <= 10 ? 'dn' : ''}">${Math.ceil(s.passenger.due - s.t)}일 남음</span></span></div>` : '';
   const nw = C.nextShip('wide'), nf = C.nextShip('fast'), rc = C.repairCost(), sp0 = C.shipPrice();
   /* 배는 급마다 둘: 넓은 배(칸 그대로)·빠른 배(칸 하나 덜, 1할 빠름). 큰 배는 입항세를 내고 해적 눈에 더 띈다 */
@@ -556,7 +560,10 @@ $('pBody').addEventListener('click', e => {
     if (b.dataset.put == null && b.dataset.take == null) spNote = { k: s.at, text: r.text }; else toast(r.text);
     if (r.order) rumorPulse[r.order.to] = performance.now(); if (r.dive) { after(); openDive(); return; } after(); runStories(); return; }
   const a = b.dataset.act;
-  if (a === 'accept') { const o = C.acceptOffer(s.at); if (o) { AU.chime(); toast(`의뢰를 맡았다 — ${C.PORTS[o.to].name}까지 ${C.G[o.good].name} ${o.n}상자, ${o.days}일 안에.`, 'good'); } after(); return; }
+  if (a === 'accept' || a === 'acceptLoad') { const r = C.acceptOffer(s.at, a === 'acceptLoad'); if (r) { const o = r.order, T = C.orderText(o); AU.chime(); if (r.bought) { AU.tok(); popAt(b, `${r.bought}상자 -${fmt(r.cost)}`, 'bad'); }
+      toast(`의뢰를 맡았다 — ${T.line}${r.bought ? ` · ${r.bought}상자를 ${fmt(r.cost)}냥에 실었다` : ''}${r.threat ? ` · 경계 +${r.threat}` : ''}`, 'good');
+      if (r.letter) toast(`신라방 사람의 편지 — “${r.letter}”`); if (r.rival) toast(`${r.rival}${JO(r.rival, '이', '가')} 같은 물건을 싣고 ${C.PORTS[o.to].name}${JO(C.PORTS[o.to].name, '으로', '로')} 떠난다. 먼저 닿아야 보수가 온전하다.`, 'bad'); }
+    after(); return; }
   if (a === 'rumor') { const r = C.buyRumor(); if (!r.ok) { toast(r.msg); return; } AU.chime(); lastQuote = `“${r.text.line}”`; { const ml = C.mateLine('rumor'); if (ml) lastQuote += `<br><i>${ml.line}</i>`; } if (r.text.k && r.text.id) { const inf = C.infoFor(r.text.k, r.text.id); feedMarket(r.text.k, r.text.id, inf && inf.price > C.G[r.text.id].base * 1.1 ? 'up' : 'down', null, `— ${r.text.line.replace(/^.*?(에선|에|에서) /, '')}`, '선술집 소문'); } else journal(r.text.line, ''); if (r.map) { mapAppear[r.map.id] = performance.now(); toast(`寶 보물 지도 — <b>${r.map.name}</b>`, 'good'); } if (r.text.k) rumorPulse[r.text.k] = performance.now(); after(); return; }
   if (a === 'repair') { const c = C.repair(); if (c) { AU.tok(); const ml = C.mateLine('repair'); toast(ml ? `${ml.line} — ${fmt(c)}냥` : `배를 손봤다. ${fmt(c)}냥`); } after(); return; }
   if (a === 'ship') { const n = C.upgrade(b.dataset.var || 'wide'); if (n) { AU.gong(); banner('船', `${n.name} — 상자 ${C.capacity()}칸${n.tax ? ` · 입항세 ${n.tax}냥` : ''}`); } after(); return; }
@@ -637,16 +644,16 @@ function openEvent(ev) { const s = S(); AU[['storm', 'pirate'].includes(ev.id) ?
 /* ─────────── 입항 개봉 ─────────── */
 function openReveal(info) { panelTab = 'market'; for (const mv of (info.moves || []).slice().reverse()) feedMarket(info.k, mv.id, mv.pct > 0 ? 'up' : 'down', mv.pct, `— ${mv.days}일 전 본 값보다 (직접 봄)`, '본 값');
   const s = S(), P = C.PORTS[info.k]; hideSailbar(); trail.push([s.x, s.y]);
-  const sell = info.items.map(it => it.profit >= 0);
+  const oc = C.orderCrates(); const sell = info.items.map(it => it.profit >= 0 && !oc[it.i]); // 의뢰 짐은 기본으로 남긴다
   const fresh = info.fresh ? `<div class="fresh"><b>처음 보는 시세표</b> — 아무도 이 항구 값을 모른다.<br>${C.GOODS.slice().sort((a, b) => s.markets[info.k].idx[b.id] - s.markets[info.k].idx[a.id]).map(g => `${g.name} <b class="num">${fmt(C.sellPrice(info.k, g.id) * C.LOT)}</b>`).join(' · ')}</div>` : '';
   const sub = [`${s.voyage.from && C.PORTS[s.voyage.from] ? C.PORTS[s.voyage.from].name + '에서 ' : ''}${info.days.toFixed(1)}일`, info.storms ? `폭풍 ${info.storms}번` : '', info.first ? '첫 입항 · 명성 +60' : '', info.tax ? `입항세 ${fmt(info.tax)}냥` : ''].filter(Boolean).join(' · ');
-  const deliv = info.delivered.length ? `<div class="fresh" style="border-color:var(--rok)">${info.delivered.map(o => `<b style="color:var(--rok)">의뢰 완수</b> — ${C.G[o.good].name} ${o.n}상자 · 보수 <b class="num">${fmt(o.reward)}냥</b>`).join('<br>')}</div>` : '';
+  const deliv = info.delivered.length ? `<div class="fresh" style="border-color:var(--rok)">${info.delivered.map(o => { const T = C.orderText(o); return `<b style="color:var(--rok)">의뢰 완수 — ${o.royal ? '왕실 주문' : T.kind}</b> ${C.PORTS[o.from].name} → ${C.PORTS[o.to].name} · ${C.G[o.good].name} ${o.n}상자 넘김 · 보수 <b class="num">${fmt(o.paid != null ? o.paid : o.reward)}냥</b> · 명성 +${o.fame || 40}${o.note ? ` · <span class="dn">${o.note}</span>` : ''}${o.bonus ? `<br>${o.bonus.text}` : ''}`; }).join('<br>')}</div>` : '';
   const extra = [info.passenger ? `<b style="color:var(--rok)">${info.passenger.who}를 내려줬다</b> — 사례 ${fmt(info.passenger.gold)}냥 · 명성 +80<br>“${info.passenger.line}”` : '', ...(info.race || []).map(r => { const vl = C.rivalLine(r.id, r.won ? 'beaten' : 'won'); return r.won ? `<b style="color:var(--rok)">${r.ch} ${r.name}보다 먼저 닿았다!</b> 명성 +25 — 값이 아직 성하다.${vl ? ` <i>${vl}</i>` : ''}` : `<b style="color:var(--ju)">${r.ch} ${r.name}${JO(r.name,'이','가')} 먼저 닿았다.</b>${vl ? ` <i>${vl}</i>` : ''}`; })].filter(Boolean);
   const extraHtml = extra.length ? `<div class="fresh" style="border-color:var(--rok)">${extra.join('<br>')}</div>` : '';
   const rivals = info.rivalHere.length ? `<p class="letter" style="color:var(--ju)">${info.rivalHere.map(r => `${r.rival.name}${JO(r.rival.name,'이','가')} 며칠 전 ${C.G[r.id].name}${JO(C.G[r.id].name,'을','를')} 풀고 갔다`).join(' · ')} — 값이 눌려 있다.</p>` : '';
   const cards = info.items.map((it, n) => { const g = C.G[it.id];
     return `<div class="flip" data-n="${n}"><div class="in"><div class="f">${gi(g)}<small>${it.inf ? `${it.inf.src} ${fmt(it.inf.price)}<br>${it.inf.ago}` : '이 항구 값을 모른다'}</small></div>
-      <div class="b"><span class="nm">${gl(g)}${g.name}</span><span class="was">산 값 ${fmt(it.cost)}</span><span class="was">${it.inf ? `${it.inf.src} ${fmt(it.inf.price)} →` : '여기 값'}</span><span class="now" data-act-n="${n}">${fmt(it.act)}</span><span class="plrow"><span class="pl ${it.profit >= 0 ? 'up' : 'dn'}" data-pl-n="${n}">${it.profit >= 0 ? '+' : ''}${fmt(it.profit)}</span><span class="stamp ${it.verdict}">${VERDICT[it.verdict]}</span></span><button class="keep ${sell[n] ? 'sell' : ''} ${it.profit < 0 ? 'loss' : ''}" data-k="${n}">${sell[n] ? (it.profit < 0 ? '손해 보고 판다' : '판다') : '남긴다'}</button></div></div></div>`; }).join('');
+      <div class="b"><span class="nm">${gl(g)}${g.name}</span><span class="was"${oc[it.i] ? ' style="color:var(--ju)"' : ''}>${oc[it.i] ? '의뢰 짐 — 팔면 깨진다 · ' : ''}산 값 ${fmt(it.cost)}</span><span class="was">${it.inf ? `${it.inf.src} ${fmt(it.inf.price)} →` : '여기 값'}</span><span class="now" data-act-n="${n}">${fmt(it.act)}</span><span class="plrow"><span class="pl ${it.profit >= 0 ? 'up' : 'dn'}" data-pl-n="${n}">${it.profit >= 0 ? '+' : ''}${fmt(it.profit)}</span><span class="stamp ${it.verdict}">${VERDICT[it.verdict]}</span></span><button class="keep ${sell[n] ? 'sell' : ''} ${it.profit < 0 ? 'loss' : ''}" data-k="${n}">${sell[n] ? (it.profit < 0 ? '손해 보고 판다' : '판다') : '남긴다'}</button></div></div></div>`; }).join('');
   $('rvCard').innerHTML = `<div class="eyebrow">입항 · ${C.dateStr(s.t)}</div><h2>${P.name}</h2><p class="sub" style="margin:0">${sub}</p>${fresh}${deliv}${extraHtml}${rivals}${info.letter ? `<p class="letter">${s.boons.letters ? '비둘기 편지' : '아사 동생의 편지'} — “${info.letter.line}”</p>` : ''}
     ${info.items.length ? `<div class="crates" data-n="${info.items.length}">${cards}</div><div class="total"><span id="rvTotalL">팔면</span><span class="big" id="rvTotal">…</span></div>` : '<p style="margin-top:14px">빈 배로 들어왔다.</p>'}
     <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn main" id="rvOk">${info.items.length ? '팔고 내린다' : '내린다'}</button></div>`;
@@ -963,10 +970,15 @@ function bookLog(s) { if (!s.log || !s.log.length) return '<p class="fine bk-not
   for (const e of s.log.slice().reverse()) { if (e.t !== day) { day = e.t; h += `<h4 class="bk-nat">${C.dateStr(e.t)}</h4>`; } h += `<div class="logl ${e.k}">${e.x}</div>`; } return h; }
 function paintTracker() { const s = S(), el = $('tracker'); if (!el) return; if (!s || s.ended || !$('sTitle').hidden) { el.hidden = true; return; }
   const A = C.curAct(); if (!A) { el.hidden = true; return; } const n = C.NUM[s.main.act];
-  const key = s.main.act + ':' + s.main.started + ':' + (s.main.started ? C.mainGoals().map(g => g.done + (g.prog ? g.prog() : '')).join('|') : s.quotaN) + Object.keys(s.quests).map(id => C.qStep(id) ? id + s.quests[id].step : '').join();
+  const orders = s.orders.map(o => ({ o, line: `${o.royal ? '왕실 주문' : C.orderText(o).kind} — ${C.PORTS[o.from].name} → ${C.PORTS[o.to].name} · ${o.n}상자`, left: Math.max(0, Math.ceil(o.due - s.t)) })); // 맡은 의뢰: 어디서 → 어디로 · 상자 · 남은 날
+  const qids = Object.keys(s.quests).filter(id => C.qStep(id));
+  const key = s.main.act + ':' + s.main.started + ':' + (s.main.started ? C.mainGoals().map(g => g.done + (g.prog ? g.prog() : '')).join('|') : s.quotaN) + qids.map(id => id + s.quests[id].step + C.questProg(id)).join() + '|' + orders.map(x => x.o.id + x.left).join();
   if (last.trk === key) return; last.trk = key; el.hidden = false;
-  const qa = Object.keys(s.quests).filter(id => C.qStep(id)).length;
-  el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '다음 소식이 오면 막이 열린다'}</li></ul>`); }
+  const qa = qids.length;
+  // 맡은 이야기의 지금 단계도 셋까지 — 본 이야기 밑에 書 표시로
+  const ql = qids.slice(0, 3).map(id => { const st = C.qStep(id), p = C.questProg(id); return `<li class="tk-qs">書 ${st.text}${p ? ` <em>${p}</em>` : ''}</li>`; }).join('');
+  const orderLis =orders.map(x => `<li class="tk-o">${x.o.royal ? '皇' : C.orderText(x.o).ch} ${x.line} · <em class="${x.left <= 10 ? 'dn' : ''}">${x.left}일</em></li>`).join('');
+  el.innerHTML = `<div class="tk-h"><span class="mch">${n}<small>幕</small></span><b>${A.title}</b>${qa ? `<span class="tk-q">書 ${qa}</span>` : ''}</div>` + (s.main.started ? `<ul>${C.mainGoals().map(g => `<li class="${g.done ? 'done' : ''}">${g.done ? '✓' : '○'} ${g.text}${g.prog && !g.done && g.prog() ? ` <em>${g.prog()}</em>` : ''}</li>`).join('')}${ql}${orderLis}</ul>` : `<ul><li>○ ${A.at() ? '항구에 닿으면 막이 열린다' : '다음 소식이 오면 막이 열린다'}</li>${ql}${orderLis}</ul>`); }
 
 
 /* ═══════════ 소식창: 대화창처럼 흘러가는 시세·사건 ═══════════ */
@@ -1009,7 +1021,7 @@ function handle(out) {
     if (o.type === 'season') { AU.season(); banner(...SEASON_BANNER[o.season]); setTimeout(cxFact, 3200); }
     if (o.type === 'wire') feedWire(o.w);
     if (o.type === 'rival') { if (o.guarded) { toast(`<b>${o.rival.name}</b>${JO(o.rival.name, '이', '가')} ${C.PORTS[o.k].name}에 늦게 닿았다. 경주에서 이긴 덕에 ${C.G[o.id].name} 값은 그대로다.`, 'good'); } else { rivalMark[o.k] = { t: s.t, ch: o.rival.ch, col: o.rival.col, id: o.id }; feedMarket(o.k, o.id, 'down', null, `— ${o.rival.ch} ${o.rival.name}${JO(o.rival.name, '이', '가')} 풀었다`, '경쟁 상단'); if (s.slots.some(x => x.id === o.id) || s.dest === o.k) toast(`<b>${o.rival.name}</b>${JO(o.rival.name, '이', '가')} ${C.PORTS[o.k].name}에 ${C.G[o.id].name}${JO(C.G[o.id].name,'을','를')} 풀었다. 값이 눌린다.`, 'bad'); } }
-    if (o.type === 'orderLost') toast(`의뢰 기한이 지났다 — ${C.PORTS[o.order.to].name}의 ${C.G[o.order.good].name}. 명성 -20`, 'bad');
+    if (o.type === 'orderLost') toast(`의뢰 기한이 지났다 — ${C.PORTS[o.order.from].name} → ${C.PORTS[o.order.to].name} ${C.G[o.order.good].name}. 명성 -20${o.order.threat ? ` · 경계 +${o.order.threat}` : ''}`, 'bad');
     if (o.type === 'event') openEvent(o.ev);
     if (o.type === 'arrive') openReveal(o.info);
     if (o.type === 'explored') { showSailbar(); toast('바다 한가운데 닻을 내렸다. 지도를 눌러 다음 행선지를 고르자.'); saveGame(); }
