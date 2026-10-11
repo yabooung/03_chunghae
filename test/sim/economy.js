@@ -9,7 +9,7 @@ function resolve(){const S=C.S;let g=0;while(S.battle&&g++<60){if(S.battle.over)
 function play(style,diff){
   const S=C.newGame(CAP,diff);const wantOrders=()=>C.mainGoals().some(g=>!g.done&&g.text.includes('의뢰'));
   const onQuota=res=>{quotaLog.push(res.ok?'○':'×');const n=res.ok?S.quotaN:S.quotaN+1;(RAT[n]=RAT[n]||[]).push(res.ok?(C.assets()+res.amount)/res.amount:0);};let ev=0,quotaLog=[],end=null,ambush=0,rivalHits=0,orders=0,alts=0,zoneTrips=0;
-  const drain=()=>{let st,g=0;while((st=C.nextStory())&&g++<20){const o=st.title&&st.title.includes('마지막')?st.opts[Math.floor(Math.random()*st.opts.length)]:st.opts[0];o.apply();if(S.ended)break;}};
+  const drain=()=>{let st,g=0;while((st=C.nextStory())&&g++<20){const live=st.opts.filter(o=>!o.off);const o=st.title&&st.title.includes('마지막')?live[Math.floor(Math.random()*live.length)]:(live[0]||st.opts[0]);o.apply();if(S.ended)break;}};
   for(let g=0;g<GUARD&&!S.ended;g++){
     if(S.draft){C.takeBoon(S.draft[Math.floor(Math.random()*S.draft.length)]);}
     if(S.mode==='port'){
@@ -22,7 +22,9 @@ function play(style,diff){
       if(style!=='lazy'&&S.gold>3000&&Math.random()<.6)C.buyRumor();
       const off=S.offers[S.at];if(off&&!off.none&&S.orders.length<2&&((style==='smart'&&Math.random()<.5)||(wantOrders()&&S.markets[S.at].stock.includes(off.good))))C.acceptOffer(S.at);
       resolve();
-      for(const g of C.mainGoals()){if(g.pay&&g.pay.k===S.at&&!g.done&&S.gold>g.pay.n+C.quotaNow()*.6)C.mainPay(S.at);if(g.deliver&&g.deliver.k===S.at)C.mainDeliver(S.at);}
+      for(const g of C.mainGoals()){if(g.pay&&g.pay.k===S.at&&!g.done&&S.gold>g.pay.n+C.quotaNow()*.6)C.mainPay(S.at);if(g.deliver&&g.deliver.k===S.at)C.mainDeliver(S.at);
+        if(style!=='lazy'&&g.deliver&&!g.done&&g.deliver.k!==S.at&&S.markets[S.at].stock.includes(g.deliver.good)){const have=S.slots.filter(x=>x.id===g.deliver.good).length;for(let i=have;i<g.deliver.n;i++)if(!C.buy(g.deliver.good).ok)break;}
+        if(style!=='lazy'&&g.text.includes('경계를')&&!g.done&&C.canTribute()&&S.gold>C.tributeCost()+C.quotaNow()*.5)C.tribute();}
       drain(); if(S.ended)break;
       if(S.mates.length<C.mateCap()&&S.gold>8000){const t=C.tavern(S.at);if(t.offer[0])C.hireMate(t.offer[0]);}
       const here=S.at;C.tickMarket(here);let best=null;
@@ -33,7 +35,9 @@ function play(style,diff){
       // 의뢰 물건 싣기
       for(const o of S.orders){if(o.from===here||true){const have=S.slots.filter(s=>s.id===o.good).length;if(have<o.n&&S.markets[here].stock.includes(o.good))for(let i=have;i<o.n;i++)C.buy(o.good);}}
       const ready=S.orders.find(o=>S.slots.filter(s=>s.id===o.good).length>=o.n);const dest=(ready&&(wantOrders()||Math.random()<.5))?ready.to:(S.orders.length&&Math.random()<.5)?S.orders[0].to:(best&&best.g>0?best.d:PORT_IDS.filter(k=>k!==here&&S.known[k])[Math.floor(Math.random()*5)]);
-      if(best&&best.g>0)while(C.freeSlots()&&S.gold>=C.cratePrice(here,best.id)+ (style==='smart'?C.quotaNow()*0.0:0))if(!C.buy(best.id).ok)break;
+      // 상납 날이 가까우면(HUD 예측을 읽는 사람처럼) 상납금은 남겨 두고 산다. 짐은 7할에 압류되니 그만큼은 쳐준다
+      const reserve=C.daysToDue()<22?Math.max(0,C.quotaNow()-S.slots.reduce((a,x)=>a+x.cost*.7,0)):0;
+      if(best&&best.g>0)while(C.freeSlots()&&S.gold>=C.cratePrice(here,best.id)+reserve)if(!C.buy(best.id).ok)break;
       if(style!=='lazy'&&Math.random()<.35){const tg=S.bounty&&!(S.bounty.cool>S.t)?S.bounty:S.maps[0];if(tg){const p=C.plan({x:tg.x,y:tg.y});if(p&&!p.closedPort){HUNT++;C.depart(p);continue;}}}
       if(style!=='lazy'&&Math.random()<.4){const gs=C.mainGoals().filter(g=>!g.done);let tk=null;for(const g of gs){if(g.k)tk=g.k;if(g.pay&&S.gold>g.pay.n)tk=g.pay.k;if(g.text.includes('들른다')){const ks=['mizhou','chuzhou','deungju'].filter(k=>!S.main.visits[k]);if(ks.length)tk=ks[0];}if(g.spot){const sp=C.mainSpots()[0];if(sp){const pp=C.plan({x:sp.x,y:sp.y});if(pp){C.depart(pp);tk='__';break;}}}}
         if(tk==='__')continue; if(tk&&tk!==here){const pp=C.plan(tk);if(pp&&!pp.closedPort){C.depart(pp);continue;}}}
@@ -49,16 +53,19 @@ function play(style,diff){
         if(o.type==='battle'||o.type==='dive')resolve();
         if(o.type==='arrive'){orders+=o.info.delivered.length;const keep=o.info.items.filter(x=>x.profit<0).map(x=>x.i);for(const od of S.orders){let n=0;S.slots.forEach((s,i)=>{if(s.id===od.good&&n<od.n&&!keep.includes(i)){keep.push(i);n++;}});}C.sellAll(keep);}}}
   }
-  ENDS[S.ending||S.ended]=(ENDS[S.ending||S.ended]||0)+1;ACT[S.main.act]=(ACT[S.main.act]||0)+1;return {style,q:quotaLog.join(''),seasons:S.quotaN,end:S.ended,score:C.score(),gold:Math.round(S.gold),known:PORT_IDS.filter(k=>S.known[k]).length,voy:S.stats.voyages,ev,ambush,rivalHits,orders,alts,zoneTrips,boons:Object.entries(S.boons).map(([k,v])=>k+v).join(','),t:Math.round(S.t)};
+  ENDS[S.ending||S.ended]=(ENDS[S.ending||S.ended]||0)+1;ACT[S.main.act]=(ACT[S.main.act]||0)+1;const story=S.ended==='ending'&&S.ending!=='three_years';return {style,q:quotaLog.join(''),seasons:S.quotaN,end:S.ended==='ending'?S.ending:S.ended,story,fame:Math.round(S.fame),debts:S.debtN||0,score:C.score(),gold:Math.round(S.gold),known:PORT_IDS.filter(k=>S.known[k]).length,voy:S.stats.voyages,ev,ambush,rivalHits,orders,alts,zoneTrips,boons:Object.entries(S.boons).map(([k,v])=>k+v).join(','),t:Math.round(S.t)};
 }
-const N=+process.argv[2]||8;const CAP=process.argv[4]||'gungbok';const DARG=process.argv[5]||'all';const STYLES=(process.argv[6]||'lazy,normal,smart').split(',');var ENDS={},ACT={},CNT={},SPU={},EVC={},BT={},DV={n:0,gold:0,rel:0},BO=0,HUNT=0,RAT={};
+const N=+process.argv[2]||8;const CAP=process.argv[4]||'gungbok';const DARG=process.argv[5]||'all';const STYLES=(process.argv[6]||'lazy,normal,smart').split(',');var SUM=[],ENDS={},ACT={},CNT={},SPU={},EVC={},BT={},DV={n:0,gold:0,rel:0},BO=0,HUNT=0,RAT={};
 const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b.length?b[Math.floor(b.length/2)]:0;};
 for(const diff of DARG==='all'?Object.keys(C.DIFFS):[DARG]){console.log(`
 ════ ${C.DIFFS[diff].name} (${diff}) · ${CAP}`);
 for(const st of STYLES){const R=[];RAT={};for(let i=0;i<N;i++)R.push(play(st,diff));
   console.log(`\n■ ${st} ×${N}`);
-  R.forEach(r=>console.log(`  상납 ${r.q.padEnd(10)} 계절 ${r.seasons} · 끝 ${r.end} · 점수 ${r.score.toLocaleString()} · 항해 ${r.voy} · 사건 ${r.ev}(흑기 ${r.ambush}) · 경쟁 판매 ${r.rivalHits} · 의뢰 ${r.orders} · 우회 ${r.alts}/해역통과 ${r.zoneTrips} · 항구 ${r.known}/${PORT_IDS.length} · ${r.boons}`));
-  const s=R.map(r=>r.seasons);console.log(`  버틴 계절 평균 ${(s.reduce((a,b)=>a+b,0)/N).toFixed(1)} · 1년 넘김 ${s.filter(x=>x>=4).length}/${N} · 상납 못 내 끝 ${R.filter(r=>r.end==='quota').length}/${N}`);
+  R.forEach(r=>console.log(`  상납 ${r.q.padEnd(10)} 계절 ${r.seasons} · 끝 ${r.end||'—'}${r.debts?' 빚'+r.debts:''} · 명성 ${r.fame} · 점수 ${r.score.toLocaleString()} · 항해 ${r.voy} · 사건 ${r.ev}(흑기 ${r.ambush}) · 경쟁 판매 ${r.rivalHits} · 의뢰 ${r.orders} · 우회 ${r.alts}/해역통과 ${r.zoneTrips} · 항구 ${r.known}/${PORT_IDS.length} · ${r.boons}`));
+  const s=R.map(r=>r.seasons);console.log(`  버틴 계절 평균 ${(s.reduce((a,b)=>a+b,0)/N).toFixed(1)} · 1년 넘김 ${s.filter(x=>x>=4).length}/${N} · 상납 못 내 끝 ${R.filter(r=>r.end==='quota').length}/${N} · 자객 ${R.filter(r=>r.end==='assassin').length}/${N}`);
+  const dead=R.filter(r=>r.end==='quota'||r.end==='assassin');
+  console.log(`  ▶ 이야기 결말 ${R.filter(r=>r.story).length}/${N} (${Math.round(R.filter(r=>r.story).length/N*100)}%) · 세 해의 장부 ${R.filter(r=>r.end==='three_years').length}/${N} · 12계절 전 죽음 ${dead.filter(r=>r.seasons<12).length}/${N} · 명성 중앙값 ${med(R.map(r=>r.fame))}`);
+  SUM.push([C.DIFFS[diff].name,st,Math.round(R.filter(r=>r.story).length/N*100)+'%',R.filter(r=>r.end==='three_years').length,dead.length,(s.reduce((a,b)=>a+b,0)/N).toFixed(1)]);
   console.log('  상납 때 (재산÷상납) 중앙값 — '+Object.keys(RAT).sort((a,b)=>a-b).map(n=>`${n}번째 ${med(RAT[n]).toFixed(1)}${RAT[n].some(x=>!x)?`(못 냄 ${RAT[n].filter(x=>!x).length})`:''}`).join(' · '));
 }}
 
@@ -66,3 +73,4 @@ console.log('\nCNT',CNT);console.log('SPECIAL',SPU);
 {const tot=Object.values(EVC).reduce((a,b)=>a+b,0);console.log(`EVENTS ${tot}건 — `+Object.entries(EVC).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${(v/tot*100).toFixed(1)}%`).join(' · '));}
 console.log('BATTLE',BT,'DIVE',DV,'bounties taken',BO,'hunt trips',HUNT);
 console.log('ENDINGS',ENDS,'ACT reached',ACT);
+console.log('\n요약 | 난이도 | 봇 | 이야기 결말% | 세 해 장부 | 죽음 | 평균 계절');for(const r of SUM)console.log('  | '+r.join(' | '));
