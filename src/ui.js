@@ -332,7 +332,7 @@ function paintHud() {
     let h = $('hQuotaHint'); if (!h) { h = document.createElement('small'); h.id = 'hQuotaHint'; h.className = 'qhint'; $('hQuotaBox').appendChild(h); }
     const f = C.quotaForecast(), fk = `${f.value}:${f.span}:${q}:${s.debt || 0}:${dd}`; if (last.fc !== fk) { last.fc = fk;
       const txt = s.debt ? `빚 ${fmt(s.debt)} 포함` : f.span < 5 ? '' : `지금 속도면 ${fmt(f.value)}`; h.textContent = txt; h.classList.toggle('short', f.span >= 5 && f.value < q); h.hidden = !txt;
-      const fl = C.dif().share ? ` · 하한 재산 ${Math.round(C.dif().share * 10)}할 (${fmt(C.quotaFloor())})` : '';
+      const fl = C.dif().share ? (C.quotaFloor() > 0 ? ` · 하한 재산 ${Math.round(C.dif().share * 10)}할 (${fmt(C.quotaFloor())})` : ' · 첫 계절은 재산 하한 없음') : '';
       $('hQuotaBox').title = `계절이 끝나는 날 바칠 군자금 ${fmt(q)}냥${s.debt ? ` (지난 계절 빚 ${fmt(s.debt)} 포함)` : ''}${fl}. ${f.span >= 5 ? `최근 ${f.span}일 하루 ${f.perDay >= 0 ? '+' : ''}${fmt(f.perDay)}냥 — 이대로면 ${dd}일 뒤 ${fmt(f.value)}냥.` : '며칠 더 지나면 예측이 뜬다.'} 못 내면 짐을 7할에 넘기고, 그래도 모자라면 빚으로 넘어간다(${C.debtsAllowed()}번까지).`; } }
   const slotKey = C.capacity() + ':' + s.slots.map(x => x.id).join(',');
   if (last.slots !== slotKey) { last.slots = slotKey; $('hSlots').innerHTML = Array.from({ length: C.capacity() }, (_, i) => { const it = s.slots[i]; return it ? `<span class="slot full" style="background:${C.G[it.id].col}">${C.G[it.id].ch}</span>` : '<span class="slot"></span>'; }).join(''); }
@@ -501,7 +501,7 @@ function diceFx(r) { const cup = $('dcup'); if (!cup) return; const R6 = () => 1
 function saleFx(results, anchor) { results.forEach((r, i) => { setTimeout(() => { AU.coin(r.mult);
     const el = anchor || $('hGold'); const rc = el.getBoundingClientRect(); pop(`${r.profit >= 0 ? '+' : ''}${fmt(r.profit)}${r.mult >= 1.5 ? `  ×${r.mult.toFixed(1)}` : ''}`, rc.left + rc.width / 2 + (i % 3 - 1) * 40, rc.top - 10 - i * 6, r.profit < 0 ? 'bad' : r.mult >= 2 ? 'big' : ''); }, i * 160); });
   /* 팔았다 +X냥 · 이 항구 시세 -N% (물건마다 첫 상자 전 값 → 마지막 상자 뒤 값) */
-  if (results.length) { const rev = results.reduce((a, r) => a + r.rev, 0), pf = results.reduce((a, r) => a + r.profit, 0), by = {}; for (const r of results) { const b = by[r.id] = by[r.id] || { p0: r.pct0, p1: r.pct1 }; b.p1 = r.pct1; b.p0 = Math.max(b.p0, r.pct0); }
+  if (results.length) { const rev = results.reduce((a, r) => a + r.rev, 0), pf = results.reduce((a, r) => a + r.profit, 0), by = {}; for (const r of results) { const b = by[r.id] = by[r.id] || { p0: r.pct0, p1: r.pct1 }; b.p1 = Math.min(b.p1, r.pct1); b.p0 = Math.max(b.p0, r.pct0); }
     const drop = Object.entries(by).map(([id, b]) => `${C.G[id].name} -${Math.max(0, Math.round((1 - b.p1 / b.p0) * 100))}%`).join(' · ');
     toast(`팔았다 <b>+${fmt(rev)}냥</b> (이익 ${pf >= 0 ? '+' : ''}${fmt(pf)}) · 이 항구 시세 ${drop}${results.some(r => r.threat >= 1) ? ` · 경계 +${Math.round(results.reduce((a, r) => a + r.threat, 0))}` : ''}`, pf < 0 ? 'bad' : ''); }
   if (results.length && results[results.length - 1].combo >= 3) setTimeout(() => pop(`연속 흑자 ${results[results.length - 1].combo}`, innerWidth / 2, innerHeight * .4, 'big'), results.length * 160 + 100); }
