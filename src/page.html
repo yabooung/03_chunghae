@@ -685,6 +685,12 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 @keyframes vsealin{from{opacity:0;transform:scale(1.8)}60%{opacity:1;transform:scale(.95)}to{transform:none}}
 .t-kicker{margin:0;font-size:11px;letter-spacing:.24em;color:var(--ju);font-weight:600}
 .tagline{font-family:var(--display);font-size:20px;line-height:1.6;text-align:left;text-wrap:pretty;margin:0;word-break:keep-all}
+.stat.fame b{font-size:15px}
+.stat.quota.point{box-shadow:0 0 0 2px var(--ju),0 0 14px rgba(176,58,38,.45);border-radius:6px}
+.cap .hook{display:block;font-style:normal;font-family:var(--display);font-size:12.5px;line-height:1.45;color:var(--ink-2);margin:4px 0 2px;word-break:keep-all}
+.epilogue{margin:10px 0 4px;padding:10px 14px;border-left:3px solid var(--ju);background:rgba(27,35,36,.04)}
+.epilogue p{margin:0 0 6px;font-family:var(--display);font-size:15px;line-height:1.6;word-break:keep-all}
+.epilogue p:last-child{margin:0}
 .t-h{margin:6px 0 -4px;font-size:11px;letter-spacing:.2em;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:8px}
 .t-h::after{content:"";flex:1;height:1px;background:var(--rule-2)}
 .caps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -920,11 +926,12 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 <canvas id="map" aria-label="해도"></canvas>
 
 <header class="hud">
-  <div class="cartouche"><span class="brand">淸海</span><span class="capb" id="hCap" aria-hidden="true"></span><div class="when"><b id="hDate" class="num">828년 4월 1일</b><span class="season"><svg class="vane" id="hVane" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 2.5v11M8 2.5l-2.6 3.2M8 2.5l2.6 3.2"/></svg><span id="hSeason">봄 · 변덕</span><i class="dif" id="hDiff" title="난이도"></i></span></div></div>
+  <div class="cartouche"><span class="brand">淸海</span><span class="capb" id="hCap" aria-hidden="true"></span><div class="when"><b id="hDate" class="num">첫해 4월 1일</b><span class="season"><svg class="vane" id="hVane" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/><path d="M8 2.5v11M8 2.5l-2.6 3.2M8 2.5l2.6 3.2"/></svg><span id="hSeason">봄 · 변덕</span><i class="dif" id="hDiff" title="난이도"></i></span></div></div>
   <span class="sp"></span>
   <div class="meters">
     <div class="stat gold" id="hGoldBox"><span class="k"><svg viewBox="0 0 14 14" aria-hidden="true"><circle class="coin" cx="7" cy="7" r="6"/><rect class="hole" x="5.2" y="5.2" width="3.6" height="3.6"/></svg>냥</span><b id="hGold">5,000</b></div>
-    <div class="stat quota" id="hQuotaBox" title="계절이 끝나는 날 청해진에 바칠 군자금"><span class="k">상납 · <span id="hDue">90일 뒤</span></span><b id="hQuota">4,000</b></div>
+    <div class="stat quota" id="hQuotaBox" title="계절이 끝나는 날 낼 상납"><span class="k">상납 · <span id="hDue">90일 뒤</span></span><b id="hQuota">4,000</b></div>
+    <div class="stat fame" id="hFame" title="명성 — 막 목표와 평판. 첫 입항·발견·해전·의뢰로 오르고, 외면·기한 넘김으로 깎인다"><span class="k">명성</span><b id="hFameN" class="num">0</b></div>
     <div class="slots" id="hSlots" aria-label="선창"></div>
     <div class="gauge threat" id="hThreat" title="경계 — 30 감찰, 60 현상금, 85 그림자, 100이면 칼이 온다"><span class="k">경계 <b class="num">0</b></span><i><s></s></i></div>
     <div class="gauge hull" id="hHull"><span class="k">선체 <b class="num">100</b></span><i><s></s></i></div>
@@ -964,7 +971,7 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
 <div class="modal" id="mCodex" hidden><div class="card book codex" id="cxCard" role="dialog" aria-modal="true" aria-labelledby="cxH" tabindex="-1"><div class="bk-bind" aria-hidden="true"></div><div class="bk-page"><div class="bk-head"><div><div class="eyebrow">바다의 사전 · 典 <span class="num" id="cxCount"></span></div><h2 id="cxH">辭典</h2></div><div class="cx-hbtn"><button class="btn cx-full" id="cxFull" hidden>사전 펼치기</button><button class="icon" id="cxClose" aria-label="사전 닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div><div class="cx-find"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg><input id="cxQ" type="search" placeholder="찾기 — 이름이나 낱말 (열린 항목만)" aria-label="사전에서 찾기" autocomplete="off" spellcheck="false" enterkeyhint="search"></div><div class="bk-tabs" id="cxTabs" role="tablist" aria-label="분류"></div><div class="bk-body" id="cxBody"></div></div></div></div>
 <div class="modal" id="mStory" hidden><div class="card" id="stCard" role="dialog" aria-modal="true"></div></div>
 <div class="modal" id="mQuota" hidden><div class="card quota" id="qCard" role="dialog" aria-modal="true"></div></div>
-<div class="modal" id="mRetire2" hidden><div class="card" role="dialog" aria-modal="true"><div class="eyebrow">결산</div><h2>항해를 접을까</h2><p>지금까지 바친 군자금과 남은 재산으로 점수를 매긴다. 이 항해는 이어서 할 수 없다.</p><div class="start-row" style="justify-content:flex-end"><button class="btn" id="mRetireNo">계속 간다</button><button class="btn main" id="mRetireYes">돛을 내린다</button></div></div></div>
+<div class="modal" id="mRetire2" hidden><div class="card" role="dialog" aria-modal="true"><div class="eyebrow">결산</div><h2>항해를 접을까</h2><p>지금까지 바친 상납과 남은 재산으로 점수를 매긴다. 이 항해는 이어서 할 수 없다.</p><div class="start-row" style="justify-content:flex-end"><button class="btn" id="mRetireNo">계속 간다</button><button class="btn main" id="mRetireYes">돛을 내린다</button></div></div></div>
 
 <section class="screen" id="sTitle">
   <canvas id="tArt" aria-hidden="true"></canvas>
@@ -973,7 +980,7 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
       <div class="t-head">
         <h1 class="t-mark" aria-label="청해 — 바람의 장부"><span class="t-brush" aria-hidden="true">淸海</span><span class="vseal" aria-hidden="true">바람의 장부</span></h1>
         <p class="t-kicker">八二八年 · 신라 · 당 · 왜 · 발해의 바다</p>
-        <p class="tagline">828년, 배 한 척과 오천 냥. 계절마다 청해진에 군자금을 바쳐라. 액수는 점점 오른다. 얼마나 버티겠는가.</p>
+        <p class="tagline">동포가 팔려 가는 바다를 끊으러 돌아온 무장. 왕이 준 것은 직함뿐이다. 배 한 척과 오천 냥으로 계절마다 상납을 채우고, 바다 끝에서 당신의 결말을 고른다.</p>
       </div>
       <h2 class="t-h">선장</h2>
       <div class="caps" id="caps"></div>
@@ -981,7 +988,7 @@ button.cx-chip:hover{background:var(--ink);color:var(--hanji-2)}
       <div class="diffs" id="diffs" role="radiogroup" aria-label="난이도"></div>
       <p class="fine dif-line" id="diffLine"></p>
       <div class="start-row"><button class="btn main big" id="bStart">닻을 올린다</button><button class="btn" id="bCont" hidden>이어하기</button></div>
-      <p class="fine">스물아홉 항구, 열한 개의 이야기, 스물일곱 곳의 발견. 돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
+      <p class="fine">세 선장, 선장마다 다른 결말. 스물아홉 항구, 열한 개의 이야기, 스물일곱 곳의 발견. 돈을 버는 길은 셋이다. 소문을 믿고 상자를 실어 나르거나, 항구에 붙은 현상 수배를 보고 해적 두목을 잡거나, 낡은 보물 지도를 따라 바다에 뛰어들거나. 흰 종이는 아직 아무도 그리지 않은 바다다.</p>
       <p class="fine" id="bestLine"></p>
       <div class="t-codex"><button class="btn" id="bCodexT"><span class="cxs" aria-hidden="true">典</span>사전 <small class="num" id="cxTN"></small></button><p class="fine" id="cxFactT"></p></div>
     </div>
