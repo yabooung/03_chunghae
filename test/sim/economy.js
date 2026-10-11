@@ -20,7 +20,7 @@ function play(style,diff){
       const n=C.nextShip(); if(n&&S.gold>n.price+C.quotaNow()*1.1)C.upgrade();
       if(S.threat>=70&&C.canTribute())C.tribute();
       if(style!=='lazy'&&S.gold>3000&&Math.random()<.6)C.buyRumor();
-      const off=S.offers[S.at];if(off&&!off.none&&S.orders.length<2&&((style==='smart'&&Math.random()<.5)||(wantOrders()&&S.markets[S.at].stock.includes(off.good))))C.acceptOffer(S.at);
+      const off=S.offers[S.at];if(off&&!off.none&&S.orders.length<2&&((style==='smart'&&Math.random()<.5)||wantOrders())){const q=C.orderQuote(off);C.acceptOffer(S.at,q.can&&S.gold>q.cost+C.quotaNow()*.4);} // 의뢰는 여기서 사서 저기 판다 — 돈이 닿으면 맡으면서 싣는다
       resolve();
       for(const g of C.mainGoals()){if(g.pay&&g.pay.k===S.at&&!g.done&&S.gold>g.pay.n+C.quotaNow()*.6)C.mainPay(S.at);if(g.deliver&&g.deliver.k===S.at)C.mainDeliver(S.at);
         if(style!=='lazy'&&g.deliver&&!g.done&&g.deliver.k!==S.at&&S.markets[S.at].stock.includes(g.deliver.good)){const have=S.slots.filter(x=>x.id===g.deliver.good).length;for(let i=have;i<g.deliver.n;i++)if(!C.buy(g.deliver.good).ok)break;}
@@ -33,8 +33,8 @@ function play(style,diff){
       for(const id of S.markets[here].stock){const bp=C.buyPrice(here,id);for(const d of PORT_IDS){if(d===here||!S.known[d])continue;const inf=C.infoFor(d,id);if(!inf)continue;const p=C.plan(d);if(!p||p.closedPort)continue;const gg=(inf.price-bp)/Math.max(3,p.days);if(!best||gg>best.g)best={id,d,g:gg};}}
       if(style!=='lazy'&&Math.random()<.12){const t=[{x:1250,y:1650},{x:1700,y:950},{x:350,y:1950},{x:1400,y:150}][Math.floor(Math.random()*4)];const p=C.plan(t);if(p){C.depart(p);continue;}}
       // 의뢰 물건 싣기
-      for(const o of S.orders){if(o.from===here||true){const have=S.slots.filter(s=>s.id===o.good).length;if(have<o.n&&S.markets[here].stock.includes(o.good))for(let i=have;i<o.n;i++)C.buy(o.good);}}
-      const ready=S.orders.find(o=>S.slots.filter(s=>s.id===o.good).length>=o.n);const dest=(ready&&(wantOrders()||Math.random()<.5))?ready.to:(S.orders.length&&Math.random()<.5)?S.orders[0].to:(best&&best.g>0?best.d:PORT_IDS.filter(k=>k!==here&&S.known[k])[Math.floor(Math.random()*5)]);
+      for(const o of S.orders){if(o.from===here){const have=S.slots.filter(s=>s.id===o.good&&s.from===o.from).length;if(have<o.n)for(let i=have;i<o.n;i++)if(!C.buy(o.good).ok)break;}}
+      const ready=S.orders.find(o=>S.slots.filter(s=>s.id===o.good&&s.from===o.from).length>=o.n);const dest=(ready&&(wantOrders()||Math.random()<.5))?ready.to:(S.orders.length&&Math.random()<.5)?S.orders[0].to:(best&&best.g>0?best.d:PORT_IDS.filter(k=>k!==here&&S.known[k])[Math.floor(Math.random()*5)]);
       // 상납 날이 가까우면(HUD 예측을 읽는 사람처럼) 상납금은 남겨 두고 산다. 짐은 7할에 압류되니 그만큼은 쳐준다
       const reserve=C.daysToDue()<35?Math.max(0,C.quotaNow()-S.slots.reduce((a,x)=>a+x.cost*.7,0)):0;
       if(best&&best.g>0)while(C.freeSlots()&&S.gold>=C.cratePrice(here,best.id)+reserve)if(!C.buy(best.id).ok)break;
@@ -51,7 +51,7 @@ function play(style,diff){
         if(o.type==='rival')rivalHits++;if(['news','chase','escaped','tired','bounced','passengerLost'].includes(o.type))CNT[o.type]=(CNT[o.type]||0)+1;if(o.type==='event')EVC[o.ev.id]=(EVC[o.ev.id]||0)+1;
         if(o.type==='quota')onQuota(o.res);
         if(o.type==='battle'||o.type==='dive')resolve();
-        if(o.type==='arrive'){orders+=o.info.delivered.length;const keep=o.info.items.filter(x=>x.profit<0).map(x=>x.i);for(const od of S.orders){let n=0;S.slots.forEach((s,i)=>{if(s.id===od.good&&n<od.n&&!keep.includes(i)){keep.push(i);n++;}});}C.sellAll(keep);}}}
+        if(o.type==='arrive'){orders+=o.info.delivered.length;const keep=o.info.items.filter(x=>x.profit<0).map(x=>x.i);for(const od of S.orders){let n=0;S.slots.forEach((s,i)=>{if(s.id===od.good&&s.from===od.from&&n<od.n&&!keep.includes(i)){keep.push(i);n++;}});}C.sellAll(keep);}}}
   }
   ENDS[S.ending||S.ended]=(ENDS[S.ending||S.ended]||0)+1;ACT[S.main.act]=(ACT[S.main.act]||0)+1;const story=S.ended==='ending'&&S.ending!=='three_years';return {style,q:quotaLog.join(''),seasons:S.quotaN,end:S.ended==='ending'?S.ending:S.ended,story,fame:Math.round(S.fame),debts:S.debtN||0,score:C.score(),gold:Math.round(S.gold),known:PORT_IDS.filter(k=>S.known[k]).length,voy:S.stats.voyages,ev,ambush,rivalHits,orders,alts,zoneTrips,boons:Object.entries(S.boons).map(([k,v])=>k+v).join(','),t:Math.round(S.t)};
 }

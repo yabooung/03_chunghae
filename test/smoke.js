@@ -84,6 +84,33 @@ const endIds = new Set(Object.keys(C.ENDINGS)); ok(endIds.size >= 10, `결말 ${
     `저장→불러오기·메타 왕복에도 사전 ${got.length}항목 그대로 · 옛 메타는 빈 사전`);
   const one = E.find(e => st.u[e.id] && e.terms.length); ok(one && X.search(st, one.terms[0].slice(0, 2)).includes(one) && !X.search(st, '없는낱말qq').length, `찾기(한글 부분 일치) — 「${one && one.terms[0].slice(0, 2)}」`);
   const T = X.terms(st); ok(T.every(([t], i) => i === 0 || T[i - 1][0].length >= t.length), `글 속 낱말 ${T.length}개 (긴 것부터)`); }
+// 8. 의뢰: 항구마다 "여기서 나는 물건 → 그것을 만들지 않는 다른 항구" · 맡긴 항구 밖에서 산 상자는 안 쳐준다 · 할인은 의뢰가 열린 동안 상자 수만큼 · 종류 글이 선장 셋 모두에게 풀린다
+{ const K = C.ORDER_KINDS; let badOff = [], kinds = {};
+  for (const cap of Object.keys(C.CAPTAINS)) { const S = C.newGame(cap); for (const k of C.PORT_IDS) S.known[k] = true;
+    for (const k of C.PORT_IDS) { C.makeOffer(k, true); const o = S.offers[k]; if (!o || o.none) { badOff.push(`${k}:없음`); continue; } kinds[o.kind] = (kinds[o.kind] || 0) + 1;
+      if (!C.PORTS[k].prod.includes(o.good) || !S.markets[k].stock.includes(o.good)) badOff.push(`${k}:${o.good} 여기서 안 난다`); if (o.to === k || C.PORTS[o.to].prod.includes(o.good)) badOff.push(`${k}→${o.to}:${o.good} 행선지가 만든다`);
+      if (!K[o.kind] || !K[o.kind].ports.includes(k)) badOff.push(`${k}:종류 ${o.kind}`); if (o.n < 1 || o.days < 8 || o.reward < 100) badOff.push(`${k}:수치`); } }
+  ok(!badOff.length && Object.keys(kinds).length === 6, `항구 ${C.PORT_IDS.length}곳 의뢰 — 여기서 나는 물건을 만들지 않는 항구로 (${Object.entries(kinds).map(([k, n]) => `${K[k].name} ${n}`).join(' · ')})${badOff.length ? ' — ' + badOff.join(', ') : ''}`);
+  const badTxt = []; for (const cap of Object.keys(C.CAPTAINS)) { C.newGame(cap); for (const kind of Object.keys(K)) for (let v = 0; v < 3; v++) { const from = K[kind].ports[0] || 'cheonghae', good = K[kind].goods[0] || 'ginseng', to = C.PORT_IDS.find(x => x !== from && !C.PORTS[x].prod.includes(good));
+    const T = C.orderText({ kind, v, from, to, good, n: 2, days: 20, reward: 5000 }); for (const f of ['eyebrow', 'intro', 'line', 'kind', 'ch']) if (typeof T[f] !== 'string' || !T[f] || /undefined|NaN|\[object/.test(T[f])) badTxt.push(`${cap}/${kind}/${v}/${f}`); if (typeof T.twist !== 'string' || /undefined|NaN/.test(T.twist)) badTxt.push(`${cap}/${kind}/${v}/twist`); if (!K[kind].desc) badTxt.push(kind + '/desc'); } }
+  ok(!badTxt.length, `의뢰 종류 ${Object.keys(K).length}가지 × 소개 3 × 선장 3 글이 모두 풀린다${badTxt.length ? ' — ' + badTxt.join(' ') : ''}`);
+  // 맡긴 항구에서 산 상자만 쳐준다 · 할인은 열린 동안 상자 수만큼
+  const S = C.newGame('gungbok'); for (const k of C.PORT_IDS) S.known[k] = true; S.gold = 200000; C.makeOffer('cheonghae', true); const o = S.offers.cheonghae;
+  const p0 = C.buyPrice('cheonghae', o.good); const r = C.acceptOffer('cheonghae', false); const p1 = C.buyPrice('cheonghae', o.good); // 맡은 뒤 할인가
+  ok(r && r.order && S.orders.length === 1 && Math.abs(p1 - Math.round(p0 * C.ORDER_DISC)) <= 1, `맡으면 그 물건 값 ${p0} → ${p1} (×${C.ORDER_DISC})`);
+  S.slots = []; for (let i = 0; i < o.n; i++) S.slots.push({ id: o.good, cost: 1000, from: 'jeoksan' }); // 다른 데서 산 상자
+  const g0 = S.gold, d0 = C.deliverOrders(o.to);
+  ok(d0 && d0.length === 0 && S.orders.length === 1 && S.gold === g0, '다른 항구에서 산 상자는 의뢰로 안 쳐준다');
+  S.slots = []; for (let i = 0; i < o.n; i++) { const b = C.buy(o.good); if (!b.ok) break; } const bought = S.orders[0].bought, pAfter = C.buyPrice('cheonghae', o.good);
+  ok(bought === o.n && S.slots.length === o.n && S.slots.every(s => s.from === 'cheonghae') && pAfter > p1 && Math.abs(pAfter - Math.round(p1 / C.ORDER_DISC * Math.pow(1 + C.LOT / 300, o.n))) <= 3, `상자 ${o.n}개를 사면 할인이 끝난다 (${p1} → ${pAfter}) · 산 상자 ${bought}/${o.n}`);
+  const d1 = C.deliverOrders(o.to);
+  ok(d1.length === 1 && d1[0].paid >= o.reward * .85 && S.orders.length === 0 && S.slots.length === 0 && S.gold > g0 - o.n * 3000, `맡긴 항구에서 산 상자를 ${C.PORTS[o.to].name}에 넘기면 보수 ${d1[0] && d1[0].paid}냥 · 명성 +${d1[0] && d1[0].fame}`);
+  ok(C.buyPrice('cheonghae', o.good) === pAfter && !C.commission('cheonghae', o.good), '의뢰가 끝나면 할인도 끝난다');
+  // 맡고 싣는다: 돈·자리가 닿으면 맡으면서 상자까지 산다
+  C.makeOffer('cheonghae', true); const o2 = S.offers.cheonghae, q = C.orderQuote(o2), r2 = C.acceptOffer('cheonghae', true);
+  ok(q.can && r2 && r2.bought === o2.n && r2.cost === q.cost && S.slots.filter(s => s.id === o2.good && s.from === 'cheonghae').length === o2.n, `맡고 싣는다 — ${o2.n}상자 ${q.cost}냥 (미리 센 값과 같다)`);
+  const txt = C.saveData(); C.newGame('ara'); const L = C.loadData(txt); ok(L && L.orders.length === 1 && L.orders[0].kind === o2.kind && L.orders[0].bought === o2.n && L.v === 8, '의뢰(종류·산 상자 수)가 저장을 건너 그대로다 (v8)'); }
+
 // 6. 한 파일 빌드에 넣는 글꼴이 게임 글자를 모두 덮는다 (글을 고치면 python tools/fonts.py)
 { const fs = require('fs'), path = require('path'), root = path.join(__dirname, '..');
   const have = new Set([...fs.readFileSync(path.join(root, 'assets/fonts/charset.txt'), 'utf8')]), SYS = new Set([...'≈═✓']);

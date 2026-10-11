@@ -308,7 +308,7 @@ function revealPath(a, b, r) { const p = findPath(PORTS[a].x, PORTS[a].y, PORTS[
 
 function newGame(capId, diff, opt) { opt = opt || {};
   const cap = CAPTAINS[capId] || CAPTAINS.gungbok, home = PORTS[cap.start];
-  S = { v: 7, cap: capId, diff: DIFFS[diff] ? diff : DIFF_NEW, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
+  S = { v: 8, cap: capId, diff: DIFFS[diff] ? diff : DIFF_NEW, t: 0, at: cap.start, x: home.x, y: home.y, mode: 'port', path: null, seg: 0, dest: null, heading: -Math.PI / 2,
     gold: cap.gold, slots: [], tier: 0, shipVar: 'wide', hull: 100, hullMax: 100, threat: 0, fame: 0, stage: 0, debt: 0, debtN: 0, office: {}, share: null, navyUntil: 0, redrew: false, rumorDay: { d: -1, n: 0 }, legacy: null,
     markets: {}, booms: [], nextBoom: 4, ledger: {}, rumors: [], found: {}, docked: { [cap.start]: 1 },
     known: Object.fromEntries(PORT_IDS.map(k => [k, !PORTS[k].hidden || (cap.knows || []).includes(k)])),
@@ -362,7 +362,7 @@ const natOf = k => PORTS[k].nation;
 function sellBonus(k) { const b = S.boons; let m = 1 + .08 * (b.haggle || 0); if (b.tang && natOf(k) === '당') m += .15; if (S.main && S.main.flags.allyBonus && natOf(k) === '당') m += .08; if (b.wa && (natOf(k) === '왜' || natOf(k) === '남도')) m += .15; if (S.share === k) m += .1; // 항구 지분
   for (const n of liveNews()) { if (n.festival === k) m *= n.fmult; if (n.tax && natOf(k) === n.tax) m *= .9; } return m * (S._bonus || 1) * (hasMate('trader') ? 1.04 : 1); }
 const rawPrice = (k, id) => Math.max(1, Math.round(G[id].base * S.markets[k].idx[id]));
-const buyPrice = (k, id) => Math.max(1, Math.round(rawPrice(k, id) * (1 - .08 * (S.boons.bargain || 0))));
+const buyPrice = (k, id) => Math.max(1, Math.round(rawPrice(k, id) * (1 - .08 * (S.boons.bargain || 0)) * (commission(k, id) ? ORDER_DISC : 1))); // 맡은 의뢰의 물건은 그 항구에서 할인가
 const sellPrice = (k, id) => Math.max(1, Math.round(rawPrice(k, id) * .93 * sellBonus(k)));
 const pctOf = (k, id) => Math.round(S.markets[k].idx[id] * 100);
 function topDemand(k, n) { const m = S.markets[k]; return GOODS.map(g => g.id).filter(id => !m.stock.includes(id)).sort((a, b) => m.idx[b] - m.idx[a]).slice(0, n); }
@@ -417,8 +417,9 @@ const freeSlots = () => capacity() - S.slots.length;
 const cratePrice = (k, id) => buyPrice(k, id) * LOT;
 function buy(id) { const k = S.at; if (!k || S.mode !== 'port') return { ok: false, msg: '항구에서만 살 수 있다' }; tickMarket(k);
   if (!freeSlots()) return { ok: false, msg: '선창이 가득 찼다' }; const cost = cratePrice(k, id); if (S.gold < cost) return { ok: false, msg: '돈이 모자란다' };
+  const co = commission(k, id); if (co) co.bought = (co.bought || 0) + 1; // 의뢰 할인은 상자 수만큼만
   S.gold -= cost; S.slots.push({ id, cost, from: k }); const m = S.markets[k]; m.idx[id] = clamp(m.idx[id] * (1 + LOT / 300), .25, 3.2); m.press[id] = (m.press[id] || 0) - LOT / 600;
-  return { ok: true, cost }; }
+  return { ok: true, cost, order: !!co }; }
 function sell(i) { const k = S.at, s = S.slots[i]; if (!s || !k) return null; tickMarket(k); const m = S.markets[k];
   const pct0 = pctOf(k, s.id), unit = sellPrice(k, s.id), rev = unit * LOT; const profit = rev - s.cost, mult = s.cost > 0 ? rev / s.cost : 3;
   m.idx[s.id] = clamp(m.idx[s.id] * (1 - LOT / 300), .25, 3.2); m.press[s.id] = (m.press[s.id] || 0) + LOT / 200; pressLog(k, s.id, 'me', 1);
@@ -433,20 +434,103 @@ function previewSale(k, keep) { keep = keep || []; const m = S.markets[k]; if (!
     idx[s.id] = clamp(idx[s.id] * (1 - LOT / 300), .25, 3.2); items[i] = { i, act: r, profit: r - s.cost }; total += r - s.cost; rev += r; }
   return { items, total, rev }; }
 
-/* ─────────── 의뢰 ─────────── */
-function makeOffer(k) { if (!k) return; const old = S.offers[k]; if (old && old.until > S.t) return;
-  if (Math.random() < .35) { S.offers[k] = { none: true, until: S.t + 25 }; return; }
-  const targets = PORT_IDS.filter(x => x !== k && S.known[x] && findPath(PORTS[k].x, PORTS[k].y, PORTS[x].x, PORTS[x].y)); if (!targets.length) return;
-  const to = pick(targets); tickMarket(to); const pool = PORTS[to].want.concat(GOODS.map(g => g.id).sort(() => Math.random() - .5).slice(0, 2)).filter(id => !PORTS[to].prod.includes(id)); const id = pick(pool); const n = ri(1, 3); // 목적지에서 나는 물건은 맡기지 않는다
-  const dist = pathLen(findPath(PORTS[k].x, PORTS[k].y, PORTS[to].x, PORTS[to].y)); const days = Math.round(dist / 70 + ri(12, 26));
-  const reward = Math.round(G[id].base * LOT * n * (1.7 + Math.random() * .5) / 100) * 100;
-  S.offers[k] = { id: 'o' + Math.floor(S.t * 100) + k, from: k, to, good: id, n, days, reward, until: S.t + 20 }; }
-function acceptOffer(k) { const o = S.offers[k]; if (!o || o.none || S.orders.length >= 2) return null; S.orders.push(Object.assign({}, o, { due: S.t + o.days })); S.offers[k] = { none: true, until: S.t + 20 }; return o; }
+/* ─────────── 의뢰 ───────────
+   의뢰는 늘 "이 항구에서 나는 물건을 여기서 사서, 그것을 찾는(적어도 만들지 않는) 다른 항구에 가져다주는 일"이다.
+   맡으면 그 물건을 여기서 살 때 값을 깎아 주고(ORDER_DISC, 상자 수만큼), 닿으면 보수와 명성을 준다. 상자는 맡긴 항구에서 산 것(s.from === o.from)만 쳐준다.
+   항구가 속한 지역마다 의뢰의 성격(ORDER_KINDS)이 다르다 — 물건·행선지·기한·보수·덤이 하나씩 다르다. */
+const ORDER_DISC = .85, ORDER_NONE = .25, ORDER_MAX = 2;
+const ORDER_KINDS = {
+  tribute:   { name: '관아 공물', ch: '納', ports: ['cheonghae', 'dangeun', 'ulsan', 'hoejin', 'gimhae', 'samcheok', 'hyeolgu'], goods: ['ginseng', 'iron', 'books'], to: ['ulsan', 'dangeun'], days: .7, fame: 90, late: 5,
+    desc: '신라 관아가 서라벌로 올려 보내는 공물. 울산이나 당은포까지, 기한이 짧고 명성을 많이 주지만 늦으면 경계가 오른다.' },
+  sillabang: { name: '신라방 위탁', ch: '客', ports: ['jeoksan', 'deungju', 'laizhou', 'mizhou', 'chuzhou'], goods: ['silk', 'books'], toNation: ['신라'], fame: 50,
+    desc: '산동 신라방 사람들이 고향으로 보내는 비단과 책. 맡으면 편지 한 줄을 같이 받는다 — 소문 하나.' },
+  guild:     { name: '상단 위탁', ch: '商', ports: ['yangzhou', 'hangzhou', 'mingzhou', 'wenzhou', 'fuzhou', 'quanzhou'], goods: ['tea', 'porcelain', 'spice'], toNation: ['왜', '신라'], n: [2, 4], reward: 1.25, fame: 40,
+    desc: '강남 상단이 왜와 신라로 보내는 차·도자기·향료. 상자가 많고 보수가 크지만, 경쟁 상단이 같은 물건을 그 항구에 풀려 한다.' },
+  dazaifu:   { name: '다자이후 납품', ch: '府', ports: ['hakata', 'izumo', 'naniwa', 'tsuruga', 'satsuma'], goods: ['sulfur', 'iron', 'gold'], toNation: ['당'], fame: 40,
+    desc: '다자이후 관청이 당으로 보내는 유황·쇠·사금. 도모는 보수를 2할 더 받고, 신라 선장은 경계가 조금 오른다.' },
+  balhae:    { name: '발해 공물', ch: '渤', ports: ['yeomju', 'namgyeong'], goods: ['fur', 'iron'], to: ['tsuruga', 'ulsan', 'samcheok'], days: 1.4, fame: 50,
+    desc: '발해 사신선 대신 나르는 담비가죽과 쇠. 쓰루가나 신라 동해까지, 기한은 넉넉하지만 동해 폭풍을 조심해야 한다.' },
+  island:    { name: '섬의 공물', ch: '島', ports: ['tamna', 'amami', 'ryukyu', 'jilong'], goods: ['shell', 'sulfur'], toNation: ['당', '신라'], reward: .9, fame: 50,
+    desc: '섬 수장이 큰 뭍으로 보내는 야광패와 유황. 보수 일부는 돈 대신 유물이나 소문으로 온다.' },
+  plain:     { name: '의뢰', ch: '客', ports: [], goods: [], fame: 40, desc: '항구의 상인이 다른 항구로 보내는 짐.' }
+};
+const orderKindOf = k => Object.keys(ORDER_KINDS).find(id => ORDER_KINDS[id].ports.includes(k)) || 'plain';
+/* 글 — 종류마다 소개 셋(o.v로 고른다)과 덤 한 줄. {F,T,g}는 맡긴 항구·행선지·물건 */
+const ORDER_INTRO = {
+  tribute: [(o, F, T, g) => `관아 서리가 장부를 들고 나왔다. 서라벌로 올려 보낼 ${g.name}${JO(g.name, '이다', '다')}. ${T.name}까지 ${o.days}일 안에 닿아야 한다.`,
+    (o, F, T, g) => `${F.name} 관아가 공물을 맡길 배를 찾는다. ${g.name} ${o.n}상자를 ${T.name}${JO(T.name, '으로', '로')}. 늦으면 관아가 기억한다.`,
+    (o, F, T, g) => `공물선이 풍랑에 상했다. 관아가 대신 나를 배를 급히 구한다. ${g.name}${JO(g.name, '을', '를')} ${T.name}까지.`],
+  sillabang: [(o, F, T, g) => `신라방 객주가 고향으로 보낼 짐을 내놓는다. ${g.name} ${o.n}상자, ${T.name}의 식구에게.`,
+    (o, F, T, g) => `낡은 두루마기를 입은 신라 사람이 다가온다. 당에서 번 돈으로 산 ${g.name}${JO(g.name, '을', '를')} 고향 ${T.name}에 보내고 싶다고 한다.`,
+    (o, F, T, g) => `신라방 노인이 편지와 함께 짐을 맡긴다. ${T.name}에 사는 아들에게 ${g.name}${JO(g.name, '을', '를')} 전해 달라고 한다.`],
+  guild: [(o, F, T, g) => `강남 큰 상단의 서기가 계약서를 편다. ${g.name} ${o.n}상자를 ${T.name}까지. 보수는 넉넉하다.`,
+    (o, F, T, g) => `상단 창고 앞에 ${g.name} 상자가 쌓여 있다. 바다 건너 ${T.name}의 거래처가 기다린다고 한다.`,
+    (o, F, T, g) => `운하를 타고 온 상단이 바닷배를 찾는다. ${T.name}${JO(T.name, '으로', '로')} 가는 ${g.name} ${o.n}상자. 상자가 많다.`],
+  dazaifu: [(o, F, T, g) => `다자이후 관리가 배를 부른다. 당으로 보내는 ${g.name} ${o.n}상자. ${T.name}에서 받을 사람이 있다.`,
+    (o, F, T, g) => `관청 창고에서 ${g.name}${JO(g.name, '을', '를')} 내온다. 견당선이 뜨지 않는 해라 민간 배에 맡긴다고 한다. ${T.name}까지.`,
+    (o, F, T, g) => `다자이후의 서기가 목간을 내민다. ${T.name}의 당 관아로 가는 ${g.name}${JO(g.name, '이다', '다')}.`],
+  balhae: [(o, F, T, g) => `발해 사신선이 떠난 뒤 남은 짐이다. ${g.name} ${o.n}상자를 ${T.name}까지. 기한은 넉넉하다.`,
+    (o, F, T, g) => `모피 장사꾼이 ${g.name}${JO(g.name, '을', '를')} 맡기며 동해 바람 이야기를 한다. ${T.name}까지 천천히 가도 된다고 한다.`,
+    (o, F, T, g) => `발해 관리가 봉인한 상자를 가리킨다. ${T.name}${JO(T.name, '으로', '로')} 가는 ${g.name}${JO(g.name, '이다', '다')}. 동해의 폭풍을 조심하라고 한다.`],
+  island: [(o, F, T, g) => `섬 수장이 뭍으로 보낼 ${g.name}${JO(g.name, '을', '를')} 맡긴다. ${T.name}까지. 돈 대신 섬의 것을 얹어 주겠다고 한다.`,
+    (o, F, T, g) => `해녀들이 건진 ${g.name}${JO(g.name, '이', '가')} 광주리에 담겨 있다. 수장은 ${T.name}의 상인에게 전해 달라고 한다.`,
+    (o, F, T, g) => `섬 사람들이 배를 둘러싼다. ${g.name} ${o.n}상자를 ${T.name}${JO(T.name, '으로', '로')}. 뭍의 돈은 적게 주지만 다른 것을 준다.`],
+  plain: [(o, F, T, g) => `${F.name}의 상인이 ${g.name} ${o.n}상자를 ${T.name}까지 맡긴다.`]
+};
+const ORDER_TWIST = {
+  tribute: () => '기한이 짧고 명성을 많이 준다. 늦으면 경계 +5.',
+  sillabang: () => '맡으면 편지 한 줄을 같이 받는다 — 소문 하나.',
+  guild: () => '상자가 많고 보수가 크다. 경쟁 상단도 같은 물건을 그 항구에 풀려 한다 — 먼저 닿지 못하면 보수가 1할 5푼 깎인다.',
+  dazaifu: () => S.cap === 'tomo' ? '도모는 다자이후와 연이 있다 — 보수를 2할 더 받는다.' : '신라 배가 왜 관청 일을 맡는다. 조정의 눈이 조금 따갑다 — 경계 +3.',
+  balhae: () => '기한이 길다. 동해는 폭풍이 잦으니 선체를 보고 떠난다.',
+  island: () => '보수 일부가 돈 대신 온다 — 유물이나 소문.',
+  plain: () => ''
+};
+function orderText(o) { const K = ORDER_KINDS[o.kind] || ORDER_KINDS.plain, F = PORTS[o.from], T = PORTS[o.to], g = G[o.good]; const I = ORDER_INTRO[o.kind] || ORDER_INTRO.plain;
+  return { kind: K.name, ch: K.ch, eyebrow: `${K.name} · ${F.name}`, intro: I[(o.v || 0) % I.length](o, F, T, g), twist: (ORDER_TWIST[o.kind] || ORDER_TWIST.plain)(), fame: K.fame || 40, line: `${F.name} → ${T.name} · ${g.name} ${o.n}상자 · ${o.days}일` }; }
+/* 이 항구의 의뢰 초안: 여기서 나고 시장에 있는 물건 → 그것을 만들지 않는 아는 항구(찾는 항구를 먼저). 지역 종류의 물건·행선지 목록을 먼저 쓰고, 없으면 일반 규칙 */
+function draftOrder(k) { tickMarket(k); const m = S.markets[k], kind = orderKindOf(k), K = ORDER_KINDS[kind];
+  const stock = PORTS[k].prod.filter(id => m.stock.includes(id)); if (!stock.length) return null;
+  let goods = stock.filter(id => K.goods.includes(id)); if (!goods.length) goods = stock; const id = pick(goods);
+  const reach = x => x !== k && S.known[x] && !PORTS[x].prod.includes(id) && !!findPath(PORTS[k].x, PORTS[k].y, PORTS[x].x, PORTS[x].y);
+  let tos = K.to ? K.to.filter(reach) : []; if (!tos.length && K.toNation) tos = PORT_IDS.filter(x => K.toNation.includes(natOf(x)) && reach(x)); if (!tos.length) tos = PORT_IDS.filter(reach); if (!tos.length) return null;
+  const wantTo = tos.filter(x => PORTS[x].want.includes(id)); const to = pick(wantTo.length && Math.random() < .75 ? wantTo : tos);
+  const n = K.n ? ri(K.n[0], K.n[1]) : ri(1, 3), dist = pathLen(findPath(PORTS[k].x, PORTS[k].y, PORTS[to].x, PORTS[to].y));
+  let days = Math.round(dist / 45 + ri(14, 26)); if (K.days) days = Math.max(8, Math.round(days * K.days)); // 먼 길(왜→당, 강남→왜)은 역풍이면 하루 35km도 못 간다 — 거리 몫을 넉넉히 (하카타→항주 1,100km ≈ 38~50일)
+  let reward = G[id].base * LOT * n * (1.1 + Math.random() * .4) + dist * .8; if (K.reward) reward *= K.reward; if (kind === 'dazaifu' && S.cap === 'tomo') reward *= 1.2; // 보수: 상자 기본값의 1.1~1.5배 + 거리. 행선지 시장에서 팔 값보다 모자라지 않게
+  return { id: 'o' + Math.floor(S.t * 100) + k, kind, v: ri(0, 2), from: k, to, good: id, n, days, reward: Math.round(reward / 100) * 100, until: S.t + 20 }; }
+function makeOffer(k, force) { if (!k) return; const old = S.offers[k]; if (old && old.until > S.t && !force) return;
+  if (!force && Math.random() < ORDER_NONE) { S.offers[k] = { none: true, until: S.t + 25 }; return; }
+  const o = draftOrder(k); S.offers[k] = o || { none: true, until: S.t + 25 }; }
+/* 맡은 의뢰 중 이 항구에서 아직 다 사지 않은 것 — 그 물건은 할인가(ORDER_DISC)로 산다 */
+const commission = (k, id) => S.orders.find(o => !o.royal && o.from === k && o.good === id && (o.bought || 0) < o.n) || null;
+/* 의뢰 상자를 여기서 다 사면 드는 돈(buy와 같은 순서로 값이 오른다)과 살 수 있는지 */
+function orderQuote(o) { const k = o.from; if (!S.markets[k]) return { cost: 0, can: false }; tickMarket(k); const m = S.markets[k]; let idx = m.idx[o.good], cost = 0; const n = o.n - (o.bought || 0);
+  for (let i = 0; i < n; i++) { cost += Math.max(1, Math.round(Math.max(1, Math.round(G[o.good].base * idx)) * (1 - .08 * (S.boons.bargain || 0)) * ORDER_DISC)) * LOT; idx = clamp(idx * (1 + LOT / 300), .25, 3.2); }
+  return { cost, n, can: S.at === k && S.mode === 'port' && n > 0 && freeSlots() >= n && S.gold >= cost }; }
+/* 경쟁 상단 하나를 그 항구로 보낸다(상단 위탁의 덤). 항구에 머무는 상단만 */
+function rivalAim(to, id) { for (const R of S.rivals) { const def = RIVALS.find(r => r.id === R.id); if (def.kind !== 'trade' || !R.at || R.at === to) continue; const p = findPath(R.x, R.y, PORTS[to].x, PORTS[to].y); if (!p) continue; R.path = p; R.seg = 0; R.dest = to; R.good = id; R.at = null; return def; } return null; }
+/* 맡는다. load면 그 자리에서 상자까지 산다(돈·자리가 닿는 데까지). 돌려주는 것: { order, bought, cost, letter?, threat?, rival? } */
+function acceptOffer(k, load) { const o = S.offers[k]; if (!o || o.none || S.orders.length >= ORDER_MAX) return null;
+  const ord = Object.assign({}, o, { due: S.t + o.days, bought: 0, t0: S.t }); delete ord.until; S.orders.push(ord); S.offers[k] = { none: true, until: S.t + 20 };
+  const r = { order: ord, bought: 0, cost: 0 };
+  if (o.kind === 'sillabang') { const ru = makeRumor('true'); ord.letter = ru.line; r.letter = ru.line; }
+  if (o.kind === 'dazaifu' && S.cap !== 'tomo') { addThreat(3); r.threat = 3; }
+  if (o.kind === 'guild') { const def = rivalAim(o.to, o.good); if (def) { ord.rival = def.id; r.rival = def.name; } }
+  if (load) while (r.bought < o.n) { const b = buy(o.good); if (!b.ok) break; r.bought++; r.cost += b.cost; }
+  return r; }
 function deliverOrders(k) { const done = [];
-  for (const o of S.orders.slice()) { if (o.to !== k) continue; const idx = []; S.slots.forEach((s, i) => { if (s.id === o.good && s.from !== o.to && idx.length < o.n) idx.push(i); }); // 그 항구에서 산 물건은 안 쳐준다
-    if (idx.length < o.n) continue; const cost = idx.reduce((a, i) => a + S.slots[i].cost, 0); for (const i of idx.reverse()) S.slots.splice(i, 1); S.gold += o.reward; addFame(40, '의뢰 완수'); S.stats.orders++; acct('order', o.reward - cost); S.orders.splice(S.orders.indexOf(o), 1); done.push(o); }
+  for (const o of S.orders.slice()) { if (o.to !== k) continue; const idx = []; S.slots.forEach((s, i) => { if (s.id === o.good && (o.royal ? s.from !== o.to : s.from === o.from) && idx.length < o.n) idx.push(i); }); // 맡긴 항구에서 산 상자만 쳐준다(나니와 왕실 주문은 그 항구 것만 아니면 된다)
+    if (idx.length < o.n) continue; const cost = idx.reduce((a, i) => a + S.slots[i].cost, 0); for (const i of idx.reverse()) S.slots.splice(i, 1);
+    const K = ORDER_KINDS[o.kind] || ORDER_KINDS.plain; let paid = o.reward, note = null, bonus = null;
+    if (o.kind === 'guild' && o.rival) { const R = S.rivals.find(x => x.id === o.rival); if (R && R.last && R.last.k === k && R.last.day >= Math.floor(o.t0 || 0)) { paid = Math.round(paid * .85); note = '경쟁 상단이 먼저 풀어 보수가 1할 5푼 깎였다'; } }
+    if (o.kind === 'island') { const rel = RELICS.filter(r => !S.relics[r.id]); if (rel.length && Math.random() < .25) { const r = pick(rel); gainRelic(r.id); bonus = { relic: r.id, text: `섬 수장이 얹어 보낸 것 — 유물 ${r.name}. ${r.text}` }; } else { const ru = makeRumor('true'); bonus = { rumor: ru.line, text: `섬 수장이 얹어 보낸 것 — 소문. “${ru.line}”` }; } }
+    const fame = K.fame || 40; S.gold += paid; addFame(fame, '의뢰 완수'); S.stats.orders++; acct('order', paid - cost); S.orders.splice(S.orders.indexOf(o), 1); done.push(Object.assign({}, o, { paid, fame, note, bonus })); }
   return done; }
-function expireOrders() { const gone = []; for (const o of S.orders.slice()) if (S.t > o.due) { S.orders.splice(S.orders.indexOf(o), 1); addFame(-20, '의뢰 기한을 넘김'); gone.push(o); } return gone; }
+function expireOrders() { const gone = []; for (const o of S.orders.slice()) if (S.t > o.due) { S.orders.splice(S.orders.indexOf(o), 1); addFame(-20, '의뢰 기한을 넘김'); const late = (ORDER_KINDS[o.kind] || {}).late || 0; if (late) addThreat(late); gone.push(Object.assign({}, o, { threat: late })); } return gone; }
+/* 이 상자가 아직 안 끝난 의뢰의 짐인가(맡긴 항구에서 산 그 물건, 상자 수만큼). 팔면 의뢰가 깨진다 */
+const orderFits = (o, s) => s.id === o.good && (o.royal ? s.from !== o.to : s.from === o.from);
+function orderCrates() { const set = {}; for (const o of S.orders) { let n = 0; S.slots.forEach((s, i) => { if (n < o.n && orderFits(o, s) && !set[i]) { set[i] = o.id; n++; } }); } return set; }
 
 /* ─────────── 소문 ─────────── */
 const rumorCost = () => (S.cap === 'ara' || S.boons.clerk) ? 200 : 400;
@@ -1500,7 +1584,7 @@ function sellAll(keep) { const res = []; for (let i = S.slots.length - 1; i >= 0
 
 /* ─────────── 저장 ─────────── */
 function saveData() { const d = Object.assign({}, S); delete d.reveals; return JSON.stringify(d); }
-function loadData(txt) { let d; try { d = JSON.parse(txt || 'null'); } catch (e) { return null; } if (!d || d.v !== 7) return null;
+function loadData(txt) { let d; try { d = JSON.parse(txt || 'null'); } catch (e) { return null; } if (!d || d.v !== 8) return null; // v8: 의뢰에 kind·bought·t0, 제안에 kind·v
   d.battle = null; d.dive = null; d.reveals = []; d.ev = null; if (!DIFFS[d.diff]) d.diff = DIFF_OLD; S = d; return S; }
 
 /* ─────────── 결산 ─────────── */
@@ -1513,7 +1597,7 @@ return { WORLD, VIEW, CELL, GW, GH, YEAR, LOT, LAND, LABELS, GOODS, G, PORTS, PO
   P, JO, get S() { return S; }, set S(v) { S = v; }, DIFFS, DIFF_NEW, dif, saveData, loadData,
   newGame, update, portTick, plan, depart, buy, sell, sellAll, previewSale, buyRumor, rumorCost, rumorsLeft, tribute, tributeCost, canTribute, canBribe, bribe, bribeCost, bribeLeft, repair, repairCost, upgrade, nextShip, waitDays,
   choose, nextStory, infoFor, tickMarket, buyPrice, sellPrice, cratePrice, dealPrice, pctOf, topDemand, activeBoom, freeSlots, capacity, ship, crewOf, perk, pressInfo,
-  acceptOffer, quotaNow, quotaFor, quotaCurve, quotaCap, quotaFloor, quotaForecast, seasonReport, debtsAllowed, takeBoon, redrawBoons, REDRAW_COST, daysToDue, inZone, pirateOdds, zoneR, NEWS, SPECIALS, STORE_MAX, storeMax, wealth,
+  acceptOffer, makeOffer, draftOrder, deliverOrders, orderText, orderQuote, orderCrates, commission, ORDER_KINDS, ORDER_DISC, ORDER_MAX, quotaNow, quotaFor, quotaCurve, quotaCap, quotaFloor, quotaForecast, seasonReport, debtsAllowed, takeBoon, redrawBoons, REDRAW_COST, daysToDue, inZone, pirateOdds, zoneR, NEWS, SPECIALS, STORE_MAX, storeMax, wealth,
   OFFICE, officeInfo, buyOffice, escortCost, QUOTA_END, endingTree, ENDING_TREE, bossRec, BOSS_TIER, tavernReroll, REROLL_COST, mateValue, threatMax,
   ARCS, ENDINGS, END_KIND, NUM, MATES, MBY, arcOf, curAct, mainGoals, mainTick, mainPay, mainDeliver, mainSpots, mainStory, endingEpilogue, failEpilogue, storyFates, cap, crewText, drainFame, yearWord, BLACK, hasMate, mateCap, wages, tavern, hireMate, fireMate, rollDice, portEvent,
   QUESTS, QBY, FIND_META, REGIONS, qStep, startQuest, questEval, questSpots, regionCheck,

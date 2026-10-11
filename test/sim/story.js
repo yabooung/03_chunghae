@@ -38,7 +38,7 @@ function play(cap, diff, plan) {
       const calmGoal = C.mainGoals().some(gl => !gl.done && gl.text.includes('경계를'));
       if ((S.threat >= 50 || (calmGoal && S.threat >= 35)) && C.canTribute() && S.gold > C.tributeCost() + C.quotaNow() * .5) C.tribute();
       if (S.gold > 4000 && Math.random() < .5) C.buyRumor();
-      const off = S.offers[S.at]; if (off && !off.none && S.orders.length < 2 && (S.markets[S.at].stock.includes(off.good) || Math.random() < .3)) C.acceptOffer(S.at);
+      const off = S.offers[S.at]; if (off && !off.none && S.orders.length < 2 && Math.random() < .6) { const q = C.orderQuote(off); C.acceptOffer(S.at, q.can && S.gold > q.cost + C.quotaNow() * .4); } // 의뢰는 여기서 사서 저기 판다
       resolve(st);
       for (const gl of C.mainGoals()) { if (gl.pay && gl.pay.k === S.at && !gl.done && S.gold >= gl.pay.n + (quotaSoon() ? C.quotaNow() : 0)) C.mainPay(S.at); if (gl.deliver && gl.deliver.k === S.at) C.mainDeliver(S.at); }
       if (C.mainGoals().some(gl => !gl.done && gl.text.includes('홍려관')) && S.at === 'hakata' && S.slots.length) { const r = C.useSpecial('hakata'); if (!r.ok) st.msgs.push('bulk:' + r.text); }
@@ -47,7 +47,7 @@ function play(cap, diff, plan) {
       const here = S.at; C.tickMarket(here); let best = null;
       for (const id of S.markets[here].stock) { const bp = C.buyPrice(here, id); for (const d of PORT_IDS) { if (d === here || !S.known[d]) continue; const inf = C.infoFor(d, id); if (!inf) continue; const p = C.plan(d); if (!p || p.closedPort) continue; const gg = (inf.price - bp) * C.LOT / Math.max(3, p.days); if (!best || gg > best.g) best = { id, d, g: gg, days: p.days }; } }
       // 의뢰 물건
-      for (const o of S.orders) { const have = S.slots.filter(x => x.id === o.good).length; if (have < o.n && S.markets[here].stock.includes(o.good)) for (let i = have; i < o.n; i++) C.buy(o.good); }
+      for (const o of S.orders) if (o.from === here) { const have = S.slots.filter(x => x.id === o.good && x.from === o.from).length; for (let i = have; i < o.n; i++) if (!C.buy(o.good).ok) break; }
       // 본 이야기 납품 물건(비단 3상자)
       for (const gl of C.mainGoals()) if (gl.deliver && !gl.done && S.markets[here].stock.includes(gl.deliver.good) && here !== gl.deliver.k) { const have = S.slots.filter(x => x.id === gl.deliver.good).length; for (let i = have; i < gl.deliver.n; i++) if (!C.buy(gl.deliver.good).ok) break; }
       // 해전 스팟(노예선 무리·관군 수군)
@@ -55,7 +55,7 @@ function play(cap, diff, plan) {
       // 1막 해적 만남: 범이 장면(bumHunt)이 없으면 해적 해역을 지나는 길을 고른다
       const wantPirate = C.mainGoals().some(gl => !gl.done && gl.text.includes('해적을 한 번'));
       const court = S.cap !== 'tomo' && (S.threat >= 60 || (calmGoal && S.threat >= 40)) && !C.canTribute() ? ['cheonghae', 'ulsan'].filter(k => S.known[k] && k !== here).sort((a, b) => Math.hypot(PORTS[a].x - S.x, PORTS[a].y - S.y) - Math.hypot(PORTS[b].x - S.x, PORTS[b].y - S.y))[0] : null;
-      const tk = court || goalPort(); const ready = S.orders.find(o => S.slots.filter(x => x.id === o.good).length >= o.n);
+      const tk = court || goalPort(); const ready = S.orders.find(o => S.slots.filter(x => x.id === o.good && x.from === o.from).length >= o.n);
       let dest = tk && tk !== here ? tk : ready ? ready.to : (best && best.g > 0 ? best.d : null);
       if (!dest) { const fameNeed = C.mainGoals().some(gl => !gl.done && gl.text.startsWith('명성')); const und = PORT_IDS.filter(k => S.known[k] && !S.docked[k] && k !== here); dest = (fameNeed && und.length) ? und[0] : pick(PORT_IDS.filter(k => k !== here && S.known[k])); }
       if (best && best.g > 0 && best.d === dest) while (C.freeSlots() && S.gold >= C.cratePrice(here, best.id) + (quotaSoon() ? C.quotaNow() * .3 : 0)) if (!C.buy(best.id).ok) break;
@@ -68,7 +68,7 @@ function play(cap, diff, plan) {
       if (!S.rowing && S.stamina > 60 && Math.abs(S.windDeg || 0) > 100) C.setRow(true); const out = C.update(.5);
       for (const o of out) { if (o.type === 'event') { const ev = o.ev; const i = ev.id === 'pirate' ? (S.hull > S.hullMax * .5 ? 0 : 1) : ev.id === 'captives' ? 0 : ev.id === 'storm' ? 1 : 0; C.choose(Math.min(i, ev.opts.length - 1)); resolve(st); }
         if (o.type === 'quota') onQuota(o.res); if (o.type === 'battle' || o.type === 'dive') resolve(st);
-        if (o.type === 'arrive') { const keep = o.info.items.filter(x => x.profit < 0 && x.cost > 0).map(x => x.i); for (const od of S.orders) { let n = 0; S.slots.forEach((s, i) => { if (s.id === od.good && n < od.n && !keep.includes(i)) { keep.push(i); n++; } }); }
+        if (o.type === 'arrive') { const keep = o.info.items.filter(x => x.profit < 0 && x.cost > 0).map(x => x.i); for (const od of S.orders) { let n = 0; S.slots.forEach((s, i) => { if (s.id === od.good && s.from === od.from && n < od.n && !keep.includes(i)) { keep.push(i); n++; } }); }
           for (const gl of C.mainGoals()) if (gl.deliver && !gl.done) S.slots.forEach((s, i) => { if (s.id === gl.deliver.good && !keep.includes(i)) keep.push(i); });
           if (C.mainGoals().some(gl => !gl.done && gl.text.includes('홍려관')) && S.at === 'hakata') S.slots.forEach((s, i) => { if (!keep.includes(i)) keep.push(i); });
           C.sellAll(keep); } } }
