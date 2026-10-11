@@ -677,7 +677,7 @@ function collectQuota() { // 계절 끝. 반환: {ok, amount, short, seized, deb
   if (S.gold < due) { // 못 냈다. 빚으로 넘길 수 있으면 넘긴다: 모자란 돈의 1.3배가 다음 상납에 얹히고, 특권 하나를 잃고, 경계 +15. 연속으로 또 못 내면 끝
     const short = due - S.gold; S.debtN = (S.debtN || 0) + 1;
     if (S.debtN > debtsAllowed()) { S.ended = 'quota'; return { ok: false, amount: due, short, seized }; }
-    S.paid += S.gold; acct('quota', S.gold); S.gold = 0; S.debt = Math.round(short * 1.3 / 100) * 100; let lostBoon = null; const w = wages(), left = payWages();
+    S.paid += S.gold; acct('quota', S.gold); S.gold = 0; S.debt = Math.min(Math.round(quotaCap() * .5 / 100) * 100, Math.round(short * 1.3 / 100) * 100); let lostBoon = null; const w = wages(), left = payWages(); // 빚도 배가 벌 수 있는 만큼(상한의 절반)까지만 얹힌다
     const have = Object.keys(S.boons).filter(id => S.boons[id] > 0); if (have.length) { lostBoon = pick(have); S.boons[lostBoon]--; if (S.boons[lostBoon] <= 0) delete S.boons[lostBoon]; if (lostBoon === 'hull') { S.hullMax -= 40; S.hull = Math.min(S.hull, S.hullMax); } if (lostBoon === 'relief') S.relief = Math.max(0, S.relief - 1); }
     S.threat = Math.min(threatMax(), S.threat + 15); restage(); S.quotaN++; S.nextDue += 90; if (S.quotaN % 4 === 0) S.stats.years++; closeSeason(); S.redrew = false;
     return { ok: true, amount: due, short, seized, debt: S.debt, debtN: S.debtN, debtsLeft: debtsAllowed() - S.debtN, lostBoon, next: quotaNow(), year: S.quotaN % 4 === 0, wages: w, left: left.map(m => m.name), report: S.stats.lastSeason }; }

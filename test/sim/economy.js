@@ -36,7 +36,7 @@ function play(style,diff){
       for(const o of S.orders){if(o.from===here||true){const have=S.slots.filter(s=>s.id===o.good).length;if(have<o.n&&S.markets[here].stock.includes(o.good))for(let i=have;i<o.n;i++)C.buy(o.good);}}
       const ready=S.orders.find(o=>S.slots.filter(s=>s.id===o.good).length>=o.n);const dest=(ready&&(wantOrders()||Math.random()<.5))?ready.to:(S.orders.length&&Math.random()<.5)?S.orders[0].to:(best&&best.g>0?best.d:PORT_IDS.filter(k=>k!==here&&S.known[k])[Math.floor(Math.random()*5)]);
       // 상납 날이 가까우면(HUD 예측을 읽는 사람처럼) 상납금은 남겨 두고 산다. 짐은 7할에 압류되니 그만큼은 쳐준다
-      const reserve=C.daysToDue()<22?Math.max(0,C.quotaNow()-S.slots.reduce((a,x)=>a+x.cost*.7,0)):0;
+      const reserve=C.daysToDue()<35?Math.max(0,C.quotaNow()-S.slots.reduce((a,x)=>a+x.cost*.7,0)):0;
       if(best&&best.g>0)while(C.freeSlots()&&S.gold>=C.cratePrice(here,best.id)+reserve)if(!C.buy(best.id).ok)break;
       if(style!=='lazy'&&Math.random()<.35){const tg=S.bounty&&!(S.bounty.cool>S.t)?S.bounty:S.maps[0];if(tg){const p=C.plan({x:tg.x,y:tg.y});if(p&&!p.closedPort){HUNT++;C.depart(p);continue;}}}
       if(style!=='lazy'&&Math.random()<.4){const gs=C.mainGoals().filter(g=>!g.done);let tk=null;for(const g of gs){if(g.k)tk=g.k;if(g.pay&&S.gold>g.pay.n)tk=g.pay.k;if(g.text.includes('들른다')){const ks=['mizhou','chuzhou','deungju'].filter(k=>!S.main.visits[k]);if(ks.length)tk=ks[0];}if(g.spot){const sp=C.mainSpots()[0];if(sp){const pp=C.plan({x:sp.x,y:sp.y});if(pp){C.depart(pp);tk='__';break;}}}}
