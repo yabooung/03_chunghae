@@ -30,7 +30,7 @@ const saveMeta = () => { try { localStorage.setItem(MKEY, JSON.stringify(META));
 /* 움직임 줄이기: 메뉴에서 고른 값(META.rm)이 기기 설정보다 앞선다. body.rm / body.rm-off 로 CSS 움직임도 함께 멈추거나 되살린다 */
 function setRM(v, keep) { if (!keep) { META.rm = v; saveMeta(); } RM = v; document.body.classList.toggle('rm', v); document.body.classList.toggle('rm-off', META.rm === false); const st = $('mMotionSt'); if (st) st.textContent = v ? '켬' : '끔'; }
 if (META.rm != null) setRM(!!META.rm, true);
-function saveGame() { const s = S(); if (!s || s.ended || s.mode !== 'port' || s.draft) return; try { localStorage.setItem(KEY, C.saveData()); } catch (e) {} }
+function saveGame() { const s = S(); if (!s || s.ended || (s.mode !== 'port' && s.mode !== 'sea') || s.draft) return; try { localStorage.setItem(KEY, C.saveData()); } catch (e) {} } // 항구와 바다 위(닻 내림)에서 저장한다
 function hasSave() { try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); return !!(d && d.v === 8 && !d.ended); } catch (e) { return false; } }
 function loadGame() { try { return !!C.loadData(localStorage.getItem(KEY)); } catch (e) { return false; } } // 난이도가 없던 옛 저장은 바람으로 읽힌다
 const dropSave = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
@@ -690,7 +690,7 @@ function openQuota(res) {
     AU.drum(); const lb = res.lostBoon && C.BOONS.find(x => x.id === res.lostBoon);
     $('qCard').innerHTML = `<span class="q-stamp" aria-hidden="true">債</span><div class="eyebrow">${season} 상납 · ${C.dateStr(s.t)}</div><h2>${C.cap().quotaName} <span class="num">${fmt(res.amount)}</span>냥을 못 냈다</h2>
       <p>${res.seized ? `짐을 7할 값(${fmt(res.seized)}냥)에 넘기고도 ` : ''}<b class="dn">${fmt(res.short)}냥이 모자랐다.</b> ${res.keep ? `뱃삯 ${fmt(res.keep)}냥만 남기고 가진 돈을 다 거두어 갔다.` : '가진 돈은 다 거두어 갔다.'} 모자란 돈의 1.3배, <b class="num">${fmt(res.debt)}냥</b>이 다음 상납에 얹힌다.${lb ? ` 특권 <b>${lb.name}</b>${JO(lb.name, '을', '를')} 빼앗겼다.` : ''} 경계 +15.${common}</p>
-      <p class="dn"><b>${res.debtsLeft > 0 ? `한 번 더 못 내면 끝이다.` : `다음 상납을 못 내면 끝이다.`}</b> 다음 상납은 <b class="num">${fmt(res.next)}냥</b>, ${Math.round(C.daysToDue())}일 뒤.</p>
+      <p class="dn"><b>${res.debtsLeft > 0 ? `한 번 더 못 내면 끝이다.` : `다음 상납을 못 내면 끝이다.`}</b> 다음 상납은 <b class="num">${fmt(res.next)}냥</b>, ${Math.round(C.daysToDue())}일 뒤. 빚진 계절에는 특권 뽑기가 없다.</p>
       ${reportHtml(res.report)}${curveHtml()}<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn main" id="qOk">알겠다</button></div>`;
     $('mQuota').hidden = false; $('qOk').focus({ preventScroll: true });
     $('qOk').onclick = () => { $('mQuota').hidden = true; banner('債', `빚 ${fmt(res.debt)}냥 — 다음 상납에 얹힌다`); paintHud(); if (S().mode === 'port') { paintPanel(); saveGame(); runStories(); } }; return; }
@@ -778,7 +778,7 @@ function openBattle() { const s = S(), B = s.battle; if (!B) return; hideDest();
   $('btCard').innerHTML = `<div class="eyebrow">해전 · ${C.dateStr(s.t)}</div><div class="bt-head">${B.e.boss && PORTRAIT.has(B.e.boss) ? `<span class="bseal pt">${PORTRAIT.svg(B.e.boss, { size: 72, frame: 'seal' })}</span>` : `<span class="bseal ${B.e.boss ? 'boss' : ''}">${B.e.ch}</span>`}<div><h2>${B.e.name}</h2><small>${B.e.boss ? '현상 수배 두목 · ' : ''}${B.e.line || '평범한 해적'}</small></div></div>
     <canvas id="btCv" aria-hidden="true"></canvas><div class="bt-bars"><div class="hb me"><span>내 배</span><s><i class="ghost" id="btMeG"></i><i id="btMe"></i></s><b id="btMeN"></b></div><div class="hb foe"><span>${B.e.name}</span><s><i class="ghost" id="btFoeG"></i><i id="btFoe"></i></s><b id="btFoeN"></b></div></div>
     <div class="bt-intent" id="btIntent" aria-live="polite"></div><div class="bt-log" id="btLog">${B.e.taunt || (B.e.boss ? '두목의 배가 앞을 막아선다. 도망칠 생각은 없어 보인다.' : '적이 다가온다. 저쪽의 다음 수를 읽고 맞받아라.')}</div>
-    <div class="bt-acts" id="btActs"></div><div class="bt-foot"><span class="stam">기력 <s><i id="btSt"></i></s></span><button class="btn danger" id="btGive">${s.slots.length ? `상자 하나 내주고 빠진다 <small>(${s.slots.length}상자 중 하나)</small>` : `통행료 ${won(Math.min(s.gold, 1200 + 400 * s.tier))} 내고 빠진다`}</button></div>`;
+    <div class="bt-acts" id="btActs"></div><div class="bt-foot"><span class="stam">기력 <s><i id="btSt"></i></s></span><button class="btn danger" id="btGive">${s.slots.length ? `상자 하나 내주고 빠진다 <small>(${s.slots.length}상자 중 하나)</small>` : `통행료 ${won(Math.min(s.gold, C.tollCap()))} 내고 빠진다`}</button></div>`;
   $('mBattle').hidden = false; BT.open = true; requestAnimationFrame(() => { btLayout(); paintBattle(); });
   $('btGive').onclick = () => { if (!confirmTap($('btGive'), s.slots.length ? '정말 내준다' : '정말 낸다')) return; battleDo('surrender'); }; }
 function paintBattle() { const s = S(), B = s.battle; if (!B) return; const pct = (v, m) => Math.max(0, Math.min(100, v / m * 100)) + '%';
@@ -1027,7 +1027,7 @@ function handle(out) {
     if (o.type === 'explored') { showSailbar(); toast('바다 한가운데 닻을 내렸다. 지도를 눌러 다음 행선지를 고르자.'); saveGame(); }
     if (o.type === 'quota') openQuota(o.res);
     if (o.type === 'news') { const n = o.news; AU.chime(); banner('報', n.title); journal(n.title + ' — ' + n.text, n.closed || n.zone || n.storm || n.tax ? 'bad' : 'good', { c: 'news', h: `<b>${n.title}</b> — ${n.text}` }); if (FEED.min || NARROW()) toast(`<b>${n.title}</b><br>${n.text}`, n.closed || n.zone || n.storm || n.tax ? 'bad' : 'good', true); if (n.k) rumorPulse[n.k] = performance.now(); if (n.closed) rumorPulse[n.closed] = performance.now(); if (s.mode === 'port') paintPanel(); }
-    if (o.type === 'region') { AU.pay(); banner('圖', `${o.region}를 다 그렸다`); toast(`<b>${o.region}</b>의 발견을 모두 찾았다 — +${fmt(o.gold)}냥 · 명성 +100${o.map ? ` · 寶 ${o.map.name}` : ''}`, 'good'); if (o.map) mapAppear[o.map.id] = performance.now(); }
+    if (o.type === 'region') { AU.pay(); banner('圖', `${o.region}를 다 그렸다`); toast(`<b>${o.region}</b>의 발견을 모두 찾았다 — +${fmt(o.gold)}냥 · 명성 +100${o.map ? ` · 寶 ${o.map.name}${o.map.replaced ? ` (${o.map.replaced} 해도는 버렸다)` : ''}` : ''}`, 'good'); if (o.map) mapAppear[o.map.id] = performance.now(); }
     if (o.type === 'battle') openBattle();
     if (o.type === 'dive') openDive();
     if (o.type === 'map') { mapAppear[o.map.id] = performance.now(); toast(`<b>${o.from}</b>에서 낡은 해도를 주웠다 — 寶 <b>${o.map.name}</b>`, 'good'); }

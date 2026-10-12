@@ -152,6 +152,21 @@ const endIds = new Set(Object.keys(C.ENDINGS)); ok(endIds.size >= 10, `결말 ${
     S.at = 'naniwa'; S.quests.yeomju = { step: 3, done: true }; S.quests.wangmungu = { step: 3, done: true }; C.startQuest('court'); S.quests.court.step = 2; C.questEval(); const ct = S.boons.court === 1 && S.threat === t0 - 15 && S.flags.courtAnswer === 1;
     ok(d1 && s1 && s2 && hull && rev && ct, `새 목표·보상 — 잠수 ${d1 ? '○' : '×'} 납품 ${s1 ? '○' : '×'} 특별 거래 ${s2 ? '○' : '×'} 선체·깃발 ${hull ? '○' : '×'} 숨은 항구 ${rev ? '○' : '×'} 특권·경계 ${ct ? '○' : '×'}`); } }
 
+// 10. 사양서 대조로 잡은 것들: 통행료 상한 한 곳 · 상납 감면 바닥 · 보상 해도는 사라지지 않는다 · 수군 승리만 센다 · 흑기 둘째 배도 식는다 · 시주 반값
+{ const S = C.newGame('gungbok', 'baram'); const t0 = C.tollCap(); S.tier = 1; const t1 = C.tollCap(); S.tier = 0;
+  ok(t0 === 600 && t1 === 1600, `통행료 상한 어선 ${t0} · 1급 ${t1} (해전 카드도 같은 함수)`);
+  S.relief = 9; const q = C.quotaNow(); S.relief = 0; const q0 = C.quotaNow();
+  ok(q > 0 && q >= Math.round(q0 * .25 / 100) * 100 - 100, `상납 감면 9장이어도 상납 ${q}냥 (바닥 25%)`);
+  while (S.maps.length < 3) C.addMap(1); const n0 = C.addMap(1), m3 = C.addMap(3, { force: true, name: '시험 보물' });
+  ok(n0 === null && m3 && S.maps.length === 3 && m3.replaced && S.maps.some(m => m.lv === 3), `해도 셋일 때 — 보통 해도는 안 받고(${n0 === null ? '○' : '×'}), 보상 해도는 ${m3 ? m3.replaced + '을 밀어내고' : '×'} 들어온다`);
+  S.rivals.push({ id: 'black2', at: null, x: 0, y: 0, cool: 0, chasing: true });
+  const fight = spec => { C.makeBattle(spec); for (let i = 0; i < 40 && S.battle && !S.battle.over; i++) { const o = C.battleOpts().find(x => !/surrender|flee|run/.test(x.id)) || C.battleOpts()[0]; C.battleAct(o.id); } const r = S.battle && S.battle.over; C.battleClose(); return r; };
+  const w1 = fight({ kind: 'navy', name: '관군', ch: '官', g: 'archer', hp: 1, atk: 1 }), w2 = fight({ kind: 'plain', name: '잡배', hp: 1, atk: 1 }), w3 = fight({ kind: 'black', rid: 'black2', name: '흑기', hp: 1, atk: 1 });
+  const b2 = S.rivals.find(r => r.id === 'black2');
+  ok(w1 === 'win' && w2 === 'win' && w3 === 'win' && S.stats.navyWins === 1 && S.stats.wins === 3 && b2.cool === 40 && !b2.chasing, `수군 승리 ${S.stats.navyWins}/전체 ${S.stats.wins} (수군만 센다) · 흑기 둘째 배 냉각 ${b2.cool}`);
+  const idx = C.ARCS.gungbok.acts.findIndex(a => a.title === '적산 법화원'); S.main.act = idx; S.main.started = true; S.main.flags.temple_half = true; S.main.visits = {}; S.main.paid = {};
+  const g = C.mainGoals().find(x => x.pay); ok(idx >= 0 && g && g.pay.n === 6000, `시주 반값 선택이면 법화원 시주 ${g && g.pay.n}냥`); }
+
 // 6. 한 파일 빌드에 넣는 글꼴이 게임 글자를 모두 덮는다 (글을 고치면 python tools/fonts.py)
 { const fs = require('fs'), path = require('path'), root = path.join(__dirname, '..');
   const have = new Set([...fs.readFileSync(path.join(root, 'assets/fonts/charset.txt'), 'utf8')]), SYS = new Set([...'≈═✓']);
